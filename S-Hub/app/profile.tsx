@@ -1,9 +1,16 @@
 import { COLORS } from '@/constants/theme';
-import { useUnreadMessages } from '@/contexts/unread-messages';
+import { useThemeColors } from '@/context/ThemeContext';
+import ScreenContent from '@/components/ScreenContent';
+import CustomerNav from '@/components/CustomerNav';
+import { getMyProfile, Profile } from '@/lib/api/profiles';
+import { signOut } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   ScrollView,
@@ -16,8 +23,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, clearAuthSession } from '../lib/api';
-import { disconnectMessagingSocket } from '../lib/messaging';
+
+function initialsOf(name: string): string {
+  return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+}
 
 /* ─── Types ─── */
 type MenuItemProps = {
@@ -30,21 +39,21 @@ type MenuItemProps = {
 };
 
 /* ─── Reusable menu row ─── */
-function MenuItem({ icon, label, subtitle, onPress, right, danger }: MenuItemProps) {
+function MenuItem({ icon, label, subtitle, onPress, right, danger, cardBg, textColor, subColor }: MenuItemProps & { cardBg: string; textColor: string; subColor: string }) {
   return (
     <TouchableOpacity
-      style={mi.row}
+      style={[mi.row, { backgroundColor: cardBg }]}
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
       <View style={mi.iconWrap}>{icon}</View>
       <View style={mi.textGroup}>
-        <Text style={[mi.label, danger && mi.labelDanger]}>{label}</Text>
-        {subtitle ? <Text style={mi.subtitle}>{subtitle}</Text> : null}
+        <Text style={[mi.label, { color: textColor }, danger && mi.labelDanger]}>{label}</Text>
+        {subtitle ? <Text style={[mi.subtitle, { color: subColor }]}>{subtitle}</Text> : null}
       </View>
       {right ?? (
         onPress
-          ? <Ionicons name="chevron-forward" size={18} color="#BBBBBB" />
+          ? <Ionicons name="chevron-forward" size={18} color={COLORS.muted} />
           : null
       )}
     </TouchableOpacity>
@@ -57,319 +66,269 @@ const mi = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#fff',
     gap: 16,
   },
   iconWrap: { width: 24, alignItems: 'center' },
   textGroup: { flex: 1 },
-  label: { fontSize: 15, fontWeight: '500', color: '#1A1A1A' },
+  label: { fontSize: 15, fontWeight: '500' },
   labelDanger: { color: COLORS.danger },
-  subtitle: { fontSize: 12, color: COLORS.primary, marginTop: 2, fontWeight: '500' },
+  subtitle: { fontSize: 12, marginTop: 2, fontWeight: '500', color: COLORS.primary },
 });
 
 /* ─── Section wrapper ─── */
-function Section({ children }: { children: React.ReactNode }) {
-  return <View style={sec.wrap}>{children}</View>;
+function Section({ children, borderColor }: { children: React.ReactNode; borderColor: string }) {
+  return <View style={[sec.wrap, { borderColor }]}>{children}</View>;
 }
 
 const sec = StyleSheet.create({
   wrap: {
-    backgroundColor: '#fff',
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#F0F0F0',
     marginBottom: 10,
   },
 });
 
 /* ─── Divider ─── */
-function Divider() {
-  return <View style={{ height: 1, backgroundColor: '#F5F5F5', marginLeft: 60 }} />;
+function Divider({ color }: { color: string }) {
+  return <View style={{ height: 1, backgroundColor: color, marginLeft: 60 }} />;
 }
 
 /* ─── Main Screen ─── */
 export default function ProfileScreen() {
-  const { unreadCount } = useUnreadMessages();
   const [notifications, setNotifications] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState({ posted: 0, completed: 0 });
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [emailVerified, setEmailVerified] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const T = useThemeColors();
+
+  const iconSize = 20;
+  const iconColor = T.icon;
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      async function loadProfile() {
-        try {
-          const res = await api.getMe();
-          if (active && res?.user) {
-            setUser(res.user);
-          }
-        } catch (err) {
-          console.error('Failed to fetch user:', err);
+      let cancelled = false;
+      (async () => {
+        const [profileResult, authResult] = await Promise.all([
+          getMyProfile(),
+          supabase.auth.getUser(),
+        ]);
+        if (cancelled) return;
+        if (!profileResult.success) {
+          router.replace('/sign-in' as any);
+          return;
         }
-      }
-      async function loadStats() {
-        try {
-          const res = await api.getMyBookings({ per_page: 100 });
-          if (!active) return;
-          const items = res.items || [];
-          setStats({
-            posted: items.length,
-            completed: items.filter((b: any) => b.status === 'completed').length,
-          });
-        } catch (err) {
-          if (active) setStats({ posted: 0, completed: 0 });
-        }
-      }
-      loadProfile();
-      loadStats();
-      return () => {
-        active = false;
-      };
+        setProfile(profileResult.data ?? null);
+        setEmailVerified(!!authResult.data.user?.email_confirmed_at);
+        setLoading(false);
+      })();
+      return () => { cancelled = true; };
     }, [])
   );
 
-  const getInitials = (name?: string) => {
-    return (name || '')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part[0])
-      .join('')
-      .toUpperCase() || 'U';
-  };
-
-  const iconSize = 20;
-  const iconColor = '#444444';
+  if (loading || !profile) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFAF5" />
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+      <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* ── HERO / NAME CARD ── */}
-        <View style={styles.heroCard}>
-          {/* Avatar */}
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarInitials}>{getInitials(user?.full_name)}</Text>
+        {/* Content capped and centered the same way as sign-up.tsx / sign-in.tsx */}
+        <ScreenContent>
+          {/* ── HERO / NAME CARD ── */}
+          <View style={[styles.heroCard, { backgroundColor: T.card }]}>
+            {/* Avatar */}
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.cameraBtn}
+                activeOpacity={0.8}
+                onPress={() => router.push('/profile-edit' as any)}
+              >
+                <Ionicons name="camera" size={15} color="#fff" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.cameraBtn}
-              activeOpacity={0.8}
+
+            {/* Name + rating */}
+            <View style={styles.heroInfo}>
+              <Text style={[styles.heroName, { color: T.text }]}>{profile.full_name || 'Add your name'}</Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={15} color={COLORS.accent} />
+                <Text style={[styles.ratingText, { color: T.text }]}> {profile.rating_avg.toFixed(2)}</Text>
+                <TouchableOpacity onPress={() => Alert.alert('Rating', `Based on your last ${profile.rating_count} jobs.`)}>
+                  <Ionicons name="information-circle-outline" size={16} color={T.subText} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* ── STATS STRIP ── */}
+          <View style={[styles.statsStrip, { backgroundColor: T.card, borderColor: T.border }]}>
+            {[
+              { value: '12', label: 'Jobs Posted' },
+              { value: '8', label: 'Completed' },
+              { value: '3', label: 'Saved' },
+            ].map((stat, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[styles.statItem, i < 2 && [styles.statBorder, { borderColor: T.border }]]}
+                onPress={() => router.push('/bookings' as any)}
+                activeOpacity={0.65}
+              >
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={[styles.statLabel, { color: T.subText }]}>{stat.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* ── SECTION 1: Account ── */}
+          <Section borderColor={T.border}>
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={COLORS.primary}
+              icon={<Ionicons name="person-circle-outline" size={iconSize} color={iconColor} />}
+              label="Profile"
+              subtitle={emailVerified ? undefined : 'Verify email address'}
               onPress={() => router.push('/profile-edit' as any)}
-            >
-              <Ionicons name="camera" size={15} color="#fff" />
-            </TouchableOpacity>
-          </View>
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={COLORS.primary}
+              icon={<Ionicons name="help-circle-outline" size={iconSize} color={iconColor} />}
+              label="Support"
+              onPress={() => router.push('/support' as any)}
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={COLORS.primary}
+              icon={<MaterialCommunityIcons name="shield-check-outline" size={iconSize} color={iconColor} />}
+              label="Safety"
+              onPress={() => router.push('/safety' as any)}
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={COLORS.primary}
+              icon={<Ionicons name="location-outline" size={iconSize} color={iconColor} />}
+              label="Saved Locations"
+              onPress={() => router.push('/saved-locations' as any)}
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={COLORS.primary}
+              icon={<Ionicons name="settings-outline" size={iconSize} color={iconColor} />}
+              label="Settings"
+              onPress={() => router.push('/settings' as any)}
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={COLORS.primary}
+              icon={<Ionicons name="notifications-outline" size={iconSize} color={iconColor} />}
+              label="Notifications"
+              right={
+                <Switch
+                  value={notifications}
+                  onValueChange={setNotifications}
+                  trackColor={{ false: '#E0E0E0', true: COLORS.primary }}
+                  thumbColor="#fff"
+                />
+              }
+            />
+          </Section>
 
-          {/* Name + rating */}
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroName}>{user?.full_name || 'Loading...'}</Text>
-            {user?.email ? (
-              <Text style={styles.heroEmail}>{user.email}</Text>
-            ) : null}
-          </View>
-        </View>
+          {/* ── SECTION 2: Features ── */}
+          <Section borderColor={T.border}>
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<MaterialCommunityIcons name="tag-outline" size={iconSize} color={iconColor} />}
+              label="Promotions"
+              subtitle="Promo codes, offers and savings"
+              onPress={() => router.push('/promotions' as any)}
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<MaterialCommunityIcons name="briefcase-plus-outline" size={iconSize} color={iconColor} />}
+              label="Post a Job"
+              subtitle="Find skilled workers near you"
+              onPress={() => router.push('/post-a-job' as any)}
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<MaterialCommunityIcons name="account-hard-hat-outline" size={iconSize} color={iconColor} />}
+              label="Worker Profile"
+              subtitle="Offer your services and earn"
+              onPress={() => router.push('/worker-gate' as any)}
+            />
+          </Section>
 
-        {/* ── STATS STRIP ── */}
-        <View style={styles.statsStrip}>
-          {[
-            { value: String(stats.posted), label: 'Jobs Posted' },
-            { value: String(stats.completed), label: 'Completed' },
-          ].map((stat, i, arr) => (
-            <TouchableOpacity
-              key={i}
-              style={[styles.statItem, i < arr.length - 1 && styles.statBorder]}
-              onPress={() => router.push('/bookings' as any)}
-              activeOpacity={0.65}
-            >
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          {/* ── SECTION 3: App info ── */}
+          <Section borderColor={T.border}>
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<Ionicons name="star-outline" size={iconSize} color={iconColor} />}
+              label="Rate the App"
+              onPress={() =>
+                Linking.openURL('https://play.google.com/store/apps').catch(() =>
+                  Alert.alert('Rate', 'Could not open the app store. Please search for "AdwumaGo" manually.')
+                )
+              }
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<Ionicons name="share-social-outline" size={iconSize} color={iconColor} />}
+              label="Share with Friends"
+              onPress={() =>
+                Share.share({
+                  title: 'AdwumaGo – Hire Skilled Workers in Ghana',
+                  message: 'Need a plumber, electrician or carpenter? Download AdwumaGo and find trusted workers near you in minutes! 🇬🇭\nhttps://adwumago.com.gh',
+                })
+              }
+            />
+            <Divider color={T.divider} />
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<Ionicons name="document-text-outline" size={iconSize} color={iconColor} />}
+              label="Terms & Privacy Policy"
+              onPress={() => router.push('/terms' as any)}
+            />
+          </Section>
 
-        {/* ── SECTION 1: Account ── */}
-        <Section>
-          <MenuItem
-            icon={<Ionicons name="person-circle-outline" size={iconSize} color={iconColor} />}
-            label="Profile"
-            subtitle={user?.email || "Verify email address"}
-            onPress={() => router.push('/profile-edit' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="card-outline" size={iconSize} color={iconColor} />}
-            label="Payment Methods"
-            onPress={() => router.push('/payment' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="help-circle-outline" size={iconSize} color={iconColor} />}
-            label="Support"
-            onPress={() => router.push('/support' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<MaterialCommunityIcons name="shield-check-outline" size={iconSize} color={iconColor} />}
-            label="Safety"
-            onPress={() => router.push('/safety' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="location-outline" size={iconSize} color={iconColor} />}
-            label="Saved Locations"
-            onPress={() => router.push('/saved-locations' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="settings-outline" size={iconSize} color={iconColor} />}
-            label="Settings"
-            onPress={() => router.push('/settings' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="notifications-outline" size={iconSize} color={iconColor} />}
-            label="Notifications"
-            right={
-              <Switch
-                value={notifications}
-                onValueChange={setNotifications}
-                trackColor={{ false: '#E0E0E0', true: COLORS.primary }}
-                thumbColor="#fff"
-              />
-            }
-          />
-        </Section>
+          {/* ── SIGN OUT ── */}
+          <Section borderColor={T.border}>
+            <MenuItem cardBg={T.card} textColor={T.text} subColor={T.subText}
+              icon={<Ionicons name="log-out-outline" size={iconSize} color={COLORS.danger} />}
+              label="Sign Out"
+              danger
+              onPress={() =>
+                Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign Out', style: 'destructive', onPress: async () => {
+                      await signOut();
+                      router.replace('/sign-in' as any);
+                    },
+                  },
+                ])
+              }
+            />
+          </Section>
 
-        {/* ── SECTION 2: Features ── */}
-        <Section>
-          <MenuItem
-            icon={<MaterialCommunityIcons name="tag-outline" size={iconSize} color={iconColor} />}
-            label="Promotions"
-            subtitle="Promo codes, offers and savings"
-            onPress={() => router.push('/promotions' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<MaterialCommunityIcons name="briefcase-plus-outline" size={iconSize} color={iconColor} />}
-            label="Post a Job"
-            subtitle="Find skilled workers near you"
-            onPress={() => router.push('/post-job' as any)}
-          />
-          <Divider />
-          <MenuItem
-            icon={<MaterialCommunityIcons name="account-hard-hat-outline" size={iconSize} color={iconColor} />}
-            label="Worker Profile"
-            subtitle="Offer your services and earn"
-            onPress={() => router.push('/worker-setup' as any)}
-          />
-        </Section>
-
-        {/* ── SECTION 3: App info ── */}
-        <Section>
-          <MenuItem
-            icon={<Ionicons name="star-outline" size={iconSize} color={iconColor} />}
-            label="Rate the App"
-            onPress={() =>
-              Linking.openURL('https://play.google.com/store/apps').catch(() =>
-                Alert.alert('Rate', 'Could not open the app store. Please search for "Vaker" manually.')
-              )
-            }
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="share-social-outline" size={iconSize} color={iconColor} />}
-            label="Share with Friends"
-            onPress={() =>
-              Share.share({
-                title: 'Vaker – Hire Skilled Workers in Ghana',
-                message: 'Need a plumber, electrician or carpenter? Download Vaker and find trusted workers near you in minutes! 🇬🇭\nhttps://vaker.com.gh',
-              })
-            }
-          />
-          <Divider />
-          <MenuItem
-            icon={<Ionicons name="document-text-outline" size={iconSize} color={iconColor} />}
-            label="Terms & Privacy Policy"
-            onPress={() => router.push('/terms' as any)}
-          />
-        </Section>
-
-        {/* ── SIGN OUT ── */}
-        <Section>
-          <MenuItem
-            icon={<Ionicons name="log-out-outline" size={iconSize} color={COLORS.danger} />}
-            label="Sign Out"
-            danger
-            onPress={() =>
-              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => { disconnectMessagingSocket(); clearAuthSession(); router.replace('/login'); } },
-              ])
-            }
-          />
-        </Section>
-
-        {/* App version */}
-        <Text style={styles.version}>Vaker v1.0.0 · Made in Ghana 🇬🇭</Text>
-
+          {/* App version */}
+          <Text style={styles.version}>AdwumaGo v1.0.0 · Made in Ghana 🇬🇭</Text>
+        </ScreenContent>
       </ScrollView>
 
-      {/* ── BOTTOM NAV ── */}
-      <View style={styles.bottomNav}>
-        {[
-          { icon: 'home-outline', iconActive: 'home', label: 'Home', route: '/(tabs)/home', active: false },
-          { icon: 'briefcase-outline', iconActive: 'briefcase', label: 'Jobs', route: '/bookings', active: false },
-          { icon: 'add', iconActive: 'add', label: '', route: '/post-job', center: true },
-          { icon: 'chatbubble-outline', iconActive: 'chatbubble', label: 'Messages', route: '/messages', active: false },
-          { icon: 'person', iconActive: 'person', label: 'Profile', route: '/profile', active: true },
-        ].map((tab) =>
-          (tab as any).center ? (
-            <TouchableOpacity
-              key="center"
-              style={styles.centerBtn}
-              activeOpacity={0.85}
-              onPress={() => router.push(tab.route as any)}
-            >
-              <Ionicons name="add" size={28} color="#fff" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              key={tab.label}
-              style={styles.navTab}
-              activeOpacity={0.7}
-              onPress={() => router.push(tab.route as any)}
-            >
-              <View>
-                <Ionicons
-                  name={tab.active ? (tab.iconActive as any) : (tab.icon as any)}
-                  size={22}
-                  color={tab.active ? COLORS.primary : COLORS.muted}
-                />
-                {tab.label === 'Messages' && unreadCount > 0 && <View style={styles.navDot} />}
-              </View>
-              <Text style={[styles.navLabel, tab.active && styles.navLabelActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        )}
-      </View>
+      <CustomerNav active="profile" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F5F0' },
+  safe: { flex: 1 },
   scroll: { paddingBottom: 100 },
 
   /* Hero */
   heroCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 18,
@@ -405,30 +364,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.card,
   },
   heroInfo: { flex: 1 },
   heroName: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 2,
+    color: COLORS.text,
+    marginBottom: 5,
     lineHeight: 26,
   },
-  heroEmail: {
-    fontSize: 13,
-    color: COLORS.muted,
-    marginBottom: 6,
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
   },
 
   /* Stats */
   statsStrip: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     marginBottom: 10,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: COLORS.border,
   },
   statItem: {
     flex: 1,
@@ -437,7 +400,7 @@ const styles = StyleSheet.create({
   },
   statBorder: {
     borderRightWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: COLORS.border,
   },
   statValue: {
     fontSize: 20,
@@ -455,64 +418,9 @@ const styles = StyleSheet.create({
   version: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#BBBBBB',
+    color: COLORS.muted,
     marginTop: 10,
     marginBottom: 4,
   },
 
-  /* Bottom nav */
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderColor: '#ECECEC',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 22,
-    paddingTop: 10,
-    paddingHorizontal: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  navTab: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: COLORS.muted,
-  },
-  navLabelActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  navDot: {
-    position: 'absolute',
-    top: -2,
-    right: -6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.danger,
-  },
-  centerBtn: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 8,
-  },
 });

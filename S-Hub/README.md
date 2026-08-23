@@ -10,17 +10,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Configure the API URL
-
-   Copy `.env.example` to `.env.local` and set `EXPO_PUBLIC_API_BASE_URL` for the device you are using:
-
-   ```bash
-   EXPO_PUBLIC_API_BASE_URL=http://localhost:5000/api
-   ```
-
-   Use `http://10.0.2.2:5000/api` for the Android emulator. Use your computer's LAN IP address, such as `http://192.168.1.25:5000/api`, when testing from Expo Go on a physical phone.
-
-3. Start the app
+2. Start the app
 
    ```bash
    npx expo start

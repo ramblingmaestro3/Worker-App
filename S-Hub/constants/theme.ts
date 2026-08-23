@@ -1,37 +1,39 @@
+import { Platform } from 'react-native';
+
 export const COLORS = {
-  // ── Primary Brand ──
-  primary: '#006B3F',  // Ghana green
-  primaryDark: '#004D2C',  // Darker green for pressed states
-  primaryLight: '#E6F4EE',  // Light green for backgrounds
+  // ── Primary Brand (AdwumaGo gold) ──
+  primary: '#F0AE2E',  // Warm amber gold
+  primaryDark: '#C4841A',  // Deeper gold for pressed states / gradients
+  primaryLight: 'rgba(240,174,46,0.16)',  // Translucent gold wash for dark surfaces
 
-  // ── Accent ──
-  accent: '#FCD116',  // Ghana gold
-  accentDark: '#D4A900',  // Darker gold
-  accentLight: '#FFFBEA',  // Light gold for backgrounds
+  // ── Accent (Ghana green) ──
+  accent: '#2FAE60',
+  accentDark: '#1E8A49',
+  accentLight: 'rgba(47,174,96,0.16)',
 
-  // ── Danger / Action ──
-  danger: '#CE1126',  // Ghana red
-  dangerLight: '#FDECEA',  // Light red for backgrounds
+  // ── Danger / Action (Ghana red) ──
+  danger: '#E1293D',
+  dangerLight: 'rgba(225,41,61,0.16)',
 
-  // ── Neutrals ──
-  background: '#FAFAF5',  // Cream white
-  card: '#FFFFFF',  // Pure white cards
-  dark: '#1A1A1A',  // Near black
-  text: '#1A1A1A',  // Primary text
-  muted: '#6B6B6B',  // Secondary text
-  border: '#E8E8E0',  // Borders
-  bgGrey: '#F2F2EC',  // Input backgrounds
+  // ── Neutrals (warm dark) ──
+  background: '#120C09',  // Warm near-black page background
+  card: '#1C130D',  // Elevated warm-dark surface
+  dark: '#F5F1EA',  // Warm off-white — highest-contrast foreground
+  text: '#F5F1EA',  // Primary text
+  muted: '#A99C8E',  // Secondary/muted text
+  border: '#2A2019',  // Subtle warm-dark borders
+  bgGrey: '#231A12',  // Input / subtle-surface background
 
   // ── Status ──
-  success: '#006B3F',  // Same as primary
-  warning: '#FCD116',  // Same as accent
-  error: '#CE1126',  // Same as danger
+  success: '#2FAE60',  // Ghana green
+  warning: '#F0AE2E',  // Gold
+  error: '#E1293D',  // Ghana red
 
   // ── Verified badge ──
-  verified: '#1D9BF0',  // Blue verified tick
+  verified: '#4DA3FF',  // Blue verified tick
 
   // ── Stars ──
-  star: '#FCD116',  // Gold stars — matches accent
+  star: '#F0AE2E',  // Gold stars — matches primary
 };
 
 export const FONTS = {
@@ -70,8 +72,6 @@ export const SHADOWS = {
     elevation: 8,
   },
 };
-
-import { Platform } from 'react-native';
 
 export const Colors = {
   light: {

@@ -18,6 +18,9 @@ export default function ModalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 544,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
