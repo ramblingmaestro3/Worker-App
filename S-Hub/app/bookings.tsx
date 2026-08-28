@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 import CustomerNav from '@/components/CustomerNav';
 import { listMyServiceRequests, ServiceRequest } from '@/lib/api/serviceRequests';
@@ -267,3 +267,4 @@ const styles = StyleSheet.create({
   promoButton: { backgroundColor: '#fff', alignSelf: 'flex-start', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999, marginTop: 12 },
   promoButtonText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
 });
+

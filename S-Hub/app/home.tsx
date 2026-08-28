@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 import CustomerNav from '@/components/CustomerNav';
 import AppMap, { AppMapMarker } from '@/components/AppMap';
@@ -232,3 +232,4 @@ const styles = StyleSheet.create({
   trustTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
   trustBody: { fontSize: 13, lineHeight: 18 },
 });
+

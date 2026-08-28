@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import WorkerNav from '@/components/WorkerNav';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
@@ -231,3 +231,4 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: wms(16), fontWeight: '700' },
   emptySub: { fontSize: wms(12.5), textAlign: 'center', lineHeight: wms(18) },
 });
+

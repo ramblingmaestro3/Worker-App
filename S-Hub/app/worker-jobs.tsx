@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import WorkerNav from '@/components/WorkerNav';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
@@ -232,3 +232,4 @@ const styles = StyleSheet.create({
   statusDot: { width: ws(5), height: ws(5), borderRadius: ws(2.5) },
   statusText: { fontSize: wms(10.5), fontWeight: '700', textTransform: 'capitalize' },
 });
+

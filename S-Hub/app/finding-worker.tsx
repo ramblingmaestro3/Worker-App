@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -338,3 +338,4 @@ const s = StyleSheet.create({
   tipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 12, padding: 14, marginHorizontal: 16, marginTop: 8 },
   tipText: { flex: 1, fontSize: 12, color: COLORS.primary, lineHeight: 18, fontWeight: '500' },
 });
+

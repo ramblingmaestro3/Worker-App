@@ -1,12 +1,12 @@
-import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
-import ScreenContent from '@/components/ScreenContent';
 import CustomerNav from '@/components/CustomerNav';
-import { listMyConversations, ConversationView } from '@/lib/api/bookings';
+import ScreenContent from '@/components/ScreenContent';
+import { COLORS } from '@/constants/theme';
+import { useThemeColors } from '@/contexts/ThemeContext';
+import { ConversationView, listMyConversations } from '@/lib/api/bookings';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,

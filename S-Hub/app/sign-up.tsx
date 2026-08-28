@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { useThemeColors } from '../context/ThemeContext';
+import { useThemeColors } from '../contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { signUpWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';

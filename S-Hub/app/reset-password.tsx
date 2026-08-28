@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { buildRedirectUrl } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
@@ -189,7 +189,7 @@ export default function ResetPasswordScreen() {
               <View style={styles.stepHeader}>
                 <Text style={[styles.title, { color: T.text }]}>Forgot Password?</Text>
                 <Text style={[styles.subtitle, { color: T.subText }]}>
-                  Enter your registered phone number or email and we'll send you a code to reset your password.
+                  Enter your registered phone number or email and we&apos;ll send you a code to reset your password.
                 </Text>
               </View>
 
@@ -314,7 +314,7 @@ export default function ResetPasswordScreen() {
 
               <View style={styles.resendRow}>
                 <TouchableOpacity onPress={handleResendCode} disabled={loading}>
-                  <Text style={styles.resendText}>Didn't get the code? Resend</Text>
+                  <Text style={styles.resendText}>Didn&apos;t get the code? Resend</Text>
                 </TouchableOpacity>
               </View>
 
@@ -333,10 +333,10 @@ export default function ResetPasswordScreen() {
               </View>
               <Text style={[styles.title, { color: T.text }]}>Check Your Email</Text>
               <Text style={[styles.subtitle, { color: T.subText, marginBottom: vs(24) }]}>
-                We've sent a password reset link to {identifier}. Click the link in the email to reset your password.
+                We&apos;ve sent a password reset link to {identifier}. Click the link in the email to reset your password.
               </Text>
               <Text style={[styles.hintText, { color: T.subText, marginBottom: vs(16) }]}>
-                Tip: Check your spam or junk folder if you don't see the email.
+                Tip: Check your spam or junk folder if you don&apos;t see the email.
               </Text>
               <TouchableOpacity style={styles.darkButton} onPress={() => router.replace('/sign-in' as any)} activeOpacity={0.85}>
                 <Text style={styles.darkButtonText}>Back to Login</Text>

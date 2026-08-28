@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 
 export default function VerifiedScreen() {
@@ -26,9 +26,9 @@ export default function VerifiedScreen() {
           <Ionicons name="shield-checkmark" size={wms(56)} color={COLORS.primary} />
         </View>
 
-        <Text style={[styles.title, { color: T.text }]}>You're Verified!</Text>
+        <Text style={[styles.title, { color: T.text }]}>You&apos;re Verified!</Text>
         <Text style={[styles.subtitle, { color: T.subText }]}>
-          Congratulations! You've been approved to work on{' '}
+          Congratulations! You&apos;ve been approved to work on{' '}
           <Text style={{ fontWeight: '800', color: COLORS.primary }}>AdwumaGo</Text>. You can now
           start bidding on jobs.
         </Text>
@@ -49,7 +49,7 @@ export default function VerifiedScreen() {
           <Ionicons name="arrow-forward" size={wms(18)} color="#fff" />
         </TouchableOpacity>
 
-        <Text style={[styles.footerNote, { color: T.subText }]}>Ready to take your first job? Let's go!</Text>
+        <Text style={[styles.footerNote, { color: T.subText }]}>Ready to take your first job? Let&apos;s go!</Text>
       </View>
     </SafeAreaView>
   );

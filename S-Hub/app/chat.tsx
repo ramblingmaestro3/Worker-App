@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { getBookingWithContext, BookingChatContext } from '@/lib/api/bookings';
 import { listMessages, sendMessage, markMessagesRead, Message } from '@/lib/api/messages';
@@ -332,3 +332,4 @@ const s = StyleSheet.create({
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   sendBtnDisabled: { backgroundColor: COLORS.primary + '50' },
 });
+

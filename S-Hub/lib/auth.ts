@@ -169,15 +169,32 @@ export async function signInWithPassword({
 }
 
 /**
- * Routes a just-authenticated user to the correct home screen for their
- * *actual* `profiles.role` — never the role toggle shown on the sign-in/
- * sign-up form, which is only a UI hint and has no bearing on an existing
- * account's real role. Every sign-in/sign-up entry point (password and
- * OAuth, on both screens) must call this so an existing worker account can
- * never land on the client home and vice versa, regardless of which path
- * or toggle state they came through.
+ * Routes a just-authenticated user to the requested side of the app.
+ *
+ * `preferredMode` is the sign-in screen's client/worker toggle. It's safe to
+ * trust directly: client screens have no role gate at all (anyone signed in
+ * can view them — see the existing "Switch to Client Mode" button on the
+ * worker profile screen, which does the same unconditional
+ * `router.replace('/home')`), and worker screens are already self-policing
+ * via RequireVerifiedWorker, which re-derives the account's real
+ * `profiles.role` and `worker_profiles.verification_status` on focus and
+ * redirects to /become-worker or /verification-pending if the account isn't
+ * actually an eligible worker yet. So routing to /worker-dashboard here is
+ * only ever a starting point, not a trust decision.
+ *
+ * With no preferred mode given (e.g. a future caller outside the sign-in
+ * toggle), falls back to the account's stored role.
  */
-export async function routeSignedInUserByRole(): Promise<void> {
+export async function routeSignedInUserByRole(preferredMode?: 'client' | 'worker'): Promise<void> {
+  if (preferredMode === 'worker') {
+    router.replace('/worker-dashboard' as any);
+    return;
+  }
+  if (preferredMode === 'client') {
+    router.replace('/home' as any);
+    return;
+  }
+
   const profile = await getMyProfile();
   if (profile.success && profile.data?.role === 'worker') {
     router.replace('/worker-dashboard' as any);

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws } from '@/lib/scaling';
 
 const TABS = [
@@ -63,3 +63,4 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 });
+

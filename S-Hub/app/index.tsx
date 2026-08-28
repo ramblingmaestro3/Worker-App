@@ -2,7 +2,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import type { ComponentProps } from 'react';
 import { Animated, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
@@ -12,25 +11,15 @@ const MAX_CONTENT_WIDTH = s(544);
 
 // Layered hero badge geometry — three concentric circles of decreasing size,
 // each absolutely positioned and centered within the same box so they overlap.
-const BADGE_SIZE = s(140);
-const BADGE_OUTER_SIZE = s(104);
-const BADGE_INNER_SIZE = s(72);
+// Kept compact (rather than a full-bleed hero graphic) so this top zone reads
+// as a banner proportioned like every other screen's gradientHeader
+// (sign-in.tsx / sign-up.tsx) instead of dominating the screen — that
+// mismatch was what made the launch screen feel jarring next to sign-in.
+const BADGE_SIZE = s(76);
+const BADGE_OUTER_SIZE = s(58);
+const BADGE_INNER_SIZE = s(40);
 const BADGE_OUTER_OFFSET = (BADGE_SIZE - BADGE_OUTER_SIZE) / 2;
 const BADGE_INNER_OFFSET = (BADGE_SIZE - BADGE_INNER_SIZE) / 2;
-
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
-
-type TrustStat = {
-  key: string;
-  icon: IoniconName;
-  label: string;
-};
-
-const TRUST_STATS: TrustStat[] = [
-  { key: 'rating', icon: 'star', label: '4.9 rating' },
-  { key: 'verified', icon: 'shield-checkmark', label: 'Verified pros' },
-  { key: 'fast', icon: 'flash', label: 'Fast response' },
-];
 
 export default function SplashScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -104,20 +93,11 @@ export default function SplashScreen() {
                 >
                   <MaterialCommunityIcons
                     name="account-hard-hat"
-                    size={ms(36)}
+                    size={ms(20)}
                     color={COLORS.primaryDark}
                   />
                 </LinearGradient>
               </View>
-            </View>
-
-            <View style={styles.statsRow}>
-              {TRUST_STATS.map((stat) => (
-                <View key={stat.key} style={styles.statChip}>
-                  <Ionicons name={stat.icon} size={ms(13)} color={COLORS.accent} />
-                  <Text style={styles.statText}>{stat.label}</Text>
-                </View>
-              ))}
             </View>
           </Animated.View>
         </View>
@@ -176,20 +156,20 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
     paddingHorizontal: s(24),
-    paddingTop: vs(20),
-    paddingBottom: vs(24),
+    paddingTop: vs(14),
+    paddingBottom: vs(14),
   },
 
   brandBlock: {
     alignItems: 'center',
-    marginBottom: vs(4),
+    marginBottom: vs(2),
   },
   eyebrow: {
     fontSize: ms(11),
     fontWeight: '700',
     letterSpacing: s(1.6),
     color: COLORS.accent,
-    marginBottom: vs(10),
+    marginBottom: vs(8),
   },
   wordmark: {
     fontSize: ms(30),
@@ -221,8 +201,8 @@ const styles = StyleSheet.create({
   badgeArea: {
     width: BADGE_SIZE,
     height: BADGE_SIZE,
-    marginTop: vs(18),
-    marginBottom: vs(18),
+    marginTop: vs(8),
+    marginBottom: vs(4),
   },
   badgeGlow: {
     position: 'absolute',
@@ -262,36 +242,6 @@ const styles = StyleSheet.create({
     borderRadius: BADGE_INNER_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  // Trust stat chips
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: s(8),
-    width: '100%',
-  },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: s(6),
-    paddingHorizontal: s(12),
-    paddingVertical: vs(8),
-    borderRadius: s(999),
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: s(1),
-    borderColor: 'rgba(255,255,255,0.18)',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: s(6),
-    shadowOffset: { width: 0, height: vs(3) },
-    elevation: 3,
-  },
-  statText: {
-    fontSize: ms(12),
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 
   // Bottom trust zone — flex:1 so this is the dominant zone on screen

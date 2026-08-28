@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { becomeWorker } from '@/lib/api/profiles';
 import { createWorkerProfile, PREFERRED_TIME_OPTIONS, PreferredTime } from '@/lib/api/workerProfiles';
@@ -579,7 +579,7 @@ export default function WorkerSetupScreen() {
               <View style={[s.termsBox, { backgroundColor: T.card, borderColor: T.border }]}>
                 <Ionicons name="document-text-outline" size={wms(18)} color={COLORS.primary} />
                 <Text style={[s.termsText, { color: T.subText }]}>
-                  By submitting, you agree to S-Hub's{' '}
+                  By submitting, you agree to S-Hub&apos;s{' '}
                   <Text style={s.termsLink} onPress={() => router.push('/terms' as any)}>
                     Worker Terms & Conditions
                   </Text>{' '}

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text } from 'react-native';
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 
 export type ToastVariant = 'success' | 'info' | 'warning';
@@ -94,3 +94,4 @@ const styles = StyleSheet.create({
   },
   text: { flex: 1, fontSize: wms(13), fontWeight: '600' },
 });
+

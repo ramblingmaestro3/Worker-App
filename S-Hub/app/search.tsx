@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -47,40 +47,6 @@ export const WORKERS = [
     price: 200, initials: 'NA', color: '#0891B2', available: true,
   },
 ];
-
-/* ─── Worker Card ─── */
-function WorkerCard({ worker, onPress }: { worker: typeof WORKERS[0]; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={wc.card} onPress={onPress} activeOpacity={0.8}>
-      {/* Avatar */}
-      <View style={[wc.avatar, { backgroundColor: worker.color + '20' }]}>
-        <Text style={[wc.initials, { color: worker.color }]}>{worker.initials}</Text>
-        {worker.available && <View style={wc.onlineDot} />}
-      </View>
-
-      {/* Info */}
-      <View style={wc.info}>
-        <Text style={wc.name}>{worker.name}</Text>
-        <Text style={wc.skill}>{worker.skill}</Text>
-        <View style={wc.metaRow}>
-          <Ionicons name="star" size={11} color={COLORS.accent} />
-          <Text style={wc.rating}> {worker.rating}</Text>
-          <Text style={wc.reviews}> ({worker.reviews})</Text>
-        </View>
-        <View style={wc.distRow}>
-          <Ionicons name="location-outline" size={11} color={COLORS.muted} />
-          <Text style={wc.dist}> {worker.distance} away</Text>
-        </View>
-      </View>
-
-      {/* Price */}
-      <View style={wc.priceCol}>
-        <Text style={wc.fromLabel}>From</Text>
-        <Text style={wc.price}>GH₵ {worker.price}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
 
 const wc = StyleSheet.create({
   card: {
@@ -597,3 +563,4 @@ const styles = StyleSheet.create({
   applyBtn: { height: 54, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
   applyBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
+

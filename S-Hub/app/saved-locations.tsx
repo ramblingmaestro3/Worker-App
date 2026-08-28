@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -123,3 +123,4 @@ const s = StyleSheet.create({
   recentRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, gap: 12 },
   recentText: { flex: 1, fontSize: 13 },
 });
+

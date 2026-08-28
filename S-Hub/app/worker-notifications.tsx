@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import {
@@ -225,3 +225,4 @@ const s = StyleSheet.create({
   clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: ws(7), paddingVertical: wvs(16), marginTop: wvs(4) },
   clearBtnText: { fontSize: wms(12.5), fontWeight: '500' },
 });
+

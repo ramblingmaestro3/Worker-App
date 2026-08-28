@@ -409,14 +409,14 @@ export default function AIAssistantScreen() {
           {/* ══════════ RESULTS PHASE ══════════ */}
           {phase === 'results' && result?.problem && (
             <>
-              <Text style={s.resultsHeader}>Here's what we found</Text>
+              <Text style={s.resultsHeader}>Here&apos;s what we found</Text>
 
               {image && <Image source={{ uri: image.uri }} style={s.resultImage} />}
 
               <View style={s.assessmentCard}>
                 <Text style={s.assessmentLabel}>Problem Identified</Text>
                 {isSoftConfidence && (
-                  <Text style={s.softNotice}>We're not completely sure, but this may be:</Text>
+                  <Text style={s.softNotice}>We&apos;re not completely sure, but this may be:</Text>
                 )}
                 <Text style={s.assessmentTitle}>{result.problem.title}</Text>
 

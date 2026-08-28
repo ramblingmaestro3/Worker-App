@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { getMyVerification, finalizeVerification } from '@/lib/api/verification';
 
@@ -77,8 +77,8 @@ export default function VerificationPendingScreen() {
 
         <Text style={[styles.title, { color: T.text }]}>Verification in Progress</Text>
         <Text style={[styles.subtitle, { color: T.subText }]}>
-          Our team is reviewing your documents. This usually takes 24–48 hours. We'll notify
-          you once you're ready to start working!
+          Our team is reviewing your documents. This usually takes 24–48 hours. We&apos;ll notify
+          you once you&apos;re ready to start working!
         </Text>
 
         <View style={styles.stepsList}>

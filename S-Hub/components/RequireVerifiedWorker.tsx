@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { useWorkerVerification } from '@/hooks/use-worker-verification';
 
 const REDIRECTS: Record<string, string> = {
@@ -39,3 +39,4 @@ export default function RequireVerifiedWorker({ children }: { children: React.Re
 
   return <>{children}</>;
 }
+

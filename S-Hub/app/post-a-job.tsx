@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 import CustomerNav from '@/components/CustomerNav';
 import AppMap from '@/components/AppMap';
@@ -295,3 +295,4 @@ const styles = StyleSheet.create({
   },
   postButtonText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });
+

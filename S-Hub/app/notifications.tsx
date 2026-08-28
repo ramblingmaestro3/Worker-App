@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import {
   listMyNotifications,
@@ -268,3 +268,4 @@ const s = StyleSheet.create({
   clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 16, marginTop: 8 },
   clearBtnText: { fontSize: 13, fontWeight: '500' },
 });
+

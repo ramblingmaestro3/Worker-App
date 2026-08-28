@@ -183,7 +183,7 @@ export default function LoginScreen() {
           activeOpacity={0.7}
         >
           <Text style={styles.registerText}>
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Text style={styles.registerLink}>Register</Text>
           </Text>
         </TouchableOpacity>

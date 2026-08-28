@@ -1,11 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import * as Linking from 'expo-linking';
 import 'react-native-reanimated';
 
-import { ThemeProvider, useAppTheme } from '@/context/ThemeContext';
+import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
 
 export const unstable_settings = {

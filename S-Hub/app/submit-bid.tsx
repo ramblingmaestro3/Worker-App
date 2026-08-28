@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
@@ -121,7 +121,7 @@ export default function SubmitBidScreen() {
             <Text style={[styles.successTitle, { color: T.text }]}>Offer Sent</Text>
             <Text style={[styles.successSub, { color: T.subText }]}>
               Waiting for client{bid ? ` — you offered GH₵${bid.proposed_price} on this job.` : '.'}
-              {'\n'}You'll be notified the instant they respond.
+              {'\n'}You&apos;ll be notified the instant they respond.
             </Text>
             <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
               <Text style={styles.backLinkText}>Back to Dashboard</Text>
@@ -182,7 +182,7 @@ export default function SubmitBidScreen() {
           <View style={[styles.suggestedBox, { backgroundColor: COLORS.accentLight }]}>
             <Ionicons name="information-circle-outline" size={wms(18)} color={COLORS.accentDark} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.suggestedTitle, { color: COLORS.accentDark }]}>Client's asking price</Text>
+              <Text style={[styles.suggestedTitle, { color: COLORS.accentDark }]}>Client&apos;s asking price</Text>
               <Text style={[styles.suggestedBody, { color: T.text }]}>
                 {request.initial_offer_price != null ? `GH₵${request.initial_offer_price}` : 'Open — client is asking for offers'}
                 {suggestedRange ? ` · Typical range ${suggestedRange}` : ''}
@@ -295,3 +295,4 @@ const styles = StyleSheet.create({
   backLinkBtn: { paddingHorizontal: ws(20), paddingVertical: wvs(12) },
   backLinkText: { fontSize: wms(14), fontWeight: '700', color: COLORS.primary },
 });
+

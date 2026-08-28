@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
@@ -183,3 +183,4 @@ const styles = StyleSheet.create({
   dot: { height: 8, width: 8, borderRadius: 4 },
   dotActive: { width: 24 },
 });
+

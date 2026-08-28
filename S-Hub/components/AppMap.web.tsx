@@ -1,6 +1,4 @@
 import { createElement } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { s, ms } from '@/lib/scaling';
 
 export type AppMapMarker = {
   latitude: number;

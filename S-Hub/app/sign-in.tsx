@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { useThemeColors } from '../context/ThemeContext';
+import { useThemeColors } from '../contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { signInWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
@@ -40,9 +40,7 @@ export default function LoginScreen() {
       setError(result.error ?? 'Something went wrong signing in.');
       return;
     }
-    // Route by the account's real role, not the toggle above — the toggle is
-    // just a hint for which fields to show, the account's role is fixed at signup.
-    await routeSignedInUserByRole();
+    await routeSignedInUserByRole(role);
     setLoading(false);
   };
 
@@ -55,7 +53,7 @@ export default function LoginScreen() {
       setError(result.error ?? 'Authentication failed.');
       return;
     }
-    await routeSignedInUserByRole();
+    await routeSignedInUserByRole(role);
     setOauthLoading(null);
   };
 

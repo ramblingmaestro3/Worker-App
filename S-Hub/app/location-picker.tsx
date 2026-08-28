@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { s, vs, ms } from '@/lib/scaling';
 import ScreenContent from '@/components/ScreenContent';
 import InteractiveMapPicker, { InteractiveMapPickerHandle } from '@/components/InteractiveMapPicker';
@@ -132,7 +132,7 @@ export default function LocationPickerScreen() {
         <ScreenContent>
           {IS_WEB && (
             <Text style={[s_.webNote, { color: T.subText }]}>
-              Dragging the map isn't supported on web — use your current location or type the address directly.
+              Dragging the map isn&apos;t supported on web — use your current location or type the address directly.
             </Text>
           )}
 
@@ -189,3 +189,4 @@ const s_ = StyleSheet.create({
   },
   confirmBtnText: { fontSize: ms(15), fontWeight: '700', color: '#fff' },
 });
+

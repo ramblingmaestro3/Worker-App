@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import CustomerNav from '@/components/CustomerNav';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
@@ -354,3 +354,4 @@ const styles = StyleSheet.create({
   counterSendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   counterCancelBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });
+

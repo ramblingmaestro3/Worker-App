@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { distanceKm } from '@/lib/geo';
 import WorkerNav from '@/components/WorkerNav';
@@ -435,3 +435,4 @@ const styles = StyleSheet.create({
   counterBtnGhost: { backgroundColor: 'transparent', borderWidth: 1 },
   counterBtnGhostText: { fontSize: wms(12.5), fontWeight: '700' },
 });
+

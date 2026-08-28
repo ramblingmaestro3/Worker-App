@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -113,3 +113,4 @@ const s = StyleSheet.create({
   faqAnswer: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0 },
   faqA: { fontSize: 13, lineHeight: 20 },
 });
+

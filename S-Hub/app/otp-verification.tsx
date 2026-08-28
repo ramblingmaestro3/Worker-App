@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { s, vs, ms } from '@/lib/scaling';
 
@@ -32,7 +32,7 @@ export default function OtpVerificationScreen() {
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -144,7 +144,7 @@ export default function OtpVerificationScreen() {
         <View style={styles.hero}>
           <Text style={[styles.heroTitle, { color: T.text }]}>Verify Your Account</Text>
           <Text style={[styles.heroSubtitle, { color: T.subText }]}>
-            We've sent a 6-digit code to{' '}
+            We&apos;ve sent a 6-digit code to{' '}
             <Text style={[styles.bold, { color: T.text }]}>{identifier ?? 'your phone/email'}</Text>. Enter it below to continue.
           </Text>
         </View>
@@ -168,7 +168,7 @@ export default function OtpVerificationScreen() {
         </View>
 
         <View style={styles.resendBlock}>
-          <Text style={[styles.resendLabel, { color: T.subText }]}>Didn't receive the code?</Text>
+          <Text style={[styles.resendLabel, { color: T.subText }]}>Didn&apos;t receive the code?</Text>
           {resent ? (
             <View style={styles.resentRow}>
               <Ionicons name="checkmark-circle" size={ms(14)} color="#22C55E" />

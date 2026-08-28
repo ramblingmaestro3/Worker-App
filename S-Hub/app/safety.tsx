@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -147,3 +147,4 @@ const s = StyleSheet.create({
   contactAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primary + '20', alignItems: 'center', justifyContent: 'center' },
   contactInitial: { fontSize: 15, fontWeight: '700', color: COLORS.primary },
 });
+

@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -95,7 +95,7 @@ function WorkerAvailabilityScreen() {
         <View style={[s.summaryCard, { backgroundColor: COLORS.primaryLight }]}>
           <Ionicons name="calendar-outline" size={wms(18)} color={COLORS.primary} />
           <Text style={[s.summaryText, { color: COLORS.primary }]}>
-            You're available {activeCount} day{activeCount === 1 ? '' : 's'} a week
+            You&apos;re available {activeCount} day{activeCount === 1 ? '' : 's'} a week
           </Text>
         </View>
 
@@ -192,3 +192,4 @@ const s = StyleSheet.create({
   saveBtn: { borderRadius: ws(30), paddingVertical: wvs(15), alignItems: 'center' },
   saveBtnText: { color: '#fff', fontSize: wms(15), fontWeight: '700' },
 });
+

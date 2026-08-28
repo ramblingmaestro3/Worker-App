@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -132,3 +132,4 @@ const s = StyleSheet.create({
   promoUseBtn: { backgroundColor: COLORS.primary + '18', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   promoUseBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 });
+

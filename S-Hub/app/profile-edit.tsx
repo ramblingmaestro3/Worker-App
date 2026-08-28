@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { getMyProfile, updateProfile } from '@/lib/api/profiles';
 import { supabase } from '@/lib/supabase';
@@ -222,3 +222,4 @@ const s = StyleSheet.create({
   saveBtn: { marginHorizontal: 16, backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center', shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
+

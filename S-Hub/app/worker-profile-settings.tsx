@@ -1,7 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StatusBar,
@@ -13,24 +15,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import WorkerNav from '@/components/WorkerNav';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
+import { getMyProfile, Profile } from '@/lib/api/profiles';
+import { getMyWorkerProfile, WorkerProfile } from '@/lib/api/workerProfiles';
+import { countMyCompletedBookings } from '@/lib/api/bookings';
+import { signOut } from '@/lib/auth';
 
-/* ─── Mock profile data ─── */
-const PROFILE = {
-  name: 'Kofi Mensah',
-  initials: 'KM',
-  service: 'Master Plumber',
-  verified: true,
-  rating: 4.9,
-  reviews: 143,
-  jobsDone: 143,
-  onTime: 98,
-  experience: '6 yrs',
-  memberSince: 'Jan 2020',
-};
+function initialsOf(name: string): string {
+  return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+}
+
+function memberSince(createdAt: string): string {
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
 
 /* ─── Reusable menu row ─── */
 function MenuItem({
@@ -83,6 +85,45 @@ const menuStyles = StyleSheet.create({
 export default function WorkerProfileSettingsScreen() {
   const T = useThemeColors();
   const [notifications, setNotifications] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [workerProfile, setWorkerProfile] = useState<WorkerProfile | null>(null);
+  const [completedJobs, setCompletedJobs] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const [profileResult, workerResult, completedResult] = await Promise.all([
+          getMyProfile(),
+          getMyWorkerProfile(),
+          countMyCompletedBookings(),
+        ]);
+        if (cancelled) return;
+        if (!profileResult.success) {
+          router.replace('/sign-in' as any);
+          return;
+        }
+        setProfile(profileResult.data ?? null);
+        setWorkerProfile(workerResult.data ?? null);
+        setCompletedJobs(completedResult.data ?? 0);
+        setLoading(false);
+      })();
+      return () => { cancelled = true; };
+    }, [])
+  );
+
+  if (loading || !profile) {
+    return (
+      <RequireVerifiedWorker>
+        <SafeAreaView style={[styles.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['top']}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </SafeAreaView>
+      </RequireVerifiedWorker>
+    );
+  }
+
+  const primaryService = workerProfile?.skills?.[0] ?? 'Worker';
 
   return (
     <RequireVerifiedWorker>
@@ -97,16 +138,16 @@ export default function WorkerProfileSettingsScreen() {
         {/* ── Hero ── */}
         <View style={styles.heroRow}>
           <View style={[styles.avatar, { backgroundColor: COLORS.primary + '18' }]}>
-            <Text style={styles.avatarInitials}>{PROFILE.initials}</Text>
+            <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
           </View>
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
-              <Text style={[styles.heroName, { color: T.text }]}>{PROFILE.name}</Text>
-              {PROFILE.verified && (
+              <Text style={[styles.heroName, { color: T.text }]}>{profile.full_name || 'Add your name'}</Text>
+              {workerProfile?.verification_status === 'verified' && (
                 <Ionicons name="checkmark-circle" size={wms(15)} color={COLORS.primary} />
               )}
             </View>
-            <Text style={[styles.heroService, { color: T.subText }]}>{PROFILE.service}</Text>
+            <Text style={[styles.heroService, { color: T.subText }]}>{primaryService}</Text>
           </View>
           <TouchableOpacity
             style={[styles.editBtn, { backgroundColor: T.inputBg }]}
@@ -120,10 +161,10 @@ export default function WorkerProfileSettingsScreen() {
         {/* ── Stats Strip ── */}
         <View style={[styles.statsStrip, { backgroundColor: T.card, borderColor: T.border }]}>
           {[
-            { value: String(PROFILE.jobsDone), label: 'Jobs' },
-            { value: String(PROFILE.rating), label: 'Rating' },
-            { value: `${PROFILE.onTime}%`, label: 'On-time' },
-            { value: PROFILE.experience, label: 'Experience' },
+            { value: String(completedJobs), label: 'Jobs' },
+            { value: (workerProfile?.rating_avg ?? 0).toFixed(1), label: 'Rating' },
+            { value: String(workerProfile?.rating_count ?? 0), label: 'Reviews' },
+            { value: workerProfile?.years_experience ? `${workerProfile.years_experience} yrs` : '—', label: 'Experience' },
           ].map((stat, i, arr) => (
             <View key={stat.label} style={[styles.stat, i < arr.length - 1 && [styles.statBorder, { borderColor: T.border }]]}>
               <Text style={[styles.statValue, { color: T.text }]}>{stat.value}</Text>
@@ -208,13 +249,20 @@ export default function WorkerProfileSettingsScreen() {
             onPress={() =>
               Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => router.replace('/sign-in') },
+                {
+                  text: 'Sign Out', style: 'destructive', onPress: async () => {
+                    await signOut();
+                    router.replace('/sign-in' as any);
+                  },
+                },
               ])
             }
           />
         </View>
 
-        <Text style={[styles.version, { color: T.subText }]}>Member since {PROFILE.memberSince}</Text>
+        <Text style={[styles.version, { color: T.subText }]}>
+          {profile.created_at ? `Member since ${memberSince(profile.created_at)}` : ''}
+        </Text>
       </ScrollView>
       </View>
 
@@ -271,3 +319,4 @@ const styles = StyleSheet.create({
     textAlign: 'center', fontSize: wms(11.5),
   },
 });
+

@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -97,3 +97,4 @@ const s = StyleSheet.create({
   contactText: { flex: 1, fontSize: 13, lineHeight: 19 },
   contactLink: { color: COLORS.primary, fontWeight: '700' },
 });
+

@@ -1,5 +1,5 @@
 import { COLORS, RADIUS } from '@/constants/theme';
-import { useAppTheme, useThemeColors } from '@/context/ThemeContext';
+import { useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const { isDark, toggleDark } = useAppTheme();
   const T = useThemeColors();
   const [language, setLanguage] = useState('English');
-  const [currency, setCurrency] = useState('GHS (₵)');
+  const [currency] = useState('GHS (₵)');
   const [pushNotifs, setPushNotifs] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [smsNotifs, setSmsNotifs] = useState(false);
@@ -237,3 +237,4 @@ const s = StyleSheet.create({
   },
   deleteButtonText: { fontSize: 13, fontWeight: '700', color: COLORS.danger },
 });
+

@@ -24,9 +24,15 @@ def _split_name(data):
 
 
 def _normalize_role(role):
+    # Whitelist: public registration may only ever create 'customer' or
+    # 'worker' accounts. Without this, a client could POST {"role": "admin"}
+    # and self-escalate, since neither the User model nor the DB column has
+    # an enum/check constraint rejecting arbitrary role strings.
     if role == 'client':
         return 'customer'
-    return role or 'customer'
+    if role == 'worker':
+        return 'worker'
+    return 'customer'
 
 
 class AuthController:

@@ -1,5 +1,5 @@
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -518,3 +518,4 @@ const s = StyleSheet.create({
   cancelBtn: { alignItems: 'center', paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
   cancelText: { fontSize: 14, fontWeight: '600' },
 });
+

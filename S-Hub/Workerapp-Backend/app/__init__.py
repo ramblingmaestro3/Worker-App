@@ -53,7 +53,8 @@ def create_app(config_name=None):
     # Load configuration
     config = get_config(config_name)
     app.config.from_object(config)
-    
+    _guard_against_default_production_secrets(app)
+
     # Initialize extensions
     init_extensions(app)
     
@@ -74,6 +75,27 @@ def create_app(config_name=None):
     ensure_default_service_categories(app)
 
     return app
+
+
+def _guard_against_default_production_secrets(app):
+    """
+    Config.SECRET_KEY / JWT_SECRET_KEY fall back to well-known placeholder
+    strings when the env vars aren't set, so a production deploy that
+    forgets to set them would silently sign sessions/JWTs with a secret
+    visible in source control. Fail startup instead of failing silently.
+    """
+    if app.config.get('FLASK_ENV') != 'production':
+        return
+    placeholders = {
+        'SECRET_KEY': 'dev-secret-key-change-in-production',
+        'JWT_SECRET_KEY': 'jwt-secret-key-change-in-production',
+    }
+    for key, placeholder in placeholders.items():
+        if app.config.get(key) == placeholder:
+            raise RuntimeError(
+                f'{key} is still set to its development placeholder. '
+                f'Set the {key} environment variable before running in production.'
+            )
 
 
 def init_extensions(app):
