@@ -158,6 +158,23 @@ export default function SubmitBidScreen() {
                 {request.location_string ?? request.location_region ?? 'Location not specified'}
               </Text>
             </View>
+            {(() => {
+              const schedLabel = request.scheduled_for ? (() => {
+                try {
+                  const d = new Date(request.scheduled_for);
+                  if (isNaN(d.getTime())) return null;
+                  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+                } catch { return null; }
+              })() : null;
+              return (
+                <View style={styles.locationRow}>
+                  <Ionicons name="calendar-outline" size={wms(14)} color={T.subText} />
+                  <Text style={[styles.locationText, { color: T.subText }]}>
+                    {schedLabel ?? 'Schedule flexible'}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
 

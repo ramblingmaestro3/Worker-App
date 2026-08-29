@@ -29,6 +29,15 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function formatSchedule(scheduledFor: string | null): string | null {
+  if (!scheduledFor) return null;
+  try {
+    const d = new Date(scheduledFor);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  } catch { return null; }
+}
+
 /** Only the most recent active-or-terminal bid per request matters for display. */
 function latestBidByRequest(bids: WorkerBid[]): Map<string, WorkerBid> {
   const map = new Map<string, WorkerBid>();
@@ -289,6 +298,12 @@ export default function WorkerDashboardScreen() {
                   <Text style={[styles.reqMeta, { color: T.subText }]}>
                     {dist != null ? `${dist.toFixed(1)} km away` : req.location_region ?? 'Location unknown'} · {timeAgo(req.created_at)}
                   </Text>
+                  <View style={styles.reqScheduleRow}>
+                    <Ionicons name="calendar-outline" size={wms(13)} color={T.subText} />
+                    <Text style={[styles.reqScheduleText, { color: T.subText }]}>
+                      {formatSchedule(req.scheduled_for) ?? 'Schedule flexible'}
+                    </Text>
+                  </View>
 
                   <View style={styles.reqBottom}>
                     <Text style={styles.budgetValue}>
@@ -410,6 +425,8 @@ const styles = StyleSheet.create({
   reqTitle: { flex: 1, fontSize: wms(14.5), fontWeight: '700' },
   reqDesc: { fontSize: wms(12.5) },
   reqMeta: { fontSize: wms(12) },
+  reqScheduleRow: { flexDirection: 'row', alignItems: 'center', gap: ws(5) },
+  reqScheduleText: { fontSize: wms(12) },
   reqBottom: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: wvs(8),

@@ -110,6 +110,24 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
+          {/* ── AI Help ── */}
+          <TouchableOpacity
+            style={[styles.aiCard, { backgroundColor: T.card, borderColor: T.border }]}
+            onPress={() => router.push('/ai-assistant' as any)}
+            activeOpacity={0.9}
+          >
+            <View style={styles.aiIconWrap}>
+              <Ionicons name="sparkles" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.aiTitle, { color: T.text }]}>Not sure who to hire?</Text>
+              <Text style={[styles.aiBody, { color: T.subText }]}>
+                Snap a photo of the problem — AI identifies it and finds the right pro.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={T.subText} />
+          </TouchableOpacity>
+
           {/* ── Categories ── */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: T.text }]}>Browse by category</Text>
@@ -203,6 +221,12 @@ const styles = StyleSheet.create({
   mapPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
   mapPillDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
   mapPillText: { fontSize: 12, fontWeight: '700' },
+
+  /* AI Help */
+  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, borderWidth: 1, marginBottom: 20 },
+  aiIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
+  aiTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  aiBody: { fontSize: 12, lineHeight: 16 },
 
   /* Sections */
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

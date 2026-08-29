@@ -20,7 +20,19 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, AIAnalysisResult, AIWorkerRecommendation } from '../lib/api';
+import {
+  analyzeProblem,
+  countWorkersBySkill,
+  AIUnavailableError,
+  AIAnalysisResult,
+  AIWorkerRecommendation,
+} from '../lib/api/ai';
+import { setAiJobDraft } from '@/lib/aiJobDraftBridge';
+
+// This screen is a light surface regardless of app theme; COLORS.text/.muted are
+// the dark-theme palette (near-white) and would vanish here.
+const INK = '#1A1A1A';
+const SUBTLE = '#6B7280';
 
 /* ─── Config ─── */
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -35,22 +47,47 @@ const ANALYSIS_STAGES = [
   'Almost done...',
 ];
 
+// Keyed by the skill id the ai-analyze function returns.
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  'Plumbing': 'water-outline',
-  'Electrical': 'flash-outline',
-  'Carpentry': 'hammer-outline',
-  'Painting': 'color-palette-outline',
-  'Cleaning': 'sparkles-outline',
-  'Masonry': 'cube-outline',
-  'HVAC & Air Conditioning': 'snow-outline',
-  'Roofing': 'home-outline',
-  'Appliance Repair': 'construct-outline',
-  'Landscaping': 'leaf-outline',
-  'General Maintenance': 'build-outline',
-  'Other': 'help-circle-outline',
+  plumbing: 'water-outline',
+  electrical: 'flash-outline',
+  carpentry: 'hammer-outline',
+  painting: 'color-palette-outline',
+  cleaning: 'sparkles-outline',
+  masonry: 'cube-outline',
+  welding: 'flame-outline',
+  ac: 'snow-outline',
+  tiling: 'grid-outline',
+  roofing: 'home-outline',
+  security: 'videocam-outline',
+  other: 'construct-outline',
 };
 
-type Phase = 'upload' | 'analyzing' | 'results' | 'no_match' | 'error';
+type Phase = 'upload' | 'analyzing' | 'results' | 'no_match' | 'error' | 'not_configured';
+
+/** Pull raw base64 out of an image asset, however the platform gave it to us. */
+async function assetToBase64(asset: ImagePicker.ImagePickerAsset): Promise<string | null> {
+  if (asset.base64) return asset.base64;
+  if (asset.uri?.startsWith('data:')) {
+    const comma = asset.uri.indexOf(',');
+    return comma >= 0 ? asset.uri.slice(comma + 1) : null;
+  }
+  try {
+    const blob = await (await fetch(asset.uri)).blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const r = String(reader.result || '');
+        const comma = r.indexOf(',');
+        resolve(comma >= 0 ? r.slice(comma + 1) : null);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
 
 /* ─── Pulse ring (matches finding-worker.tsx's PulseRing technique) ─── */
 function PulseRing({ delay, size, color }: { delay: number; size: number; color: string }) {
@@ -109,8 +146,8 @@ const al = StyleSheet.create({
   wrap: { alignItems: 'center', paddingTop: 60, paddingBottom: 30 },
   radarWrap: { width: 150, height: 150, alignItems: 'center', justifyContent: 'center', marginBottom: 26 },
   centerIcon: { width: 66, height: 66, borderRadius: 33, backgroundColor: '#F4F0FF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#E4D9FF' },
-  title: { fontSize: 19, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
-  stage: { fontSize: 13, color: COLORS.muted, textAlign: 'center', paddingHorizontal: 40 },
+  title: { fontSize: 19, fontWeight: '800', color: INK, marginBottom: 8 },
+  stage: { fontSize: 13, color: SUBTLE, textAlign: 'center', paddingHorizontal: 40 },
 });
 
 /* ─── Confidence bar ─── */
@@ -134,6 +171,7 @@ function RecommendedWorkerCard({
   const pct = Math.round(rec.confidence * 100);
   const matchLabel = best ? 'Best Match' : rec.confidence >= 0.5 ? 'Good Match' : 'Possible Match';
   const icon = CATEGORY_ICONS[rec.category] || 'construct-outline';
+  const name = rec.label || rec.category;
   return (
     <View style={[rw.card, best && rw.cardBest]}>
       <View style={rw.top}>
@@ -141,7 +179,7 @@ function RecommendedWorkerCard({
           <Ionicons name={icon} size={20} color={best ? '#fff' : '#7C3AED'} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={rw.category}>{rec.category}</Text>
+          <Text style={rw.category}>{name}</Text>
           <View style={[rw.badge, best && rw.badgeBest]}>
             <Text style={[rw.badgeText, best && rw.badgeTextBest]}>{matchLabel}</Text>
           </View>
@@ -150,8 +188,8 @@ function RecommendedWorkerCard({
       </View>
       <Text style={rw.reason}>{rec.reason}</Text>
       <ConfidenceBar value={rec.confidence} color={best ? '#7C3AED' : '#B8A6E8'} />
-      {typeof nearbyCount === 'number' && (
-        <Text style={rw.nearby}>{nearbyCount} {rec.category.toLowerCase()} worker{nearbyCount === 1 ? '' : 's'} available near you</Text>
+      {typeof nearbyCount === 'number' && nearbyCount > 0 && (
+        <Text style={rw.nearby}>{nearbyCount} {name.toLowerCase()} worker{nearbyCount === 1 ? '' : 's'} verified on AdwumaGo</Text>
       )}
     </View>
   );
@@ -162,12 +200,12 @@ const rw = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F4F0FF', alignItems: 'center', justifyContent: 'center' },
   iconBoxBest: { backgroundColor: '#7C3AED' },
-  category: { fontSize: 14, fontWeight: '800', color: COLORS.text, marginBottom: 3 },
+  category: { fontSize: 14, fontWeight: '800', color: INK, marginBottom: 3 },
   badge: { alignSelf: 'flex-start', backgroundColor: '#F0F0F0', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   badgeBest: { backgroundColor: '#F4F0FF' },
-  badgeText: { fontSize: 10, fontWeight: '700', color: COLORS.muted },
+  badgeText: { fontSize: 10, fontWeight: '700', color: SUBTLE },
   badgeTextBest: { color: '#7C3AED' },
-  pct: { fontSize: 16, fontWeight: '800', color: COLORS.muted },
+  pct: { fontSize: 16, fontWeight: '800', color: SUBTLE },
   pctBest: { color: '#7C3AED' },
   reason: { fontSize: 12, color: '#4B5563', lineHeight: 18, marginBottom: 10 },
   nearby: { fontSize: 11, color: COLORS.primary, fontWeight: '600', marginTop: 8 },
@@ -175,34 +213,43 @@ const rw = StyleSheet.create({
 
 /* ─── Error / no-match state ─── */
 function AIErrorState({
-  variant, message, sub, onPrimary, primaryLabel, onSecondary, secondaryLabel,
+  variant, message, sub, onPrimary, primaryLabel, onSecondary, secondaryLabel, onTertiary, tertiaryLabel,
 }: {
-  variant: 'error' | 'no_match';
+  variant: 'error' | 'no_match' | 'not_configured';
   message: string; sub: string;
   onPrimary: () => void; primaryLabel: string;
-  onSecondary: () => void; secondaryLabel: string;
+  onSecondary?: () => void; secondaryLabel?: string;
+  onTertiary?: () => void; tertiaryLabel?: string;
 }) {
+  const iconName = variant === 'error' ? 'cloud-offline-outline' : variant === 'not_configured' ? 'sparkles-outline' : 'help-circle-outline';
   return (
     <View style={es.wrap}>
       <View style={es.iconWrap}>
-        <Ionicons name={variant === 'error' ? 'cloud-offline-outline' : 'help-circle-outline'} size={40} color={variant === 'error' ? COLORS.danger : COLORS.muted} />
+        <Ionicons name={iconName} size={40} color={variant === 'error' ? COLORS.danger : SUBTLE} />
       </View>
       <Text style={es.title}>{message}</Text>
       <Text style={es.sub}>{sub}</Text>
       <TouchableOpacity style={es.primaryBtn} onPress={onPrimary} activeOpacity={0.85}>
         <Text style={es.primaryText}>{primaryLabel}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={es.secondaryBtn} onPress={onSecondary} activeOpacity={0.7}>
-        <Text style={es.secondaryText}>{secondaryLabel}</Text>
-      </TouchableOpacity>
+      {onSecondary && secondaryLabel && (
+        <TouchableOpacity style={es.secondaryBtn} onPress={onSecondary} activeOpacity={0.7}>
+          <Text style={es.secondaryText}>{secondaryLabel}</Text>
+        </TouchableOpacity>
+      )}
+      {onTertiary && tertiaryLabel && (
+        <TouchableOpacity style={es.secondaryBtn} onPress={onTertiary} activeOpacity={0.7}>
+          <Text style={es.secondaryText}>{tertiaryLabel}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 const es = StyleSheet.create({
   wrap: { alignItems: 'center', paddingTop: 50, paddingHorizontal: 30 },
   iconWrap: { width: 84, height: 84, borderRadius: 42, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  title: { fontSize: 17, fontWeight: '800', color: COLORS.text, textAlign: 'center', marginBottom: 8 },
-  sub: { fontSize: 13, color: COLORS.muted, textAlign: 'center', lineHeight: 19, marginBottom: 24 },
+  title: { fontSize: 17, fontWeight: '800', color: INK, textAlign: 'center', marginBottom: 8 },
+  sub: { fontSize: 13, color: SUBTLE, textAlign: 'center', lineHeight: 19, marginBottom: 24 },
   primaryBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 30, marginBottom: 12, width: '100%', alignItems: 'center' },
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   secondaryBtn: { paddingVertical: 8 },
@@ -226,7 +273,7 @@ export default function AIAssistantScreen() {
       Alert.alert('Camera permission needed', 'Allow camera access so you can photograph the problem.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
     if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
   };
 
@@ -236,7 +283,7 @@ export default function AIAssistantScreen() {
       Alert.alert('Photo permission needed', 'Allow access to your photos to select an image of the problem.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
     if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
   };
 
@@ -266,7 +313,18 @@ export default function AIAssistantScreen() {
 
     setPhase('analyzing');
     try {
-      const response = await api.analyzeProblem(image.uri, description.trim() || undefined, image.mimeType, image.fileName);
+      const imageBase64 = await assetToBase64(image);
+      if (!imageBase64) {
+        setErrorMessage('This image could not be read. Please choose another photo.');
+        setPhase('error');
+        return;
+      }
+
+      const response = await analyzeProblem({
+        imageBase64,
+        mimeType: image.mimeType || 'image/jpeg',
+        description: description.trim() || undefined,
+      });
       setResult(response);
       setQualityWarning(response.problem?.quality_issue || null);
 
@@ -279,11 +337,15 @@ export default function AIAssistantScreen() {
 
       const topCategory = response.recommendations[0]?.category;
       if (topCategory) {
-        api.searchWorkers({ skills: topCategory, per_page: 1 })
-          .then(r => setNearbyCount(typeof r.total === 'number' ? r.total : null))
+        countWorkersBySkill(topCategory)
+          .then(setNearbyCount)
           .catch(() => setNearbyCount(null));
       }
     } catch (error: any) {
+      if (error instanceof AIUnavailableError) {
+        setPhase('not_configured');
+        return;
+      }
       setErrorMessage(error?.message || "We couldn't analyze your image right now.");
       setPhase('error');
     }
@@ -297,13 +359,27 @@ export default function AIAssistantScreen() {
     setPhase('upload');
   };
 
+  /** Hand the AI's findings to the post-a-job form, pre-filled and ready to send. */
+  const postJob = (category?: string) => {
+    const parts: string[] = [];
+    if (description.trim()) parts.push(description.trim());
+    if (result?.problem) {
+      parts.push(`AI assessment: ${result.problem.title}${result.problem.description ? ` — ${result.problem.description}` : ''}`);
+      if (result.problem.is_hazard && result.problem.hazard_warning) {
+        parts.push(`⚠ ${result.problem.hazard_warning}`);
+      }
+    }
+    setAiJobDraft({
+      category: category || result?.recommendations?.[0]?.category || 'other',
+      description: parts.join('\n\n'),
+      photoUri: image?.uri,
+    });
+    router.push({ pathname: '/post-a-job', params: { category: category || result?.recommendations?.[0]?.category || '' } } as any);
+  };
+
   const findWorkers = () => {
     if (!result?.recommendations?.length) return;
-    const top = result.recommendations[0];
-    router.push({
-      pathname: '/finding-worker',
-      params: { service: top.category, jobTitle: result.problem?.title || `${top.category} job`, aiRecommended: '1' },
-    } as any);
+    postJob(result.recommendations[0].category);
   };
 
   const isSoftConfidence = !!result?.problem && result.problem.confidence < SOFT_CONFIDENCE_THRESHOLD;
@@ -315,7 +391,7 @@ export default function AIAssistantScreen() {
       {/* ── HEADER ── */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+          <Ionicons name="arrow-back" size={22} color={INK} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>How can we help?</Text>
@@ -464,10 +540,10 @@ export default function AIAssistantScreen() {
               </Text>
 
               <TouchableOpacity style={s.findBtn} onPress={findWorkers} activeOpacity={0.85}>
-                <Text style={s.findBtnText}>Find Recommended Workers</Text>
+                <Text style={s.findBtnText}>Post This Job</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.viewOthersBtn} onPress={() => router.push('/search' as any)} activeOpacity={0.7}>
-                <Text style={s.viewOthersText}>View Other Workers</Text>
+              <TouchableOpacity style={s.viewOthersBtn} onPress={resetToUpload} activeOpacity={0.7}>
+                <Text style={s.viewOthersText}>Start Over</Text>
               </TouchableOpacity>
             </>
           )}
@@ -477,11 +553,13 @@ export default function AIAssistantScreen() {
             <AIErrorState
               variant="no_match"
               message="We couldn't confidently identify the problem."
-              sub="Try uploading a clearer photo or provide more information about the issue."
+              sub="Try a clearer, closer photo — or just describe the job and post it yourself."
               onPrimary={resetToUpload}
               primaryLabel="Try Another Photo"
-              onSecondary={() => router.push('/search' as any)}
-              secondaryLabel="Browse Workers"
+              onSecondary={() => postJob()}
+              secondaryLabel="Post a Job Manually"
+              onTertiary={() => router.back()}
+              tertiaryLabel="Go Back"
             />
           )}
 
@@ -493,6 +571,21 @@ export default function AIAssistantScreen() {
               sub={errorMessage || 'Please check your internet connection and try again.'}
               onPrimary={runAnalysis}
               primaryLabel="Try Again"
+              onSecondary={() => postJob()}
+              secondaryLabel="Post a Job Manually"
+              onTertiary={() => router.back()}
+              tertiaryLabel="Go Back"
+            />
+          )}
+
+          {/* ══════════ AI NOT CONFIGURED PHASE ══════════ */}
+          {phase === 'not_configured' && (
+            <AIErrorState
+              variant="not_configured"
+              message="Photo analysis isn't switched on yet"
+              sub="The AI vision service still needs to be deployed. You can still describe the job and post it — a professional will pick it up."
+              onPrimary={() => postJob()}
+              primaryLabel="Post a Job Manually"
               onSecondary={() => router.back()}
               secondaryLabel="Go Back"
             />
@@ -509,21 +602,21 @@ const s = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
   backBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 19, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
-  headerSub: { fontSize: 12, color: COLORS.muted, textAlign: 'center', lineHeight: 18, paddingHorizontal: 30, marginBottom: 14 },
+  headerTitle: { fontSize: 19, fontWeight: '800', color: INK, textAlign: 'center' },
+  headerSub: { fontSize: 12, color: SUBTLE, textAlign: 'center', lineHeight: 18, paddingHorizontal: 30, marginBottom: 14 },
 
   scroll: { paddingHorizontal: 20, paddingBottom: 40 },
 
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 6, marginTop: 6 },
-  sectionSub: { fontSize: 12, color: COLORS.muted, lineHeight: 18, marginBottom: 16 },
-  optional: { fontSize: 12, fontWeight: '500', color: COLORS.muted },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: INK, marginBottom: 6, marginTop: 6 },
+  sectionSub: { fontSize: 12, color: SUBTLE, lineHeight: 18, marginBottom: 16 },
+  optional: { fontSize: 12, fontWeight: '500', color: SUBTLE },
 
   actionsRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
   actionBtn: { flex: 1, alignItems: 'center', gap: 8, backgroundColor: '#F4F0FF', borderRadius: 16, paddingVertical: 22, borderWidth: 1, borderColor: '#E4D9FF' },
   actionText: { fontSize: 12, fontWeight: '700', color: '#7C3AED', textAlign: 'center', paddingHorizontal: 6 },
 
   tipsCard: { backgroundColor: '#F8F8F8', borderRadius: 14, padding: 16, gap: 9 },
-  tipsTitle: { fontSize: 13, fontWeight: '800', color: COLORS.text, marginBottom: 3 },
+  tipsTitle: { fontSize: 13, fontWeight: '800', color: INK, marginBottom: 3 },
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tipText: { flex: 1, fontSize: 12, color: '#4B5563', lineHeight: 18 },
 
@@ -532,21 +625,21 @@ const s = StyleSheet.create({
   previewActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   previewActionText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
-  descInput: { borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 14, padding: 14, fontSize: 14, color: COLORS.text, minHeight: 80, backgroundColor: '#FAFAFA', marginBottom: 20, lineHeight: 20 },
+  descInput: { borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 14, padding: 14, fontSize: 14, color: INK, minHeight: 80, backgroundColor: '#FAFAFA', marginBottom: 20, lineHeight: 20 },
 
   analyzeBtn: { flexDirection: 'row', backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', shadowColor: '#7C3AED', shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   analyzeBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
-  resultsHeader: { fontSize: 20, fontWeight: '800', color: COLORS.text, marginBottom: 16, marginTop: 6 },
+  resultsHeader: { fontSize: 20, fontWeight: '800', color: INK, marginBottom: 16, marginTop: 6 },
   resultImage: { width: '100%', height: 160, borderRadius: 14, backgroundColor: '#EEE', marginBottom: 16 },
 
   assessmentCard: { backgroundColor: '#F4F0FF', borderRadius: 16, padding: 16, marginBottom: 22, borderWidth: 1, borderColor: '#E4D9FF' },
   assessmentLabel: { fontSize: 11, fontWeight: '800', color: '#7C3AED', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6 },
   softNotice: { fontSize: 12, color: '#7C3AED', fontStyle: 'italic', marginBottom: 4 },
-  assessmentTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
+  assessmentTitle: { fontSize: 17, fontWeight: '800', color: INK, marginBottom: 12 },
   confidenceRow: { marginBottom: 14, gap: 6 },
   confidenceText: { fontSize: 12, fontWeight: '700', color: '#7C3AED' },
-  assessmentFoundLabel: { fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  assessmentFoundLabel: { fontSize: 12, fontWeight: '700', color: INK, marginBottom: 4 },
   assessmentDesc: { fontSize: 13, color: '#4B5563', lineHeight: 19 },
   qualityBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 12 },
   qualityText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 16 },
@@ -555,7 +648,7 @@ const s = StyleSheet.create({
 
   recommendedHeader: { marginBottom: 4 },
 
-  disclaimer: { fontSize: 11, color: COLORS.muted, textAlign: 'center', lineHeight: 16, marginTop: 6, marginBottom: 20, paddingHorizontal: 10 },
+  disclaimer: { fontSize: 11, color: SUBTLE, textAlign: 'center', lineHeight: 16, marginTop: 6, marginBottom: 20, paddingHorizontal: 10 },
 
   findBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10, shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   findBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },

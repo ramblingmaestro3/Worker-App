@@ -1,4 +1,4 @@
-import MapView, { Marker, Callout } from 'react-native-maps';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { StyleSheet, Text, View } from 'react-native';
 import { s, ms } from '@/lib/scaling';
 import { COLORS } from '@/constants/theme';
@@ -35,6 +35,7 @@ export default function AppMap({
 }: AppMapProps) {
   return (
     <MapView
+      provider={PROVIDER_GOOGLE}
       style={style || styles.map}
       initialRegion={{
         latitude,
@@ -46,6 +47,13 @@ export default function AppMap({
       followsUserLocation={showsUserLocation}
       zoomEnabled={zoomEnabled}
       scrollEnabled={scrollEnabled}
+      pitchEnabled={false}
+      rotateEnabled={false}
+      toolbarEnabled={false}
+      showsMyLocationButton={false}
+      loadingEnabled
+      loadingBackgroundColor={COLORS.card}
+      loadingIndicatorColor={COLORS.primary}
     >
       {markers.map((marker, index) => (
         <Marker

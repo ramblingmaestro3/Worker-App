@@ -380,6 +380,13 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+[functions.ai-analyze]
+# Customer "AI Help" — problem-photo vision analysis. Requires the GEMINI_API_KEY
+# secret (supabase secrets set GEMINI_API_KEY=...).
+# verify_jwt is off so the browser's CORS preflight (which carries no auth) isn't
+# rejected by the gateway; the function verifies the caller's token itself.
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

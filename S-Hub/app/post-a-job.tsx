@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
@@ -10,17 +10,27 @@ import { s } from '@/lib/scaling';
 import CustomerNav from '@/components/CustomerNav';
 import AppMap from '@/components/AppMap';
 import { consumePickedLocation, PickedLocation } from '@/lib/locationPickerBridge';
+import { consumeAiJobDraft } from '@/lib/aiJobDraftBridge';
 import { createServiceRequest } from '@/lib/api/serviceRequests';
 import { uploadJobPhoto } from '@/lib/api/storage';
 
-type CategoryKey = 'plumbing' | 'electrical' | 'painting' | 'cleaning';
+type CategoryKey = string;
 type Urgency = 'now' | 'schedule';
 
+// Skill ids match become-worker.tsx SKILL_CATEGORIES and the ai-analyze function.
 const CATEGORIES: { key: CategoryKey; label: string; icon: string }[] = [
   { key: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
   { key: 'electrical', label: 'Electrical', icon: 'flash-outline' },
+  { key: 'carpentry', label: 'Carpentry', icon: 'hammer-outline' },
   { key: 'painting', label: 'Painting', icon: 'color-palette-outline' },
   { key: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline' },
+  { key: 'masonry', label: 'Masonry', icon: 'cube-outline' },
+  { key: 'welding', label: 'Welding', icon: 'flame-outline' },
+  { key: 'ac', label: 'AC & Cooling', icon: 'snow-outline' },
+  { key: 'tiling', label: 'Tiling', icon: 'grid-outline' },
+  { key: 'roofing', label: 'Roofing', icon: 'home-outline' },
+  { key: 'security', label: 'Security/CCTV', icon: 'videocam-outline' },
+  { key: 'other', label: 'Other', icon: 'construct-outline' },
 ];
 
 export default function PostAJobScreen() {
@@ -29,14 +39,49 @@ export default function PostAJobScreen() {
   const [category, setCategory] = useState<CategoryKey>((params.category as CategoryKey) || 'plumbing');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<Urgency>('now');
+  const [scheduledDate, setScheduledDate] = useState<string | null>(null);
+  const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [location, setLocation] = useState<PickedLocation | null>(null);
   const [posting, setPosting] = useState(false);
+
+  // Generate the next 7 days for the date selector
+  const dateOptions = useMemo(() => {
+    const options: { label: string; value: string }[] = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      const iso = d.toISOString().split('T')[0];
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      options.push({ label, value: iso });
+    }
+    return options;
+  }, []);
+
+  const TIME_OPTIONS = [
+    { label: '8:00 AM', value: '08:00' },
+    { label: '9:00 AM', value: '09:00' },
+    { label: '10:00 AM', value: '10:00' },
+    { label: '12:00 PM', value: '12:00' },
+    { label: '2:00 PM', value: '14:00' },
+    { label: '4:00 PM', value: '16:00' },
+    { label: '6:00 PM', value: '18:00' },
+  ];
 
   useFocusEffect(
     useCallback(() => {
       const picked = consumePickedLocation();
       if (picked) setLocation(picked);
+
+      const draft = consumeAiJobDraft();
+      if (draft) {
+        if (draft.category) setCategory(draft.category);
+        if (draft.description) setDescription(draft.description);
+        if (draft.photoUri) {
+          setPhotos((prev) => (prev.includes(draft.photoUri!) ? prev : [...prev, draft.photoUri!]));
+        }
+      }
     }, [])
   );
 
@@ -70,11 +115,21 @@ export default function PostAJobScreen() {
       Alert.alert('Set a location', 'Choose where this job should happen.');
       return;
     }
+    if (urgency === 'schedule' && (!scheduledDate || !scheduledTime)) {
+      Alert.alert('Set a schedule', 'Please pick both a date and time for the job.');
+      return;
+    }
 
     setPosting(true);
     const uploadedPhotos = (
       await Promise.all(photos.map((uri) => uploadJobPhoto(uri)))
     ).filter((r): r is { success: true; publicUrl: string } => r.success && !!r.publicUrl).map((r) => r.publicUrl);
+
+    // Build an ISO timestamp when the customer selected "Schedule"
+    let scheduled_for: string | undefined;
+    if (urgency === 'schedule' && scheduledDate && scheduledTime) {
+      scheduled_for = `${scheduledDate}T${scheduledTime}:00`;
+    }
 
     const result = await createServiceRequest({
       category,
@@ -84,6 +139,7 @@ export default function PostAJobScreen() {
       longitude: location.longitude,
       location_region: location.region ?? undefined,
       photos: uploadedPhotos,
+      scheduled_for,
     });
     setPosting(false);
 
@@ -117,7 +173,7 @@ export default function PostAJobScreen() {
 
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: T.subText }]}>SERVICE CATEGORY</Text>
-            <View style={styles.categoryGrid}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryGrid}>
               {CATEGORIES.map((c) => {
                 const active = c.key === category;
                 return (
@@ -130,14 +186,17 @@ export default function PostAJobScreen() {
                     ]}
                     onPress={() => setCategory(c.key)}
                   >
-                    <Ionicons name={c.icon as any} size={26} color={active ? COLORS.primary : T.subText} />
-                    <Text style={[styles.categoryLabel, { color: T.subText }, active && { color: T.text, fontWeight: '700' }]}>
+                    <Ionicons name={c.icon as any} size={24} color={active ? COLORS.primary : T.subText} />
+                    <Text
+                      style={[styles.categoryLabel, { color: T.subText }, active && { color: T.text, fontWeight: '700' }]}
+                      numberOfLines={1}
+                    >
                       {c.label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
 
           <View style={[styles.section, styles.card, { backgroundColor: T.card, borderColor: T.border }]}>
@@ -173,7 +232,7 @@ export default function PostAJobScreen() {
             <View style={[styles.urgencyRow, { backgroundColor: T.inputBg }]}>
               <TouchableOpacity
                 style={[styles.urgencyTab, urgency === 'now' && { backgroundColor: COLORS.primary }]}
-                onPress={() => setUrgency('now')}
+                onPress={() => { setUrgency('now'); setScheduledDate(null); setScheduledTime(null); }}
               >
                 <Text style={[styles.urgencyText, { color: T.subText }, urgency === 'now' && { color: '#fff' }]}>Now</Text>
               </TouchableOpacity>
@@ -185,6 +244,63 @@ export default function PostAJobScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* ── Schedule date & time picker ── */}
+          {urgency === 'schedule' && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: T.subText }]}>PICK A DATE</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.chipRow}>
+                  {dateOptions.map((d) => (
+                    <TouchableOpacity
+                      key={d.value}
+                      style={[
+                        styles.scheduleChip,
+                        { backgroundColor: T.inputBg, borderColor: T.border },
+                        scheduledDate === d.value && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+                      ]}
+                      onPress={() => setScheduledDate(d.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.scheduleChipText,
+                          { color: T.subText },
+                          scheduledDate === d.value && { color: '#fff', fontWeight: '700' },
+                        ]}
+                      >
+                        {d.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+
+              <Text style={[styles.sectionLabel, { color: T.subText, marginTop: 16 }]}>PICK A TIME</Text>
+              <View style={styles.timeGrid}>
+                {TIME_OPTIONS.map((t) => (
+                  <TouchableOpacity
+                    key={t.value}
+                    style={[
+                      styles.scheduleChip,
+                      { backgroundColor: T.inputBg, borderColor: T.border },
+                      scheduledTime === t.value && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+                    ]}
+                    onPress={() => setScheduledTime(t.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.scheduleChipText,
+                        { color: T.subText },
+                        scheduledTime === t.value && { color: '#fff', fontWeight: '700' },
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={[styles.section, styles.locationCard, { backgroundColor: T.card, borderColor: T.border }]}>
             <View style={styles.locationRow}>
@@ -259,9 +375,9 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14 },
   section: { gap: 12 },
   sectionLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
-  categoryGrid: { flexDirection: 'row', gap: 12 },
-  categoryCard: { flex: 1, aspectRatio: 1, borderRadius: 20, alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 2, borderColor: 'transparent' },
-  categoryLabel: { fontSize: 12 },
+  categoryGrid: { gap: 10, paddingRight: 4, paddingVertical: 2 },
+  categoryCard: { width: 88, height: 88, borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 2, borderColor: 'transparent', paddingHorizontal: 4 },
+  categoryLabel: { fontSize: 11.5, textAlign: 'center' },
   card: { borderRadius: 20, borderWidth: 1, padding: 16 },
   textArea: { minHeight: 100, borderRadius: 16, borderBottomWidth: 2, padding: 12, fontSize: 15, textAlignVertical: 'top', marginBottom: 12 },
   addPhotoButton: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 2, borderStyle: 'dashed', borderRadius: 16, marginRight: 12 },
@@ -275,6 +391,10 @@ const styles = StyleSheet.create({
   urgencyRow: { flexDirection: 'row', borderRadius: 999, padding: 4, maxWidth: 320 },
   urgencyTab: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center' },
   urgencyText: { fontSize: 15, fontWeight: '700' },
+  chipRow: { flexDirection: 'row', gap: 10 },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  scheduleChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, borderWidth: 1.5 },
+  scheduleChipText: { fontSize: 13, fontWeight: '500' },
   locationCard: { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   mapPlaceholder: { height: 140, alignItems: 'center', justifyContent: 'center' },
   mapPreview: { height: 140, overflow: 'hidden' },

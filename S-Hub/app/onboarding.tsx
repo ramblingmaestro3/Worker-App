@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
@@ -12,38 +12,39 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS } from '@/constants/theme';
+import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
 const MAX_CONTENT_WIDTH = s(544);
+const NUMERAL_COLOR = 'rgba(240,174,46,0.4)'; // COLORS.primary at low opacity — decorative, redundant with title
 
 type Slide = {
   key: string;
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   title: string;
   body: string;
+  proof: [string, string];
 };
 
 const SLIDES: Slide[] = [
   {
     key: 'find',
-    icon: 'map-marker-radius',
-    title: 'Find trusted workers near you',
-    body: 'Connect with the best local talent in your community, from skilled trades to professional services.',
+    title: 'Find vetted workers near you',
+    body: 'Search local professionals across skilled trades and everyday services, filtered to your area.',
+    proof: ['ID-verified', 'Background checked'],
   },
   {
     key: 'bid',
-    icon: 'handshake',
-    title: 'Compare bids and negotiate fair prices',
-    body: 'Receive multiple quotes for your task and choose the professional that fits your budget and timeline.',
+    title: 'Compare bids, pick your price',
+    body: 'Post a job once and receive multiple quotes. No pressure — accept only the offer that works for you.',
+    proof: ['Transparent pricing', 'No obligation'],
   },
   {
-    key: 'verify',
-    icon: 'shield-check',
-    title: 'Book with confidence — verified & reliable',
-    body: 'Every worker on AdwumaGo is thoroughly vetted and rated by your neighbors to ensure quality service.',
+    key: 'book',
+    title: 'Book and pay with confidence',
+    body: 'Every worker is rated by clients like you, and payment stays protected inside the app until the job is done.',
+    proof: ['Rated by your community', 'Secure in-app payment'],
   },
 ];
 
@@ -62,12 +63,18 @@ export default function OnboardingScreen() {
   };
 
   const goToSlide = (i: number) => {
-    listRef.current?.scrollToIndex({ index: i, animated: true });
+    // scrollToOffset (not scrollToIndex) — react-native-web's FlatList doesn't
+    // reliably honor scrollToIndex without getItemLayout.
+    listRef.current?.scrollToOffset({ offset: i * contentWidth, animated: true });
     setIndex(i);
   };
 
   const handleSkip = () => router.replace('/sign-in' as any);
   const handleGetStarted = () => router.replace('/sign-up' as any);
+  const handleNext = () => {
+    if (index === SLIDES.length - 1) handleGetStarted();
+    else goToSlide(index + 1);
+  };
 
   const onMomentumScrollEnd = (e: any) => {
     setIndex(Math.round(e.nativeEvent.contentOffset.x / contentWidth));
@@ -75,18 +82,18 @@ export default function OnboardingScreen() {
 
   const renderItem = ({ item, index: i }: ListRenderItemInfo<Slide>) => (
     <View style={[styles.slide, { width: contentWidth }]}>
-      <View style={[styles.card, { backgroundColor: T.card, borderColor: T.border }]}>
-        <View style={[styles.iconWrap, { backgroundColor: COLORS.primaryLight }]}>
-          <MaterialCommunityIcons name={item.icon} size={56} color={COLORS.primary} />
-        </View>
-        <Text style={[styles.title, { color: T.text }]}>{item.title}</Text>
-        <Text style={[styles.body, { color: T.subText }]}>{item.body}</Text>
-        {i === SLIDES.length - 1 && (
-          <TouchableOpacity style={styles.ctaButton} onPress={handleGetStarted} activeOpacity={0.85}>
-            <Text style={styles.ctaText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
-          </TouchableOpacity>
-        )}
+      <Text style={styles.numeral}>{String(i + 1).padStart(2, '0')}</Text>
+      <View style={[styles.rule, { backgroundColor: COLORS.primary }]} />
+      <Text style={[styles.title, { color: T.text }]}>{item.title}</Text>
+      <Text style={[styles.body, { color: T.subText }]}>{item.body}</Text>
+
+      <View style={styles.proofRow}>
+        {item.proof.map((p) => (
+          <View key={p} style={styles.proofChip}>
+            <Ionicons name="checkmark-circle" size={15} color={COLORS.accent} />
+            <Text style={[styles.proofText, { color: T.subText }]}>{p}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -102,7 +109,20 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Everything below the header lives in a single capped-width, centered container —
+      <View style={styles.progressRow}>
+        {SLIDES.map((slide, i) => (
+          <TouchableOpacity key={slide.key} style={styles.progressSegmentWrap} onPress={() => goToSlide(i)} hitSlop={6}>
+            <View
+              style={[
+                styles.progressSegment,
+                { backgroundColor: i <= index ? COLORS.primary : T.border },
+              ]}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Everything below the progress bar lives in a single capped-width, centered container —
           same treatment as sign-up.tsx / sign-in.tsx */}
       <View style={styles.content} onLayout={onContentLayout}>
         <FlatList
@@ -114,22 +134,28 @@ export default function OnboardingScreen() {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={onMomentumScrollEnd}
-          style={{ flexGrow: 0 }}
+          style={styles.list}
         />
+      </View>
 
-        <View style={styles.dotsRow}>
-          {SLIDES.map((slide, i) => (
-            <TouchableOpacity key={slide.key} onPress={() => goToSlide(i)}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: i === index ? COLORS.primary : T.border },
-                  i === index && styles.dotActive,
-                ]}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View style={styles.footer}>
+        {index > 0 ? (
+          <TouchableOpacity style={styles.backBtn} onPress={() => goToSlide(index - 1)} hitSlop={8}>
+            <Ionicons name="chevron-back" size={18} color={T.subText} />
+            <Text style={[styles.backText, { color: T.subText }]}>Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <View />
+        )}
+
+        <TouchableOpacity
+          style={[styles.nextBtn, { flex: index > 0 ? undefined : 1 }]}
+          onPress={handleNext}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.nextText}>{index === SLIDES.length - 1 ? 'Get Started' : 'Next'}</Text>
+          <Ionicons name="arrow-forward" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -143,44 +169,59 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 16,
-    height: 64,
-  },
-  logo: { fontSize: 22, fontWeight: '900', color: COLORS.primary },
-  skipText: { fontSize: 14, fontWeight: '600' },
-  content: { flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
-  slide: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  card: {
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 400,
-  },
-  iconWrap: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
-  },
-  title: { fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 10, lineHeight: 28 },
-  body: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
-  ctaButton: {
-    marginTop: 28,
-    width: '100%',
     height: 56,
-    borderRadius: 999,
-    backgroundColor: COLORS.primary,
+  },
+  logo: { fontSize: 20, fontWeight: '900', color: COLORS.primary },
+  skipText: { fontSize: 14, fontWeight: '600' },
+
+  progressRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 8,
+    maxWidth: MAX_CONTENT_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  progressSegmentWrap: { flex: 1, paddingVertical: 6 },
+  progressSegment: { height: 3, borderRadius: 2 },
+
+  content: { flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
+  list: { flexGrow: 0 },
+  slide: { paddingHorizontal: 20, paddingTop: 12 },
+
+  numeral: { fontSize: 56, fontWeight: '800', color: NUMERAL_COLOR, lineHeight: 58 },
+  rule: { width: 32, height: 3, borderRadius: 2, marginTop: 12, marginBottom: 20 },
+  title: { fontSize: 26, fontWeight: '800', lineHeight: 32, marginBottom: 12, maxWidth: 340 },
+  body: { fontSize: 15, lineHeight: 22, maxWidth: 360 },
+
+  proofRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, marginTop: 28 },
+  proofChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  proofText: { fontSize: 13, fontWeight: '600' },
+
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    paddingTop: 12,
+    maxWidth: MAX_CONTENT_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  backBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingRight: 8 },
+  backText: { fontSize: 15, fontWeight: '600' },
+  nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    height: 52,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
   },
-  ctaText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  dotsRow: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 24 },
-  dot: { height: 8, width: 8, borderRadius: 4 },
-  dotActive: { width: 24 },
+  nextText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });
-

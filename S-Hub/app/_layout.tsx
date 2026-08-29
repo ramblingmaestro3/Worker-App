@@ -5,8 +5,15 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
+import { ThemeProvider, useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
+
+// Every screen renders inside one centred column of this width — the same size
+// the home screen caps its content at — so the app looks identical on phones
+// (where it's a no-op) and on wide web/tablet windows (where it would otherwise
+// stretch edge-to-edge). Screens that also cap their own content stay unaffected;
+// this only reins in the ones that don't.
+const APP_MAX_WIDTH = 540;
 
 export const unstable_settings = {
   anchor: 'index',
@@ -52,11 +59,24 @@ function useAuthDeepLinks() {
 
 function AppNavigator() {
   const { colorScheme } = useAppTheme();
+  const T = useThemeColors();
   useAuthDeepLinks();
 
+  const base = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+  // Paint the area outside the centred column with the app's own background so
+  // the letterboxing on wide screens reads as intentional, not a nav artefact.
+  const navTheme = {
+    ...base,
+    colors: { ...base.colors, background: T.bg },
+  };
+
   return (
-    <NavThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <NavThemeProvider value={navTheme}>
+      <Stack
+        screenOptions={{
+          contentStyle: { flex: 1, width: '100%', maxWidth: APP_MAX_WIDTH, alignSelf: 'center' },
+        }}
+      >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
