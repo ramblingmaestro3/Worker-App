@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMyWorkerProfile, updateWorkerProfile } from '@/lib/api/workerProfiles';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 
 const SUGGESTED = [
   'Pipe Repair', 'Leak Detection', 'Bathroom Fitting', 'Drainage', 'Water Heater',
@@ -175,9 +174,7 @@ function WorkerSkillsScreen() {
 
 export default function GatedWorkerSkillsScreen() {
   return (
-    <RequireVerifiedWorker>
       <WorkerSkillsScreen />
-    </RequireVerifiedWorker>
   );
 }
 

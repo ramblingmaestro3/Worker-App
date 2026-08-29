@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
-import { getMyProfile } from './api/profiles';
+import { useAuthStore } from './stores/auth-store';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -187,19 +187,24 @@ export async function signInWithPassword({
  */
 export async function routeSignedInUserByRole(preferredMode?: 'client' | 'worker'): Promise<void> {
   if (preferredMode === 'worker') {
-    router.replace('/worker-dashboard' as any);
+    router.replace('/worker-dashboard');
     return;
   }
   if (preferredMode === 'client') {
-    router.replace('/home' as any);
+    router.replace('/home');
     return;
   }
 
-  const profile = await getMyProfile();
-  if (profile.success && profile.data?.role === 'worker') {
-    router.replace('/worker-dashboard' as any);
+  // Explicitly refreshed (rather than trusting the store's own
+  // onAuthStateChange listener to have already resolved) since this runs
+  // immediately after sign-in/sign-up, before that listener is guaranteed
+  // to have finished fetching the profile.
+  await useAuthStore.getState().refreshProfile();
+  const profile = useAuthStore.getState().profile;
+  if (profile?.role === 'worker') {
+    router.replace('/worker-dashboard');
   } else {
-    router.replace('/home' as any);
+    router.replace('/home');
   }
 }
 

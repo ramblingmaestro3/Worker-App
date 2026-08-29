@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../lib/api';
+import { api } from '@/lib/api';
 
 type BookingDetail = {
   id: number;

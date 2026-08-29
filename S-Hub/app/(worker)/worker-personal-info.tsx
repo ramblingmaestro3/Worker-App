@@ -19,7 +19,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMyProfile, updateProfile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, updateWorkerProfile } from '@/lib/api/workerProfiles';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 
 function Field({ icon, label, value, onChangeText, keyboardType, T }: {
   icon: string; label: string; value: string; onChangeText: (v: string) => void;
@@ -140,9 +139,7 @@ function WorkerPersonalInfoScreen() {
 
 export default function GatedWorkerPersonalInfoScreen() {
   return (
-    <RequireVerifiedWorker>
       <WorkerPersonalInfoScreen />
-    </RequireVerifiedWorker>
   );
 }
 

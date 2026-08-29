@@ -1,56 +1,15 @@
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '@/lib/supabase';
-import { getMyProfile } from '@/lib/api/profiles';
-import { getMyWorkerProfile } from '@/lib/api/workerProfiles';
+import { useAuthStore, type WorkerGateStatus } from '@/lib/stores/auth-store';
 
-export type WorkerGateStatus =
-  | 'loading'
-  | 'signed-out'
-  | 'not-worker'
-  | 'no-submission'
-  | 'pending'
-  | 'verified'
-  | 'rejected';
+export type { WorkerGateStatus };
 
 /**
- * Re-checks the signed-in user's worker verification state every time the
- * screen gains focus (not just on mount) — expo-router keeps stack screens
- * mounted, so a plain useEffect would miss a status change that happened
- * while the user was on a different screen (e.g. just got verified).
+ * Reads the signed-in user's worker verification state from the global auth
+ * store (kept fresh by its own onAuthStateChange subscription — see
+ * lib/stores/auth-store.ts) instead of re-fetching per screen.
  */
 export function useWorkerVerification() {
-  const [status, setStatus] = useState<WorkerGateStatus>('loading');
+  const status = useAuthStore((s) => (s.status === 'initializing' ? 'loading' : s.workerGateStatus));
+  const refresh = useAuthStore((s) => s.refreshProfile);
 
-  const check = useCallback(async () => {
-    setStatus('loading');
-
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) {
-      setStatus('signed-out');
-      return;
-    }
-
-    const profile = await getMyProfile();
-    if (!profile.success || profile.data?.role !== 'worker') {
-      setStatus('not-worker');
-      return;
-    }
-
-    const workerProfile = await getMyWorkerProfile();
-    if (!workerProfile.success || !workerProfile.data) {
-      setStatus('no-submission');
-      return;
-    }
-
-    setStatus(workerProfile.data.verification_status);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      check();
-    }, [check])
-  );
-
-  return { status, refresh: check };
+  return { status, refresh };
 }

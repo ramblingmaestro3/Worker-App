@@ -225,7 +225,7 @@ export default function WorkerSetupScreen() {
       return;
     }
 
-    router.replace('/verification-pending' as any);
+    router.replace('/verification-pending');
   };
 
   const handleNext = () => {
@@ -251,7 +251,7 @@ export default function WorkerSetupScreen() {
   const handleBack = () => {
     if (step > 1) { setStep(p => p - 1); return; }
     if (router.canGoBack()) router.back();
-    else router.replace('/home' as any);
+    else router.replace('/home');
   };
 
   return (
@@ -580,7 +580,7 @@ export default function WorkerSetupScreen() {
                 <Ionicons name="document-text-outline" size={wms(18)} color={COLORS.primary} />
                 <Text style={[s.termsText, { color: T.subText }]}>
                   By submitting, you agree to S-Hub&apos;s{' '}
-                  <Text style={s.termsLink} onPress={() => router.push('/terms' as any)}>
+                  <Text style={s.termsLink} onPress={() => router.push('/terms')}>
                     Worker Terms & Conditions
                   </Text>{' '}
                   and consent to background verification.

@@ -102,8 +102,11 @@ export default function PostAJobScreen() {
   };
 
   const handleChangeLocation = () => {
-    const query = location ? `?lat=${location.latitude}&lng=${location.longitude}` : '';
-    router.push(`/location-picker${query}` as any);
+    router.push(
+      location
+        ? { pathname: '/location-picker', params: { lat: String(location.latitude), lng: String(location.longitude) } }
+        : '/location-picker'
+    );
   };
 
   const handlePostJob = async () => {
@@ -148,7 +151,7 @@ export default function PostAJobScreen() {
       return;
     }
 
-    router.push('/finding-worker' as any);
+    router.push('/finding-worker');
   };
 
   return (

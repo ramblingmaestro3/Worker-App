@@ -48,7 +48,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={[s.profileCard, { backgroundColor: T.card, borderColor: T.border }]}
             activeOpacity={0.8}
-            onPress={() => router.push('/worker-personal-info' as any)}
+            onPress={() => router.push('/worker-personal-info')}
           >
             <View style={[s.profileAvatar, { backgroundColor: COLORS.primary }]}>
               <Ionicons name="person" size={26} color="#fff" />
@@ -159,7 +159,7 @@ export default function SettingsScreen() {
             activeOpacity={0.85}
             onPress={() => Alert.alert('Log Out?', 'You will need to sign in again to access your jobs.', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Log Out', style: 'destructive', onPress: () => router.replace('/sign-in' as any) },
+              { text: 'Log Out', style: 'destructive', onPress: () => router.replace('/sign-in') },
             ])}
           >
             <Ionicons name="log-out-outline" size={18} color={COLORS.danger} />
@@ -180,7 +180,7 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
               onPress={() => Alert.alert('Delete Account', 'This will permanently delete your account and all data. This cannot be undone.', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => router.replace('/sign-in' as any) },
+                { text: 'Delete', style: 'destructive', onPress: () => router.replace('/sign-in') },
               ])}
             >
               <Ionicons name="trash-outline" size={16} color={COLORS.danger} />

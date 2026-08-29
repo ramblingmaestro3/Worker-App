@@ -10,7 +10,7 @@ export default function VerifiedScreen() {
   const T = useThemeColors();
 
   const handleGoToDashboard = () => {
-    router.replace('/worker-dashboard' as any);
+    router.replace('/worker-dashboard');
   };
 
   return (

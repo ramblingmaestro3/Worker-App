@@ -87,7 +87,7 @@ export default function WorkerGateScreen() {
         <TouchableOpacity
           style={styles.primaryBtn}
           activeOpacity={0.85}
-          onPress={() => router.replace('/worker-dashboard' as any)}
+          onPress={() => router.replace('/worker-dashboard')}
         >
           <MaterialCommunityIcons name="briefcase-check" size={20} color="#fff" />
           <Text style={styles.primaryBtnText}>Start Earning</Text>

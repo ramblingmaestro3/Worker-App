@@ -6,11 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import BottomNav from '@/components/ui/BottomNav';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { listMyBookingsAsWorker, WorkerBookingView } from '@/lib/api/bookings';
 import { subscribeToTable, unsubscribe } from '@/lib/api/realtime';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 type Filter = 'active' | 'completed' | 'cancelled';
 
@@ -66,10 +64,10 @@ export default function WorkerJobsScreen() {
         if (cancelled) return;
         setLoading(false);
 
-        const { data: auth } = await supabase.auth.getUser();
-        if (!auth.user || cancelled) return;
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId || cancelled) return;
 
-        channel = subscribeToTable('bookings', `worker_id=eq.${auth.user.id}`, () => {
+        channel = subscribeToTable('bookings', `worker_id=eq.${userId}`, () => {
           load();
         });
       })();
@@ -90,7 +88,6 @@ export default function WorkerJobsScreen() {
   );
 
   return (
-    <RequireVerifiedWorker>
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
 
@@ -176,9 +173,7 @@ export default function WorkerJobsScreen() {
       )}
       </View>
 
-      <BottomNav role="worker" active="jobs" />
     </SafeAreaView>
-    </RequireVerifiedWorker>
   );
 }
 

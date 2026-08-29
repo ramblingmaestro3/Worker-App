@@ -5,11 +5,10 @@ import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
-import BottomNav from '@/components/ui/BottomNav';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import AppMap, { AppMapMarker } from '@/components/AppMap';
-import { WORKERS } from './search';
+import { WORKERS } from '../search';
 
 const CATEGORIES: { key: string; label: string; icon: string }[] = [
   { key: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline' },
@@ -46,11 +45,11 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
 
   const handleSelectCategory = (categoryKey: string) => {
-    router.push({ pathname: '/post-a-job', params: { category: categoryKey } } as any);
+    router.push({ pathname: '/post-a-job', params: { category: categoryKey } });
   };
 
   const handleSearch = () => {
-    router.push({ pathname: '/search', params: query.trim() ? { q: query.trim() } : {} } as any);
+    router.push({ pathname: '/search', params: query.trim() ? { q: query.trim() } : {} });
   };
 
   return (
@@ -61,13 +60,13 @@ export default function HomeScreen() {
         <View style={styles.headerInner}>
           <View>
             <Text style={[styles.greeting, { color: T.subText }]}>Find a worker near</Text>
-            <TouchableOpacity style={styles.locationRow} onPress={() => router.push('/saved-locations' as any)} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.locationRow} onPress={() => router.push('/saved-locations')} activeOpacity={0.7}>
               <Ionicons name="location" size={15} color={COLORS.primary} />
               <Text style={[styles.locationText, { color: T.text }]}>Kumasi, Ashanti</Text>
               <Ionicons name="chevron-down" size={14} color={T.subText} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[styles.bellBtn, { backgroundColor: T.inputBg }]} onPress={() => router.push('/notifications' as any)} hitSlop={8}>
+          <TouchableOpacity style={[styles.bellBtn, { backgroundColor: T.inputBg }]} onPress={() => router.push('/notifications')} hitSlop={8}>
             <Ionicons name="notifications-outline" size={20} color={T.text} />
             <View style={styles.bellDot} />
           </TouchableOpacity>
@@ -94,7 +93,7 @@ export default function HomeScreen() {
           </View>
 
           {/* ── Map preview ── */}
-          <TouchableOpacity style={styles.mapCard} onPress={() => router.push('/search' as any)} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.mapCard} onPress={() => router.push('/search')} activeOpacity={0.9}>
             <AppMap
               latitude={MAP_CENTER.latitude}
               longitude={MAP_CENTER.longitude}
@@ -113,7 +112,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           {/* ── AI Help ── */}
-          <TouchableOpacity onPress={() => router.push('/ai-assistant' as any)} activeOpacity={0.9}>
+          <TouchableOpacity onPress={() => router.push('/ai-assistant')} activeOpacity={0.9}>
             <Card style={styles.aiCard}>
               <View style={styles.aiIconWrap}>
                 <Ionicons name="sparkles" size={20} color="#fff" />
@@ -151,7 +150,7 @@ export default function HomeScreen() {
           {/* ── Nearby workers ── */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: T.text }]}>Workers near you</Text>
-            <TouchableOpacity onPress={() => router.push('/search' as any)}>
+            <TouchableOpacity onPress={() => router.push('/search')}>
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -160,7 +159,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={w.id}
                 style={[styles.workerCard, { backgroundColor: T.card, borderColor: T.border }]}
-                onPress={() => router.push(`/worker-profile?id=${w.id}` as any)}
+                onPress={() => router.push({ pathname: '/worker-profile', params: { id: w.id } })}
                 activeOpacity={0.85}
               >
                 <View style={[styles.workerAvatar, { backgroundColor: w.color + '20' }]}>
@@ -191,7 +190,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <BottomNav role="customer" active="home" />
     </View>
   );
 }

@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
 import { createBid, listMyBids, WorkerBid } from '@/lib/api/workerBids';
 
@@ -74,7 +73,7 @@ export default function SubmitBidScreen() {
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/worker-dashboard' as any);
+    else router.replace('/worker-dashboard');
   };
 
   const suggestedRange = useMemo(() => {
@@ -85,55 +84,48 @@ export default function SubmitBidScreen() {
 
   if (loading) {
     return (
-      <RequireVerifiedWorker>
-        <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={['top']}>
-          <ActivityIndicator color={COLORS.primary} size="large" />
-        </SafeAreaView>
-      </RequireVerifiedWorker>
+      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={['top']}>
+        <ActivityIndicator color={COLORS.primary} size="large" />
+      </SafeAreaView>
     );
   }
 
   if (!request) {
     return (
-      <RequireVerifiedWorker>
-        <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={['top']}>
-          <Ionicons name="alert-circle-outline" size={wms(40)} color={T.subText} />
-          <Text style={[styles.emptyTitle, { color: T.text }]}>Job not found</Text>
-          <Text style={[styles.emptySub, { color: T.subText }]}>This request may have been removed or already assigned.</Text>
-          <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
-            <Text style={styles.backLinkText}>Back to Dashboard</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
-      </RequireVerifiedWorker>
+      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={['top']}>
+        <Ionicons name="alert-circle-outline" size={wms(40)} color={T.subText} />
+        <Text style={[styles.emptyTitle, { color: T.text }]}>Job not found</Text>
+        <Text style={[styles.emptySub, { color: T.subText }]}>This request may have been removed or already assigned.</Text>
+        <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
+          <Text style={styles.backLinkText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
   if (submitted || existingBid) {
     const bid = submitted ? null : existingBid;
     return (
-      <RequireVerifiedWorker>
-        <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
-          <StatusBar barStyle={T.statusBar} />
-          <View style={[styles.container, styles.centered, { paddingHorizontal: ws(32) }]}>
-            <View style={[styles.successIconWrap, { backgroundColor: COLORS.primaryLight }]}>
-              <Ionicons name="paper-plane" size={wms(40)} color={COLORS.primary} />
-            </View>
-            <Text style={[styles.successTitle, { color: T.text }]}>Offer Sent</Text>
-            <Text style={[styles.successSub, { color: T.subText }]}>
-              Waiting for client{bid ? ` — you offered GH₵${bid.proposed_price} on this job.` : '.'}
-              {'\n'}You&apos;ll be notified the instant they respond.
-            </Text>
-            <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
-              <Text style={styles.backLinkText}>Back to Dashboard</Text>
-            </TouchableOpacity>
+      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
+        <StatusBar barStyle={T.statusBar} />
+        <View style={[styles.container, styles.centered, { paddingHorizontal: ws(32) }]}>
+          <View style={[styles.successIconWrap, { backgroundColor: COLORS.primaryLight }]}>
+            <Ionicons name="paper-plane" size={wms(40)} color={COLORS.primary} />
           </View>
-        </SafeAreaView>
-      </RequireVerifiedWorker>
+          <Text style={[styles.successTitle, { color: T.text }]}>Offer Sent</Text>
+          <Text style={[styles.successSub, { color: T.subText }]}>
+            Waiting for client{bid ? ` — you offered GH₵${bid.proposed_price} on this job.` : '.'}
+            {'\n'}You&apos;ll be notified the instant they respond.
+          </Text>
+          <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
+            <Text style={styles.backLinkText}>Back to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <RequireVerifiedWorker>
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
 
@@ -264,7 +256,6 @@ export default function SubmitBidScreen() {
       </View>
       </View>
     </SafeAreaView>
-    </RequireVerifiedWorker>
   );
 }
 

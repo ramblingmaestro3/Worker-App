@@ -181,7 +181,7 @@ export default function SearchScreen() {
             returnKeyType="search"
             onSubmitEditing={() => {
               if (search.trim().length > 0)
-                router.push(`/finding-worker?service=${encodeURIComponent(search.trim())}&jobTitle=${encodeURIComponent(search.trim() + ' job')}` as any);
+                router.push({ pathname: '/finding-worker', params: { service: search.trim(), jobTitle: search.trim() + ' job' } });
             }}
           />
           {search.length > 0 && (
@@ -192,7 +192,7 @@ export default function SearchScreen() {
               <TouchableOpacity
                 style={styles.findBtn}
                 activeOpacity={0.85}
-                onPress={() => router.push(`/finding-worker?service=${encodeURIComponent(search.trim())}&jobTitle=${encodeURIComponent(search.trim() + ' job')}` as any)}
+                onPress={() => router.push({ pathname: '/finding-worker', params: { service: search.trim(), jobTitle: search.trim() + ' job' } })}
               >
                 <Text style={styles.findBtnText}>Find</Text>
               </TouchableOpacity>
@@ -257,7 +257,7 @@ export default function SearchScreen() {
                 data={filtered}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={[wc.card, { backgroundColor: T.card, borderColor: T.border }]} onPress={() => router.push(`/worker-profile?id=${item.id}` as any)} activeOpacity={0.8}>
+                  <TouchableOpacity style={[wc.card, { backgroundColor: T.card, borderColor: T.border }]} onPress={() => router.push({ pathname: '/worker-profile', params: { id: item.id } })} activeOpacity={0.8}>
                     <View style={[wc.avatar, { backgroundColor: item.color + '20' }]}>
                       <Text style={[wc.initials, { color: item.color }]}>{item.initials}</Text>
                       {item.available && <View style={wc.onlineDot} />}

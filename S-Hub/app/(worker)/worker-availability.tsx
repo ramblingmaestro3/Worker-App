@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMyWorkerProfile, updateWorkerProfile, AvailabilityDay, PreferredTime, PREFERRED_TIME_OPTIONS } from '@/lib/api/workerProfiles';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 
 const FULL_DAY_NAMES: Record<string, string> = {
   Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday',
@@ -162,9 +161,7 @@ function WorkerAvailabilityScreen() {
 
 export default function GatedWorkerAvailabilityScreen() {
   return (
-    <RequireVerifiedWorker>
       <WorkerAvailabilityScreen />
-    </RequireVerifiedWorker>
   );
 }
 

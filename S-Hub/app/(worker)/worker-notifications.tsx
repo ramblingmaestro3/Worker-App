@@ -1,7 +1,6 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import {
   listMyNotifications,
   markNotificationRead,
@@ -12,7 +11,7 @@ import {
   NotificationType,
 } from '@/lib/api/notifications';
 import { subscribeToMyNotifications, unsubscribe } from '@/lib/api/realtime';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -58,13 +57,14 @@ function WorkerNotificationsScreen() {
       let channel: ReturnType<typeof subscribeToMyNotifications> | null = null;
 
       (async () => {
-        const [auth, result] = await Promise.all([supabase.auth.getUser(), listMyNotifications()]);
+        const userId = useAuthStore.getState().user?.id;
+        const result = await listMyNotifications();
         if (cancelled) return;
         if (result.success) setNotifs(result.data ?? []);
         setLoading(false);
 
-        if (auth.data.user) {
-          channel = subscribeToMyNotifications(auth.data.user.id, (row) => {
+        if (userId) {
+          channel = subscribeToMyNotifications(userId, (row) => {
             setNotifs((prev) => (prev.some((n) => n.id === row.id) ? prev.map((n) => (n.id === row.id ? row : n)) : [row, ...prev]));
           });
         }
@@ -186,9 +186,7 @@ function WorkerNotificationsScreen() {
 
 export default function GatedWorkerNotificationsScreen() {
   return (
-    <RequireVerifiedWorker>
       <WorkerNotificationsScreen />
-    </RequireVerifiedWorker>
   );
 }
 

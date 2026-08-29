@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { ThemeProvider, useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { supabase } from '@/lib/supabase';
 
 // Every screen renders inside one centred column of this width — the same size
@@ -48,7 +49,7 @@ function useAuthDeepLinks() {
       if (!access_token || !refresh_token) return;
 
       await supabase.auth.setSession({ access_token, refresh_token });
-      router.replace('/reset-password' as any);
+      router.replace('/reset-password');
     };
 
     Linking.getInitialURL().then(handleUrl);
@@ -61,6 +62,8 @@ function AppNavigator() {
   const { colorScheme } = useAppTheme();
   const T = useThemeColors();
   useAuthDeepLinks();
+
+  useEffect(() => useAuthStore.getState().init(), []);
 
   const base = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   // Paint the area outside the centred column with the app's own background so

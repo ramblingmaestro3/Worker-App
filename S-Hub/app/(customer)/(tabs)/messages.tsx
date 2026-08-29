@@ -1,9 +1,8 @@
-import BottomNav from '@/components/ui/BottomNav';
 import ScreenContent from '@/components/ScreenContent';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ConversationView, listMyConversations } from '@/lib/api/bookings';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -39,7 +38,7 @@ function timeAgo(iso: string): string {
 export default function MessagesScreen() {
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [myId, setMyId] = useState<string | null>(null);
+  const myId = useAuthStore((s) => s.user?.id ?? null);
   const [conversations, setConversations] = useState<ConversationView[]>([]);
   const [loading, setLoading] = useState(true);
   const T = useThemeColors();
@@ -48,9 +47,8 @@ export default function MessagesScreen() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const [auth, result] = await Promise.all([supabase.auth.getUser(), listMyConversations()]);
+        const result = await listMyConversations();
         if (cancelled) return;
-        setMyId(auth.data.user?.id ?? null);
         if (result.success) setConversations(result.data ?? []);
         setLoading(false);
       })();
@@ -115,7 +113,7 @@ export default function MessagesScreen() {
           <Ionicons name="chatbubbles-outline" size={54} color={COLORS.primary + '50'} />
           <Text style={[styles.emptyTitle, { color: T.text }]}>No conversations</Text>
           <Text style={[styles.emptySub, { color: T.subText }]}>Post a job and connect with workers to start chatting.</Text>
-          <TouchableOpacity style={styles.emptyCta} onPress={() => router.push('/post-a-job' as any)} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.emptyCta} onPress={() => router.push('/post-a-job')} activeOpacity={0.85}>
             <Text style={styles.emptyCtaText}>Post a Job</Text>
           </TouchableOpacity>
         </View>
@@ -133,7 +131,7 @@ export default function MessagesScreen() {
                     {index > 0 && <View style={[styles.divider, { backgroundColor: T.divider }]} />}
                     <TouchableOpacity
                       style={[styles.row, { backgroundColor: T.card }]}
-                      onPress={() => router.push(`/chat?bookingId=${convo.booking_id}` as any)}
+                      onPress={() => router.push({ pathname: '/chat', params: { bookingId: convo.booking_id } })}
                       activeOpacity={0.78}
                     >
                       <View style={styles.avatarWrap}>
@@ -175,7 +173,6 @@ export default function MessagesScreen() {
         </View>
       )}
 
-      <BottomNav role="customer" active="messages" />
     </SafeAreaView>
   );
 }

@@ -16,10 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import BottomNav from '@/components/ui/BottomNav';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { listMyConversations, ConversationView } from '@/lib/api/bookings';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 function initialsOf(name: string): string {
   return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
@@ -41,7 +39,7 @@ export default function WorkerMessagesScreen() {
   const T = useThemeColors();
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [myId, setMyId] = useState<string | null>(null);
+  const myId = useAuthStore((s) => s.user?.id ?? null);
   const [conversations, setConversations] = useState<ConversationView[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,9 +47,8 @@ export default function WorkerMessagesScreen() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const [auth, result] = await Promise.all([supabase.auth.getUser(), listMyConversations()]);
+        const result = await listMyConversations();
         if (cancelled) return;
-        setMyId(auth.data.user?.id ?? null);
         if (result.success) setConversations(result.data ?? []);
         setLoading(false);
       })();
@@ -67,7 +64,6 @@ export default function WorkerMessagesScreen() {
   );
 
   return (
-    <RequireVerifiedWorker>
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
 
@@ -128,7 +124,7 @@ export default function WorkerMessagesScreen() {
             return (
               <TouchableOpacity
                 style={styles.row}
-                onPress={() => router.push(`/chat?bookingId=${convo.booking_id}` as any)}
+                onPress={() => router.push({ pathname: '/chat', params: { bookingId: convo.booking_id } })}
                 activeOpacity={0.75}
               >
                 <View style={styles.avatarWrap}>
@@ -166,9 +162,7 @@ export default function WorkerMessagesScreen() {
       )}
       </View>
 
-      <BottomNav role="worker" active="messages" />
     </SafeAreaView>
-    </RequireVerifiedWorker>
   );
 }
 

@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMyWorkerProfile, updateWorkerProfile } from '@/lib/api/workerProfiles';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 
 function PriceField({ label, hint, value, onChangeText, T }: {
   label: string; hint: string; value: string; onChangeText: (v: string) => void; T: any;
@@ -154,9 +153,7 @@ function WorkerPricingScreen() {
 
 export default function GatedWorkerPricingScreen() {
   return (
-    <RequireVerifiedWorker>
       <WorkerPricingScreen />
-    </RequireVerifiedWorker>
   );
 }
 

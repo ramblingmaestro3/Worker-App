@@ -3,7 +3,6 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import ScreenContent from '@/components/ScreenContent';
 import { getWorkerProfile, preferredTimeShortLabel } from '@/lib/api/workerProfiles';
-import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -115,7 +114,6 @@ export default function WorkerProfileScreen() {
     const mockWorker = !Number.isNaN(numericId) ? WORKERS.find((w) => w.id === numericId) : undefined;
     const isRealMode = !mockWorker && !!id;
 
-    const [myId, setMyId] = useState<string | null>(null);
     const [realVm, setRealVm] = useState<ViewModel | null>(null);
     const [loading, setLoading] = useState(isRealMode);
     const [loadError, setLoadError] = useState(false);
@@ -125,9 +123,8 @@ export default function WorkerProfileScreen() {
         if (!isRealMode) return;
         let cancelled = false;
         (async () => {
-            const [auth, result] = await Promise.all([supabase.auth.getUser(), getWorkerProfile(id)]);
+            const result = await getWorkerProfile(id);
             if (cancelled) return;
-            setMyId(auth.data.user?.id ?? null);
             if (!result.success || !result.data) {
                 setLoadError(true);
                 setLoading(false);
@@ -216,7 +213,7 @@ export default function WorkerProfileScreen() {
             router.back();
             return;
         }
-        router.push('/messages' as any);
+        router.push('/messages');
     };
 
     const handleCall = () => Alert.alert('Call', 'Calling from the app is coming soon.');
@@ -224,7 +221,7 @@ export default function WorkerProfileScreen() {
 
     const handlePrimaryAction = () => {
         if (vm.isRealMode) {
-            router.push('/post-a-job' as any);
+            router.push('/post-a-job');
             return;
         }
         Alert.alert(
@@ -236,7 +233,7 @@ export default function WorkerProfileScreen() {
                     text: 'Book',
                     onPress: () => {
                         Alert.alert('Request Sent', `${vm.name} has been notified of your booking request.`);
-                        router.push('/bookings' as any);
+                        router.push('/bookings');
                     },
                 },
             ]

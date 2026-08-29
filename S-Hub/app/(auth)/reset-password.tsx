@@ -230,7 +230,7 @@ export default function ResetPasswordScreen() {
               <View style={styles.footerRow}>
                 <Text style={[styles.footerText, { color: T.subText }]}>
                   Remembered your password?{' '}
-                  <Text style={styles.footerLink} onPress={() => router.replace('/sign-in' as any)}>
+                  <Text style={styles.footerLink} onPress={() => router.replace('/sign-in')}>
                     Log In
                   </Text>
                 </Text>
@@ -338,7 +338,7 @@ export default function ResetPasswordScreen() {
               <Text style={[styles.hintText, { color: T.subText, marginBottom: vs(16) }]}>
                 Tip: Check your spam or junk folder if you don&apos;t see the email.
               </Text>
-              <TouchableOpacity style={styles.darkButton} onPress={() => router.replace('/sign-in' as any)} activeOpacity={0.85}>
+              <TouchableOpacity style={styles.darkButton} onPress={() => router.replace('/sign-in')} activeOpacity={0.85}>
                 <Text style={styles.darkButtonText}>Back to Login</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.backRow} onPress={() => setStep(1)}>
@@ -418,7 +418,7 @@ export default function ResetPasswordScreen() {
               <Text style={[styles.subtitle, { color: T.subText, marginBottom: vs(24) }]}>
                 Your password has been reset successfully. You can now log in with your new credentials.
               </Text>
-              <TouchableOpacity style={styles.darkButton} onPress={() => router.replace('/sign-in' as any)} activeOpacity={0.85}>
+              <TouchableOpacity style={styles.darkButton} onPress={() => router.replace('/sign-in')} activeOpacity={0.85}>
                 <Text style={styles.darkButtonText}>Proceed to Login</Text>
               </TouchableOpacity>
             </View>

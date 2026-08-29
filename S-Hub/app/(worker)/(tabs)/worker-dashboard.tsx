@@ -8,9 +8,7 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { distanceKm } from '@/lib/geo';
-import BottomNav from '@/components/ui/BottomNav';
 import Card from '@/components/ui/Card';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import Toast, { ToastState, ToastVariant } from '@/components/Toast';
 import { getMyProfile } from '@/lib/api/profiles';
 import { getMyWorkerProfile } from '@/lib/api/workerProfiles';
@@ -18,7 +16,7 @@ import { listOpenServiceRequestsForCategories, ServiceRequest } from '@/lib/api/
 import { listMyBids, matchCounterOffer, withdrawBid, WorkerBid } from '@/lib/api/workerBids';
 import { countMyCompletedBookings } from '@/lib/api/bookings';
 import { subscribeToTable, unsubscribe } from '@/lib/api/realtime';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -117,8 +115,8 @@ export default function WorkerDashboardScreen() {
         if (cancelled) return;
         setLoading(false);
 
-        const { data: auth } = await supabase.auth.getUser();
-        if (!auth.user || cancelled) return;
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId || cancelled) return;
 
         // New/changed open requests — client-filtered to this worker's skills,
         // since postgres_changes filters can't express "category in (...)".
@@ -137,7 +135,7 @@ export default function WorkerDashboardScreen() {
         );
 
         // The worker's own bid status changes — this is the assignment handshake.
-        bidsChannel = subscribeToTable<WorkerBid>('worker_bids', `worker_id=eq.${auth.user.id}`, (bid) => {
+        bidsChannel = subscribeToTable<WorkerBid>('worker_bids', `worker_id=eq.${userId}`, (bid) => {
           setMyBids((prev) => {
             const next = new Map(prev);
             next.set(bid.request_id, bid);
@@ -147,7 +145,7 @@ export default function WorkerDashboardScreen() {
           if (bid.status === 'accepted') {
             showToast('🎉 Offer accepted! Job assigned.', 'success');
             setRequests((prev) => prev.filter((r) => r.id !== bid.request_id));
-            setTimeout(() => router.replace('/worker-jobs' as any), 1200);
+            setTimeout(() => router.replace('/worker-jobs'), 1200);
           } else if (bid.status === 'declined') {
             showToast('Offer expired — job taken by another worker.', 'warning');
             setRequests((prev) => prev.filter((r) => r.id !== bid.request_id));
@@ -166,7 +164,7 @@ export default function WorkerDashboardScreen() {
   );
 
   const handlePlaceBid = (requestId: string) => {
-    router.push({ pathname: '/submit-bid', params: { requestId } } as any);
+    router.push({ pathname: '/submit-bid', params: { requestId } });
   };
 
   const handleMatchCounter = async (bid: WorkerBid) => {
@@ -208,7 +206,6 @@ export default function WorkerDashboardScreen() {
     });
 
   return (
-    <RequireVerifiedWorker>
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
 
@@ -226,7 +223,7 @@ export default function WorkerDashboardScreen() {
             <Text style={[styles.userName, { color: T.text }]} numberOfLines={1}>{fullName || 'Worker'}</Text>
           </View>
         </View>
-        <TouchableOpacity style={[styles.notifBtn, { backgroundColor: T.inputBg }]} onPress={() => router.push('/worker-notifications' as any)}>
+        <TouchableOpacity style={[styles.notifBtn, { backgroundColor: T.inputBg }]} onPress={() => router.push('/worker-notifications')}>
           <Ionicons name="notifications-outline" size={wms(19)} color={T.text} />
         </TouchableOpacity>
       </View>
@@ -358,9 +355,7 @@ export default function WorkerDashboardScreen() {
       </View>
 
       <Toast toast={toast} />
-      <BottomNav role="worker" active="home" />
     </SafeAreaView>
-    </RequireVerifiedWorker>
   );
 }
 

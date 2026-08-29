@@ -166,7 +166,7 @@ function WorkerCard({ worker, service, T }: { worker: typeof WORKERS[0]; service
         <TouchableOpacity
           style={wc.hireBtn}
           activeOpacity={0.85}
-          onPress={() => router.push('/messages' as any)}
+          onPress={() => router.push('/messages')}
         >
           <Text style={wc.hireBtnText}>Hire</Text>
         </TouchableOpacity>
@@ -238,7 +238,7 @@ export default function FindingWorkerScreen() {
           </View>
           <TouchableOpacity
             style={s.myJobsBtn}
-            onPress={() => router.push('/bookings' as any)}
+            onPress={() => router.push('/bookings')}
             activeOpacity={0.8}
           >
             <Ionicons name="briefcase-outline" size={16} color={COLORS.primary} />

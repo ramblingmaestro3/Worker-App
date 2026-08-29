@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { useWorkerVerification } from '@/hooks/use-worker-verification';
 
-const REDIRECTS: Record<string, string> = {
+const REDIRECTS: Record<string, Href> = {
   'signed-out': '/sign-in',
   'not-worker': '/become-worker',
   'no-submission': '/become-worker',
@@ -26,7 +26,7 @@ export default function RequireVerifiedWorker({ children }: { children: React.Re
 
   useEffect(() => {
     const target = REDIRECTS[status];
-    if (target) router.replace(target as any);
+    if (target) router.replace(target);
   }, [status]);
 
   if (status !== 'verified') {

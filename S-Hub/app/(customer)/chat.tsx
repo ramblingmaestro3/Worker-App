@@ -4,7 +4,7 @@ import ScreenContent from '@/components/ScreenContent';
 import { getBookingWithContext, BookingChatContext } from '@/lib/api/bookings';
 import { listMessages, sendMessage, markMessagesRead, Message } from '@/lib/api/messages';
 import { subscribeToBookingMessages, unsubscribe } from '@/lib/api/realtime';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -74,7 +74,7 @@ export default function ChatScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const T = useThemeColors();
 
-  const [myId, setMyId] = useState<string | null>(null);
+  const myId = useAuthStore((s) => s.user?.id ?? null);
   const [context, setContext] = useState<BookingChatContext | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,8 +95,7 @@ export default function ChatScreen() {
           setLoading(false);
           return;
         }
-        const [auth, bookingResult, messagesResult] = await Promise.all([
-          supabase.auth.getUser(),
+        const [bookingResult, messagesResult] = await Promise.all([
           getBookingWithContext(bookingId),
           listMessages(bookingId),
         ]);
@@ -108,7 +107,6 @@ export default function ChatScreen() {
           return;
         }
 
-        setMyId(auth.data.user?.id ?? null);
         setContext(bookingResult.data);
         setMessages(messagesResult.data ?? []);
         setLoading(false);
@@ -169,11 +167,11 @@ export default function ChatScreen() {
 
   const handleViewProfile = () => {
     setMenuVisible(false);
-    router.push(`/worker-profile?id=${context.worker_id}` as any);
+    router.push({ pathname: '/worker-profile', params: { id: context.worker_id } });
   };
 
   const handleJobBannerPress = () => {
-    router.push((isClientViewer ? '/bookings' : '/worker-jobs') as any);
+    router.push(isClientViewer ? '/bookings' : '/worker-jobs');
   };
 
   const handleBlock = () => {

@@ -6,7 +6,6 @@ import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOp
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
-import BottomNav from '@/components/ui/BottomNav';
 import Card from '@/components/ui/Card';
 import { listMyServiceRequests, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listMyBookingsAsClient, ClientBookingView, BookingStatus } from '@/lib/api/bookings';
@@ -111,7 +110,7 @@ export default function BookingsScreen() {
           <View style={styles.promoCard}>
             <Text style={styles.promoTitle}>Need more help?</Text>
             <Text style={styles.promoBody}>Book a trusted professional for your next home project in minutes.</Text>
-            <TouchableOpacity style={styles.promoButton} onPress={() => router.push('/post-a-job' as any)} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.promoButton} onPress={() => router.push('/post-a-job')} activeOpacity={0.85}>
               <Text style={styles.promoButtonText}>Post a Job</Text>
             </TouchableOpacity>
           </View>
@@ -136,7 +135,7 @@ export default function BookingsScreen() {
                     <TouchableOpacity
                       key={entry.id}
                       activeOpacity={0.85}
-                      onPress={() => !cancelled && router.push(`/bid-comparison?requestId=${req.id}` as any)}
+                      onPress={() => !cancelled && router.push({ pathname: '/bid-comparison', params: { requestId: req.id } })}
                     >
                     <Card style={[styles.card, cancelled && { opacity: 0.7 }]}>
                       <View style={styles.cardTopRow}>
@@ -184,7 +183,7 @@ export default function BookingsScreen() {
                   <TouchableOpacity
                     key={entry.id}
                     activeOpacity={0.85}
-                    onPress={() => router.push(`/chat?bookingId=${booking.id}` as any)}
+                    onPress={() => router.push({ pathname: '/chat', params: { bookingId: booking.id } })}
                   >
                   <Card style={[styles.card, cancelled && { opacity: 0.7 }]}>
                     <View style={styles.cardTopRow}>
@@ -231,7 +230,6 @@ export default function BookingsScreen() {
         </View>
       </ScrollView>
 
-      <BottomNav role="customer" active="jobs" />
     </View>
   );
 }

@@ -2,6 +2,7 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { getMyProfile, updateProfile } from '@/lib/api/profiles';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -40,14 +41,14 @@ export default function ProfileEditScreen() {
 
   useEffect(() => {
     (async () => {
-      const [result, authResult] = await Promise.all([getMyProfile(), supabase.auth.getUser()]);
+      const result = await getMyProfile();
       if (result.success && result.data) {
         setName(result.data.full_name ?? '');
         setEmail(result.data.email ?? '');
         setOriginalEmail(result.data.email ?? '');
         setPhone(result.data.phone ?? '');
       }
-      setEmailVerified(!!authResult.data.user?.email_confirmed_at);
+      setEmailVerified(!!useAuthStore.getState().user?.email_confirmed_at);
       setLoading(false);
     })();
   }, []);

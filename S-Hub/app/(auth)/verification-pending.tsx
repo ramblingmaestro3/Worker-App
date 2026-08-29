@@ -37,7 +37,7 @@ export default function VerificationPendingScreen() {
       if (cancelled) return;
 
       if (result.success && result.data?.status === 'verified') {
-        router.replace('/verified' as any);
+        router.replace('/verified');
         return;
       }
 
@@ -45,7 +45,7 @@ export default function VerificationPendingScreen() {
         if (cancelled) return;
         setReviewing(false);
         await finalizeVerification();
-        if (!cancelled) router.replace('/verified' as any);
+        if (!cancelled) router.replace('/verified');
       }, REVIEW_DURATION_MS);
     })();
 
@@ -116,14 +116,14 @@ export default function VerificationPendingScreen() {
 
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => router.replace('/home' as any)}
+          onPress={() => router.replace('/home')}
           activeOpacity={0.85}
         >
           <Ionicons name="home-outline" size={wms(18)} color="#fff" />
           <Text style={styles.primaryButtonText}>Back to Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/support' as any)}>
+        <TouchableOpacity onPress={() => router.push('/support')}>
           <Text style={[styles.supportText, { color: T.subText }]}>
             Need help? <Text style={styles.supportLink}>Contact Support</Text>
           </Text>

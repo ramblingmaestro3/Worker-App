@@ -112,7 +112,7 @@ export default function OtpVerificationScreen() {
     }
     if (data.session) {
       const role = data.user?.user_metadata?.role;
-      router.replace((role === 'worker' ? '/become-worker' : '/home') as any);
+      router.replace(role === 'worker' ? '/become-worker' : '/home');
     } else {
       setError('Verification succeeded but no session was created. Try signing in.');
     }
@@ -120,7 +120,7 @@ export default function OtpVerificationScreen() {
 
   // Development bypass: skip OTP and go straight to home
   const handleSkip = () => {
-    router.replace('/home' as any);
+    router.replace('/home');
   };
 
   const formattedTime = `(00:${timeLeft < 10 ? `0${timeLeft}` : timeLeft})`;

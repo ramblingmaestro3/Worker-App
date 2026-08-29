@@ -90,7 +90,7 @@ export default function BidComparisonScreen() {
               Alert.alert('Could Not Accept', result.error ?? 'Something went wrong.');
               return;
             }
-            router.replace('/bookings' as any);
+            router.replace('/bookings');
           },
         },
       ]
@@ -257,7 +257,7 @@ export default function BidComparisonScreen() {
                         <TouchableOpacity
                           style={[styles.messageButton, { borderColor: T.text }]}
                           activeOpacity={0.85}
-                          onPress={() => router.push(`/worker-profile?id=${bid.worker_id}` as any)}
+                          onPress={() => router.push({ pathname: '/worker-profile', params: { id: bid.worker_id } })}
                         >
                           <Text style={[styles.messageButtonText, { color: T.text }]}>View Profile</Text>
                         </TouchableOpacity>

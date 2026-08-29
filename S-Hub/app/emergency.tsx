@@ -226,7 +226,7 @@ export default function EmergencyScreen() {
       '🚨 Worker Dispatched!',
       `${worker.name} is on the way — ETA ${worker.eta}.\n\nYou'll receive SMS & in-app updates.`,
       [
-        { text: 'Track Worker', onPress: () => router.push('/finding-worker' as any) },
+        { text: 'Track Worker', onPress: () => router.push('/finding-worker') },
         { text: 'OK' },
       ]
     );
@@ -241,7 +241,7 @@ export default function EmergencyScreen() {
         {
           text: 'Confirm SOS',
           style: 'destructive',
-          onPress: () => router.push('/finding-worker' as any),
+          onPress: () => router.push('/finding-worker'),
         },
       ]
     );
@@ -281,7 +281,7 @@ export default function EmergencyScreen() {
               <Ionicons name="warning" size={16} color={COLORS.danger} />
               <Text style={s.urgencyText}>
                 Emergency workers charge a premium rate. Standard jobs are available via{' '}
-                <Text style={s.urgencyLink} onPress={() => router.push('/post-a-job' as any)}>Post a Job</Text>.
+                <Text style={s.urgencyLink} onPress={() => router.push('/post-a-job')}>Post a Job</Text>.
               </Text>
             </ScreenContent>
           </View>

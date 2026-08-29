@@ -17,8 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import BottomNav from '@/components/ui/BottomNav';
-import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, WorkerProfile } from '@/lib/api/workerProfiles';
 import { countMyCompletedBookings } from '@/lib/api/bookings';
@@ -101,7 +99,7 @@ export default function WorkerProfileSettingsScreen() {
         ]);
         if (cancelled) return;
         if (!profileResult.success) {
-          router.replace('/sign-in' as any);
+          router.replace('/sign-in');
           return;
         }
         setProfile(profileResult.data ?? null);
@@ -115,18 +113,15 @@ export default function WorkerProfileSettingsScreen() {
 
   if (loading || !profile) {
     return (
-      <RequireVerifiedWorker>
-        <SafeAreaView style={[styles.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['top']}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </SafeAreaView>
-      </RequireVerifiedWorker>
+      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['top']}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </SafeAreaView>
     );
   }
 
   const primaryService = workerProfile?.skills?.[0] ?? 'Worker';
 
   return (
-    <RequireVerifiedWorker>
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
 
@@ -151,7 +146,7 @@ export default function WorkerProfileSettingsScreen() {
           </View>
           <TouchableOpacity
             style={[styles.editBtn, { backgroundColor: T.inputBg }]}
-            onPress={() => router.push('/worker-personal-info' as any)}
+            onPress={() => router.push('/worker-personal-info')}
             activeOpacity={0.8}
           >
             <Ionicons name="pencil-outline" size={wms(15)} color={T.text} />
@@ -181,7 +176,7 @@ export default function WorkerProfileSettingsScreen() {
             icon={<Ionicons name="person-outline" size={wms(17)} color={COLORS.primary} />}
             label="Personal Info"
             subtitle="Name, phone, location"
-            onPress={() => router.push('/worker-personal-info' as any)}
+            onPress={() => router.push('/worker-personal-info')}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
           <MenuItem
@@ -189,7 +184,7 @@ export default function WorkerProfileSettingsScreen() {
             icon={<Ionicons name="construct-outline" size={wms(17)} color={COLORS.primary} />}
             label="Skills & Services"
             subtitle="Manage your skill categories"
-            onPress={() => router.push('/worker-skills' as any)}
+            onPress={() => router.push('/worker-skills')}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
           <MenuItem
@@ -197,7 +192,7 @@ export default function WorkerProfileSettingsScreen() {
             icon={<Ionicons name="calendar-outline" size={wms(17)} color={COLORS.primary} />}
             label="Availability"
             subtitle="Working days & hours"
-            onPress={() => router.push('/worker-availability' as any)}
+            onPress={() => router.push('/worker-availability')}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
           <MenuItem
@@ -205,7 +200,7 @@ export default function WorkerProfileSettingsScreen() {
             icon={<Ionicons name="pricetag-outline" size={wms(17)} color={COLORS.primary} />}
             label="Pricing"
             subtitle="Hourly rate & job pricing"
-            onPress={() => router.push('/worker-pricing' as any)}
+            onPress={() => router.push('/worker-pricing')}
           />
         </View>
 
@@ -230,7 +225,7 @@ export default function WorkerProfileSettingsScreen() {
             T={T}
             icon={<Ionicons name="settings-outline" size={wms(17)} color={COLORS.primary} />}
             label="Settings"
-            onPress={() => router.push('/settings' as any)}
+            onPress={() => router.push('/settings')}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
           <MenuItem
@@ -238,7 +233,7 @@ export default function WorkerProfileSettingsScreen() {
             icon={<MaterialCommunityIcons name="swap-horizontal" size={wms(17)} color={COLORS.primary} />}
             label="Switch to Client Mode"
             subtitle="Post jobs and hire workers instead"
-            onPress={() => router.replace('/home' as any)}
+            onPress={() => router.replace('/home')}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
           <MenuItem
@@ -252,7 +247,7 @@ export default function WorkerProfileSettingsScreen() {
                 {
                   text: 'Sign Out', style: 'destructive', onPress: async () => {
                     await signOut();
-                    router.replace('/sign-in' as any);
+                    router.replace('/sign-in');
                   },
                 },
               ])
@@ -266,9 +261,7 @@ export default function WorkerProfileSettingsScreen() {
       </ScrollView>
       </View>
 
-      <BottomNav role="worker" active="profile" />
     </SafeAreaView>
-    </RequireVerifiedWorker>
   );
 }
 

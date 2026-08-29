@@ -374,7 +374,7 @@ export default function AIAssistantScreen() {
       description: parts.join('\n\n'),
       photoUri: image?.uri,
     });
-    router.push({ pathname: '/post-a-job', params: { category: category || result?.recommendations?.[0]?.category || '' } } as any);
+    router.push({ pathname: '/post-a-job', params: { category: category || result?.recommendations?.[0]?.category || '' } });
   };
 
   const findWorkers = () => {

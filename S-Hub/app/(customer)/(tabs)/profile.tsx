@@ -1,10 +1,9 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
-import BottomNav from '@/components/ui/BottomNav';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { signOut } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { s, vs, ms } from '@/lib/scaling';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -97,17 +96,14 @@ export default function ProfileScreen() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const [profileResult, authResult] = await Promise.all([
-          getMyProfile(),
-          supabase.auth.getUser(),
-        ]);
+        const profileResult = await getMyProfile();
         if (cancelled) return;
         if (!profileResult.success) {
-          router.replace('/sign-in' as any);
+          router.replace('/sign-in');
           return;
         }
         setProfile(profileResult.data ?? null);
-        setEmailVerified(!!authResult.data.user?.email_confirmed_at);
+        setEmailVerified(!!useAuthStore.getState().user?.email_confirmed_at);
         setLoading(false);
       })();
       return () => { cancelled = true; };
@@ -150,7 +146,7 @@ export default function ProfileScreen() {
             </View>
             <TouchableOpacity
               style={[styles.editBtn, { backgroundColor: T.inputBg }]}
-              onPress={() => router.push('/profile-edit' as any)}
+              onPress={() => router.push('/profile-edit')}
               activeOpacity={0.8}
             >
               <Ionicons name="pencil-outline" size={ms(15)} color={T.text} />
@@ -168,7 +164,7 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 key={stat.label}
                 style={[styles.stat, i < arr.length - 1 && [styles.statBorder, { borderColor: T.border }]]}
-                onPress={() => router.push('/bookings' as any)}
+                onPress={() => router.push('/bookings')}
                 activeOpacity={0.65}
               >
                 <Text style={[styles.statValue, { color: T.text }]}>{stat.value}</Text>
@@ -184,19 +180,19 @@ export default function ProfileScreen() {
               icon={<Ionicons name="person-circle-outline" size={iconSize} color={COLORS.primary} />}
               label="Profile"
               subtitle={emailVerified ? 'Name, phone, email' : 'Verify email address'}
-              onPress={() => router.push('/profile-edit' as any)}
+              onPress={() => router.push('/profile-edit')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
               icon={<Ionicons name="location-outline" size={iconSize} color={COLORS.primary} />}
               label="Saved Locations"
-              onPress={() => router.push('/saved-locations' as any)}
+              onPress={() => router.push('/saved-locations')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
               icon={<MaterialCommunityIcons name="shield-check-outline" size={iconSize} color={COLORS.primary} />}
               label="Safety"
-              onPress={() => router.push('/safety' as any)}
+              onPress={() => router.push('/safety')}
             />
           </View>
 
@@ -207,21 +203,21 @@ export default function ProfileScreen() {
               icon={<MaterialCommunityIcons name="briefcase-plus-outline" size={iconSize} color={COLORS.primary} />}
               label="Post a Job"
               subtitle="Find skilled workers near you"
-              onPress={() => router.push('/post-a-job' as any)}
+              onPress={() => router.push('/post-a-job')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
               icon={<MaterialCommunityIcons name="tag-outline" size={iconSize} color={COLORS.primary} />}
               label="Promotions"
               subtitle="Promo codes, offers and savings"
-              onPress={() => router.push('/promotions' as any)}
+              onPress={() => router.push('/promotions')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
               icon={<MaterialCommunityIcons name="account-hard-hat-outline" size={iconSize} color={COLORS.primary} />}
               label="Worker Profile"
               subtitle="Offer your services and earn"
-              onPress={() => router.push('/worker-gate' as any)}
+              onPress={() => router.push('/worker-gate')}
             />
           </View>
 
@@ -244,13 +240,13 @@ export default function ProfileScreen() {
             <MenuItem T={T}
               icon={<Ionicons name="settings-outline" size={iconSize} color={COLORS.primary} />}
               label="Settings"
-              onPress={() => router.push('/settings' as any)}
+              onPress={() => router.push('/settings')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
               icon={<Ionicons name="help-circle-outline" size={iconSize} color={COLORS.primary} />}
               label="Support"
-              onPress={() => router.push('/support' as any)}
+              onPress={() => router.push('/support')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
@@ -277,7 +273,7 @@ export default function ProfileScreen() {
             <MenuItem T={T}
               icon={<Ionicons name="document-text-outline" size={iconSize} color={COLORS.primary} />}
               label="Terms & Privacy Policy"
-              onPress={() => router.push('/terms' as any)}
+              onPress={() => router.push('/terms')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
             <MenuItem T={T}
@@ -290,7 +286,7 @@ export default function ProfileScreen() {
                   {
                     text: 'Sign Out', style: 'destructive', onPress: async () => {
                       await signOut();
-                      router.replace('/sign-in' as any);
+                      router.replace('/sign-in');
                     },
                   },
                 ])
@@ -303,7 +299,6 @@ export default function ProfileScreen() {
         </ScreenContent>
       </ScrollView>
 
-      <BottomNav role="customer" active="profile" />
     </SafeAreaView>
   );
 }

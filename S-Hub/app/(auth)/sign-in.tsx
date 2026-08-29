@@ -1,5 +1,4 @@
 import { AntDesign, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -13,8 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS } from '../constants/theme';
-import { useThemeColors } from '../contexts/ThemeContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS, RADIUS } from '@/constants/theme';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -60,170 +60,199 @@ export default function LoginScreen() {
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/onboarding' as any);
+    else router.replace('/onboarding');
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: T.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: T.bg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-        {/* ══ GREEN GRADIENT HEADER ══ */}
-        <LinearGradient
-          colors={[COLORS.primaryDark, COLORS.primary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientHeader}
-        >
-          <View style={styles.headerInner}>
-            <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={19} color="#1A1A1A" />
-            </TouchableOpacity>
-            <Text style={styles.heading}>Sign In</Text>
-            <Text style={styles.subheading}>Sign in to continue using the app.</Text>
-          </View>
-        </LinearGradient>
-
-        <ScreenContent style={styles.container}>
-
-          <View style={[styles.toggleWrap, { backgroundColor: T.inputBg }]}>
-            <TouchableOpacity style={[styles.toggleBtn, role === 'client' && styles.toggleBtnActive]} onPress={() => setRole('client')} activeOpacity={0.8}>
-              <Text style={[styles.toggleText, { color: T.subText }, role === 'client' && styles.toggleTextActive]}>Client</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.toggleBtn, role === 'worker' && styles.toggleBtnActive]} onPress={() => setRole('worker')} activeOpacity={0.8}>
-              <Text style={[styles.toggleText, { color: T.subText }, role === 'worker' && styles.toggleTextActive]}>Worker</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputWrap}>
-            <Input
-              icon={<FontAwesome5 name="envelope" size={15} color={T.subText} />}
-              placeholder="Email or Phone Number"
-              value={credential}
-              onChangeText={setCredential}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputWrap}>
-            <Input
-              icon={<FontAwesome5 name="lock" size={15} color={T.subText} />}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPass}
-              autoCapitalize="none"
-              trailing={
-                <TouchableOpacity onPress={() => setShowPass(!showPass)} activeOpacity={0.7}>
-                  <Ionicons name={showPass ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
-                </TouchableOpacity>
-              }
-            />
-          </View>
-
-          <TouchableOpacity style={styles.forgotRow} onPress={() => router.push('/reset-password' as any)} activeOpacity={0.7}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-          <View style={styles.loginBtnWrap}>
-            <Button
-              label="Sign In"
-              onPress={handleLogin}
-              disabled={!credential || !password}
-              loading={loading}
-            />
-          </View>
-
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: T.border }]} />
-            <Text style={[styles.dividerText, { color: T.subText }]}>or continue with</Text>
-            <View style={[styles.dividerLine, { backgroundColor: T.border }]} />
-          </View>
-
-          <View style={styles.socialRow}>
+          <ScreenContent style={styles.header}>
             <TouchableOpacity
-              style={[styles.socialBtn, { backgroundColor: T.card, borderColor: T.border }]}
-              onPress={() => handleOAuth('google')}
-              disabled={oauthLoading !== null}
-              activeOpacity={0.8}
+              style={[styles.backBtn, { borderColor: T.border }]}
+              onPress={handleBack}
+              activeOpacity={0.7}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
-              {oauthLoading === 'google' ? (
-                <ActivityIndicator size="small" color={T.text} />
-              ) : (
-                <>
-                  <AntDesign name="google" size={18} color="#EA4335" />
-                  <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Google</Text>
-                </>
-              )}
+              <Ionicons name="arrow-back" size={ms(18)} color={T.text} />
             </TouchableOpacity>
-          </View>
+            <Text style={[styles.heading, { color: T.text }]}>Sign In</Text>
+            <Text style={[styles.subheading, { color: T.subText }]}>Sign in to continue using the app.</Text>
+          </ScreenContent>
 
-          <TouchableOpacity style={styles.registerRow} onPress={() => router.push('/sign-up' as any)} activeOpacity={0.7}>
-            <Text style={[styles.registerText, { color: T.subText }]}>
-              Don&apos;t have an account?{' '}
-              <Text style={styles.registerLink}>Register</Text>
-            </Text>
-          </TouchableOpacity>
-        </ScreenContent>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <ScreenContent style={styles.container}>
+
+            <View style={[styles.toggleWrap, { backgroundColor: T.inputBg }]}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, role === 'client' && styles.toggleBtnActive]}
+                onPress={() => setRole('client')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: role === 'client' }}
+                accessibilityLabel="Sign in as client"
+              >
+                <Text style={[styles.toggleText, { color: T.subText }, role === 'client' && styles.toggleTextActive]}>Client</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, role === 'worker' && styles.toggleBtnActive]}
+                onPress={() => setRole('worker')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: role === 'worker' }}
+                accessibilityLabel="Sign in as worker"
+              >
+                <Text style={[styles.toggleText, { color: T.subText }, role === 'worker' && styles.toggleTextActive]}>Worker</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputWrap}>
+              <Input
+                icon={<FontAwesome5 name="envelope" size={15} color={T.subText} />}
+                placeholder="Email or Phone Number"
+                value={credential}
+                onChangeText={setCredential}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputWrap}>
+              <Input
+                icon={<FontAwesome5 name="lock" size={15} color={T.subText} />}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPass}
+                autoCapitalize="none"
+                trailing={
+                  <TouchableOpacity
+                    onPress={() => setShowPass(!showPass)}
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPass ? 'Hide password' : 'Show password'}
+                  >
+                    <Ionicons name={showPass ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
+                  </TouchableOpacity>
+                }
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.forgotRow}
+              onPress={() => router.push('/reset-password')}
+              activeOpacity={0.7}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password"
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+            <View style={styles.loginBtnWrap}>
+              <Button
+                label="Sign In"
+                onPress={handleLogin}
+                disabled={!credential || !password}
+                loading={loading}
+              />
+            </View>
+
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: T.border }]} />
+              <Text style={[styles.dividerText, { color: T.subText }]}>or continue with</Text>
+              <View style={[styles.dividerLine, { backgroundColor: T.border }]} />
+            </View>
+
+            <View style={styles.socialRow}>
+              <TouchableOpacity
+                style={[styles.socialBtn, { backgroundColor: T.card, borderColor: T.border }]}
+                onPress={() => handleOAuth('google')}
+                disabled={oauthLoading !== null}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Google"
+              >
+                {oauthLoading === 'google' ? (
+                  <ActivityIndicator size="small" color={T.text} />
+                ) : (
+                  <>
+                    <AntDesign name="google" size={18} color="#EA4335" />
+                    <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.registerRow}
+              onPress={() => router.push('/sign-up')}
+              activeOpacity={0.7}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Go to registration"
+            >
+              <Text style={[styles.registerText, { color: T.subText }]}>
+                Don&apos;t have an account?{' '}
+                <Text style={styles.registerLink}>Register</Text>
+              </Text>
+            </TouchableOpacity>
+          </ScreenContent>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
-    paddingTop: 28,
+    paddingTop: 4,
     paddingBottom: 40,
   },
 
-  /* Gradient header */
-  gradientHeader: {
+  /* Header — flat, no gradient banner */
+  header: {
     paddingHorizontal: s(24),
-    paddingTop: vs(28),
-    paddingBottom: vs(16),
-    borderBottomLeftRadius: s(24),
-    borderBottomRightRadius: s(24),
-    alignItems: 'center',
-  },
-  headerInner: {
-    width: '100%',
-    maxWidth: s(544),
+    paddingTop: vs(12),
+    paddingBottom: vs(4),
   },
 
   /* Back */
   backBtn: {
-    width: s(34),
-    height: s(34),
+    width: s(36),
+    height: s(36),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: vs(12),
-    marginLeft: -s(4),
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: s(17),
+    marginBottom: vs(20),
+    marginLeft: -s(6),
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
   },
 
   /* Heading */
   heading: {
-    fontSize: ms(20),
+    fontSize: ms(26),
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: vs(3),
+    letterSpacing: -0.4,
+    marginBottom: vs(4),
   },
   subheading: {
-    fontSize: ms(12),
-    color: 'rgba(26,26,26,0.65)',
+    fontSize: ms(14),
   },
 
   /* Toggle */
   toggleWrap: {
     flexDirection: 'row',
-    borderRadius: 30,
+    borderRadius: RADIUS.full,
     padding: 4,
     marginTop: 4,
     marginBottom: 28,
@@ -231,15 +260,11 @@ const styles = StyleSheet.create({
   toggleBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 26,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
   },
   toggleBtnActive: {
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
   },
   toggleText: {
     fontSize: 14,
@@ -312,7 +337,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     paddingVertical: 13,
     backgroundColor: COLORS.card,
   },
