@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import WorkerNav from '@/components/WorkerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { listMyBookingsAsWorker, WorkerBookingView } from '@/lib/api/bookings';
 import { subscribeToTable, unsubscribe } from '@/lib/api/realtime';
@@ -176,7 +176,7 @@ export default function WorkerJobsScreen() {
       )}
       </View>
 
-      <WorkerNav active="jobs" />
+      <BottomNav role="worker" active="jobs" />
     </SafeAreaView>
     </RequireVerifiedWorker>
   );

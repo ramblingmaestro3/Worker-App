@@ -1,7 +1,7 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
-import CustomerNav from '@/components/CustomerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { signOut } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -303,7 +303,7 @@ export default function ProfileScreen() {
         </ScreenContent>
       </ScrollView>
 
-      <CustomerNav active="profile" />
+      <BottomNav role="customer" active="profile" />
     </SafeAreaView>
   );
 }

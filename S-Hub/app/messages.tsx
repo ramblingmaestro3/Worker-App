@@ -1,4 +1,4 @@
-import CustomerNav from '@/components/CustomerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import ScreenContent from '@/components/ScreenContent';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
@@ -175,7 +175,7 @@ export default function MessagesScreen() {
         </View>
       )}
 
-      <CustomerNav active="messages" />
+      <BottomNav role="customer" active="messages" />
     </SafeAreaView>
   );
 }

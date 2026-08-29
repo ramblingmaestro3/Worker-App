@@ -8,7 +8,8 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { distanceKm } from '@/lib/geo';
-import WorkerNav from '@/components/WorkerNav';
+import BottomNav from '@/components/ui/BottomNav';
+import Card from '@/components/ui/Card';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import Toast, { ToastState, ToastVariant } from '@/components/Toast';
 import { getMyProfile } from '@/lib/api/profiles';
@@ -233,7 +234,7 @@ export default function WorkerDashboardScreen() {
       {/* ── Online status ── */}
       <View style={styles.statusRow}>
         <View style={styles.statusLeft}>
-          <View style={[styles.statusDot, { backgroundColor: online ? '#22C55E' : T.subText }]} />
+          <View style={[styles.statusDot, { backgroundColor: online ? COLORS.accent : T.subText }]} />
           <Text style={[styles.statusText, { color: T.text }]}>
             {online ? "You're online" : "You're offline"}
           </Text>
@@ -248,7 +249,7 @@ export default function WorkerDashboardScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* ── Quick Stats ── */}
-        <View style={[styles.statsStrip, { backgroundColor: T.card, borderColor: T.border }]}>
+        <Card style={styles.statsStrip}>
           {[
             { label: 'Active Bids', value: String(activeBidCount) },
             { label: 'Jobs Done', value: String(jobsDone) },
@@ -259,7 +260,7 @@ export default function WorkerDashboardScreen() {
               <Text style={[styles.statLabel, { color: T.subText }]}>{stat.label}</Text>
             </View>
           ))}
-        </View>
+        </Card>
 
         {/* ── Nearby Requests ── */}
         <View style={styles.sectionHeader}>
@@ -286,7 +287,7 @@ export default function WorkerDashboardScreen() {
               const hasActiveBid = bid && (bid.status === 'pending' || bid.status === 'countered');
 
               return (
-                <View key={req.id} style={[styles.reqCard, { backgroundColor: T.card, borderColor: T.border }]}>
+                <Card key={req.id} style={styles.reqCard}>
                   <View style={styles.reqTop}>
                     <Text style={[styles.reqTitle, { color: T.text }]} numberOfLines={1}>
                       {req.category.charAt(0).toUpperCase() + req.category.slice(1)}
@@ -348,7 +349,7 @@ export default function WorkerDashboardScreen() {
                       </View>
                     </View>
                   )}
-                </View>
+                </Card>
               );
             })}
           </View>
@@ -357,7 +358,7 @@ export default function WorkerDashboardScreen() {
       </View>
 
       <Toast toast={toast} />
-      <WorkerNav active="home" />
+      <BottomNav role="worker" active="home" />
     </SafeAreaView>
     </RequireVerifiedWorker>
   );
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
 
   /* Stats */
   statsStrip: {
-    flexDirection: 'row', borderWidth: 1, borderRadius: ws(16),
+    flexDirection: 'row', padding: 0,
   },
   statCol: { flex: 1, alignItems: 'center', paddingVertical: wvs(14) },
   statBorder: { borderRightWidth: 1 },
@@ -418,9 +419,7 @@ const styles = StyleSheet.create({
 
   /* Requests */
   requestsList: { gap: wvs(10), marginTop: wvs(-8) },
-  reqCard: {
-    borderWidth: 1, borderRadius: ws(16), padding: ws(14), gap: wvs(4),
-  },
+  reqCard: { gap: wvs(4) },
   reqTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: ws(8) },
   reqTitle: { flex: 1, fontSize: wms(14.5), fontWeight: '700' },
   reqDesc: { fontSize: wms(12.5) },

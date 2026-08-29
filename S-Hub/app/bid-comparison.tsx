@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Text, Text
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
-import CustomerNav from '@/components/CustomerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listBidsForRequest, acceptBid, counterBid, declineBid, BidWithWorker } from '@/lib/api/workerBids';
 import { subscribeToRequestBids, unsubscribe } from '@/lib/api/realtime';
@@ -304,7 +304,7 @@ export default function BidComparisonScreen() {
         </ScreenContent>
       </ScrollView>
 
-      <CustomerNav active="jobs" />
+      <BottomNav role="customer" active="jobs" />
     </View>
   );
 }

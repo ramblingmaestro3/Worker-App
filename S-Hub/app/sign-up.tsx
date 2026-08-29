@@ -10,20 +10,19 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useThemeColors } from '../contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { signUpWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
 
 const PRIMARY = COLORS.primary;
 const MUTED = COLORS.muted;
-const BORDER = COLORS.border;
-const BG = COLORS.bgGrey;
 
 export default function SignUpScreen() {
   const [name, setName] = useState('');
@@ -74,10 +73,10 @@ export default function SignUpScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: T.card }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: T.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: T.card }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: T.bg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
         {/* ══ GREEN GRADIENT HEADER ══ */}
         <LinearGradient
@@ -99,67 +98,57 @@ export default function SignUpScreen() {
 
           <View style={styles.roleRow}>
             <TouchableOpacity style={[styles.roleCard, { backgroundColor: T.inputBg, borderColor: T.border }, role === 'client' && styles.roleCardActive]} onPress={() => setRole('client')}>
-              <Text style={styles.roleEmoji}>🔍</Text>
+              <Ionicons name="search" size={22} color={role === 'client' ? PRIMARY : T.subText} style={styles.roleIcon} />
               <Text style={[styles.roleLabel, { color: T.text }]}>Find Workers</Text>
               <Text style={[styles.roleSub, { color: T.subText }]}>I need a service</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.roleCard, { backgroundColor: T.inputBg, borderColor: T.border }, role === 'worker' && styles.roleCardActive]} onPress={() => setRole('worker')}>
-              <Text style={styles.roleEmoji}>💼</Text>
+              <Ionicons name="briefcase" size={22} color={role === 'worker' ? PRIMARY : T.subText} style={styles.roleIcon} />
               <Text style={[styles.roleLabel, { color: T.text }]}>Offer Services</Text>
               <Text style={[styles.roleSub, { color: T.subText }]}>I am a worker</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputBox}>
-            <Text style={[styles.inputLabel, { color: T.subText }]}>Full Name</Text>
-            <TextInput style={[styles.input, { backgroundColor: T.inputBg, borderColor: T.border, color: T.text }]} placeholder="Enter your Full Name" placeholderTextColor={T.subText} value={name} onChangeText={setName} />
+            <Input label="Full Name" placeholder="Enter your Full Name" value={name} onChangeText={setName} />
           </View>
 
           <View style={styles.inputBox}>
-            <Text style={[styles.inputLabel, { color: T.subText }]}>Email or Phone</Text>
-            <TextInput style={[styles.input, { backgroundColor: T.inputBg, borderColor: T.border, color: T.text }]} placeholder="Enter your Phone Number or Email" placeholderTextColor={T.subText} keyboardType="email-address" autoCapitalize="none" value={identifier} onChangeText={setIdentifier} />
+            <Input
+              label="Email or Phone"
+              placeholder="Enter your Phone Number or Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={identifier}
+              onChangeText={setIdentifier}
+            />
           </View>
 
           <View style={styles.inputBox}>
-            <Text style={[styles.inputLabel, { color: T.subText }]}>Password</Text>
-            <View style={[styles.passwordRow, { backgroundColor: T.inputBg, borderColor: T.border }]}>
-              <TextInput style={[styles.passwordInput, { color: T.text }]} placeholder="Enter your Password" placeholderTextColor={T.subText} secureTextEntry={!showPassword} value={password} onChangeText={setPassword} />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
-              </TouchableOpacity>
-            </View>
+            <Input
+              label="Password"
+              placeholder="Enter your Password"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              trailing={
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
+                  <Ionicons name={showPassword ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
+                </TouchableOpacity>
+              }
+            />
           </View>
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          <TouchableOpacity
-            onPress={handleSignUp}
-            disabled={!name || !identifier || !password || loading}
-            activeOpacity={0.85}
-            style={styles.btnWrap}
-          >
-            <LinearGradient
-              colors={(!name || !identifier || !password || loading) ? [COLORS.muted, COLORS.muted] : [PRIMARY, COLORS.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.btn}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" style={{ flex: 1 }} />
-              ) : (
-                <>
-                  <View style={styles.btnCircle}>
-                    <Ionicons name="arrow-forward" size={16} color={PRIMARY} />
-                  </View>
-                  <Text style={styles.btnText}>Create Account</Text>
-                  <View style={styles.btnChevrons}>
-                    <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.6)" style={{ marginRight: -8 }} />
-                    <Ionicons name="chevron-forward" size={15} color="#fff" />
-                  </View>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+          <View style={styles.btnWrap}>
+            <Button
+              label="Create Account"
+              onPress={handleSignUp}
+              disabled={!name || !identifier || !password}
+              loading={loading}
+            />
+          </View>
 
           <Text style={[styles.termsText, { color: T.subText }]}>
             By registering you agree to our{' '}
@@ -240,64 +229,17 @@ const styles = StyleSheet.create({
 
   roleRow: { flexDirection: 'row', gap: 12, marginTop: 4, marginBottom: 24 },
   roleCard: {
-    flex: 1, borderWidth: 1.5, borderColor: BORDER,
+    flex: 1, borderWidth: 1.5,
     borderRadius: 14, padding: 14, alignItems: 'center',
-    backgroundColor: BG,
   },
   roleCardActive: { borderColor: PRIMARY, backgroundColor: PRIMARY + '0D' },
-  roleEmoji: { fontSize: 24, marginBottom: 6 },
+  roleIcon: { marginBottom: 6 },
   roleLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text },
   roleSub: { fontSize: 11, color: MUTED, marginTop: 2 },
 
   inputBox: { marginBottom: 20 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: COLORS.muted, marginBottom: 8 },
-  input: {
-    borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
-    fontSize: 15, color: COLORS.text, backgroundColor: BG,
-  },
 
-  passwordRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: BORDER,
-    borderRadius: 14, backgroundColor: BG,
-    paddingHorizontal: 16,
-  },
-  passwordInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: COLORS.text },
-  eyeBtn: { padding: 4 },
-  eyeText: { fontSize: 18 },
-
-  btnWrap: {
-    borderRadius: 30,
-    marginBottom: 16,
-    shadowColor: PRIMARY,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 30,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-  },
-  btnCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnChevrons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 10,
-  },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnWrap: { marginBottom: 16 },
 
   errorText: {
     fontSize: 13, color: COLORS.danger,

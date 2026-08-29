@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Image, ScrollView, StatusBar, StyleSheet, Tex
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
-import CustomerNav from '@/components/CustomerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import AppMap from '@/components/AppMap';
 import { consumePickedLocation, PickedLocation } from '@/lib/locationPickerBridge';
 import { consumeAiJobDraft } from '@/lib/aiJobDraftBridge';
@@ -359,7 +359,7 @@ export default function PostAJobScreen() {
         </TouchableOpacity>
       </View>
 
-      <CustomerNav />
+      <BottomNav role="customer" />
     </View>
   );
 }

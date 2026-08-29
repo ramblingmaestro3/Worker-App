@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { COLORS } from '@/constants/theme';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
-import CustomerNav from '@/components/CustomerNav';
+import BottomNav from '@/components/ui/BottomNav';
+import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
 import AppMap, { AppMapMarker } from '@/components/AppMap';
 import { WORKERS } from './search';
 
@@ -75,20 +77,20 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           {/* ── Search bar ── */}
-          <View style={[styles.searchWrap, { backgroundColor: T.inputBg }]}>
-            <Ionicons name="search-outline" size={18} color={T.subText} />
-            <TextInput
-              style={[styles.searchInput, { color: T.text }]}
+          <View style={styles.searchWrap}>
+            <Input
+              icon={<Ionicons name="search-outline" size={18} color={T.subText} />}
               placeholder="What do you need done today?"
-              placeholderTextColor={T.subText}
               value={query}
               onChangeText={setQuery}
               returnKeyType="search"
               onSubmitEditing={handleSearch}
+              trailing={
+                <TouchableOpacity style={styles.searchGo} onPress={handleSearch} activeOpacity={0.85}>
+                  <Ionicons name="arrow-forward" size={16} color="#fff" />
+                </TouchableOpacity>
+              }
             />
-            <TouchableOpacity style={styles.searchGo} onPress={handleSearch} activeOpacity={0.85}>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
-            </TouchableOpacity>
           </View>
 
           {/* ── Map preview ── */}
@@ -111,21 +113,19 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           {/* ── AI Help ── */}
-          <TouchableOpacity
-            style={[styles.aiCard, { backgroundColor: T.card, borderColor: T.border }]}
-            onPress={() => router.push('/ai-assistant' as any)}
-            activeOpacity={0.9}
-          >
-            <View style={styles.aiIconWrap}>
-              <Ionicons name="sparkles" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.aiTitle, { color: T.text }]}>Not sure who to hire?</Text>
-              <Text style={[styles.aiBody, { color: T.subText }]}>
-                Snap a photo of the problem — AI identifies it and finds the right pro.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={T.subText} />
+          <TouchableOpacity onPress={() => router.push('/ai-assistant' as any)} activeOpacity={0.9}>
+            <Card style={styles.aiCard}>
+              <View style={styles.aiIconWrap}>
+                <Ionicons name="sparkles" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.aiTitle, { color: T.text }]}>Not sure who to hire?</Text>
+                <Text style={[styles.aiBody, { color: T.subText }]}>
+                  Snap a photo of the problem — AI identifies it and finds the right pro.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={T.subText} />
+            </Card>
           </TouchableOpacity>
 
           {/* ── Categories ── */}
@@ -179,7 +179,7 @@ export default function HomeScreen() {
           </ScrollView>
 
           {/* ── Trust banner ── */}
-          <View style={[styles.trustBanner, { backgroundColor: T.inputBg, borderColor: T.border }]}>
+          <Card style={styles.trustBanner}>
             <Ionicons name="shield-checkmark-outline" size={22} color={COLORS.primary} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.trustTitle, { color: T.text }]}>Vetted Professionals</Text>
@@ -187,11 +187,11 @@ export default function HomeScreen() {
                 All service providers undergo a rigorous background check and identity verification.
               </Text>
             </View>
-          </View>
+          </Card>
         </View>
       </ScrollView>
 
-      <CustomerNav active="home" />
+      <BottomNav role="customer" active="home" />
     </View>
   );
 }
@@ -210,21 +210,20 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: s(544) },
 
   /* Search */
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 6, marginBottom: 16 },
-  searchInput: { flex: 1, fontSize: 14, paddingVertical: 10 },
+  searchWrap: { marginBottom: 16 },
   searchGo: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
 
   /* Map preview */
-  mapCard: { height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 20, position: 'relative' },
+  mapCard: { height: 160, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 20, position: 'relative' },
   map: { flex: 1 },
   mapOverlay: { position: 'absolute', left: 12, bottom: 12 },
   mapPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-  mapPillDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
+  mapPillDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: COLORS.accent },
   mapPillText: { fontSize: 12, fontWeight: '700' },
 
   /* AI Help */
-  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, borderWidth: 1, marginBottom: 20 },
-  aiIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
+  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+  aiIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryDark, alignItems: 'center', justifyContent: 'center' },
   aiTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
   aiBody: { fontSize: 12, lineHeight: 16 },
 
@@ -235,16 +234,16 @@ const styles = StyleSheet.create({
 
   /* Categories */
   categoryRow: { gap: 12, paddingBottom: 4, paddingRight: 4 },
-  categoryChip: { width: 84, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 18, paddingVertical: 14, gap: 8 },
+  categoryChip: { width: 84, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: RADIUS.lg, paddingVertical: 14, gap: 8 },
   categoryIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   categoryLabel: { fontSize: 11.5, fontWeight: '600', textAlign: 'center' },
 
   /* Nearby workers */
   workerRow: { gap: 12, paddingBottom: 4, paddingRight: 4 },
-  workerCard: { width: 140, borderWidth: 1, borderRadius: 18, padding: 14, gap: 4 },
+  workerCard: { width: 140, borderWidth: 1, borderRadius: RADIUS.lg, padding: 14, gap: 4 },
   workerAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 6, position: 'relative' },
   workerInitials: { fontSize: 15, fontWeight: '800' },
-  onlineDot: { position: 'absolute', bottom: 1, right: 1, width: 10, height: 10, borderRadius: 5, backgroundColor: '#22C55E', borderWidth: 1.5, borderColor: '#fff' },
+  onlineDot: { position: 'absolute', bottom: 1, right: 1, width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent, borderWidth: 1.5, borderColor: '#fff' },
   workerName: { fontSize: 13.5, fontWeight: '700' },
   workerSkill: { fontSize: 11.5 },
   workerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
@@ -252,7 +251,7 @@ const styles = StyleSheet.create({
   workerDist: { fontSize: 11 },
 
   /* Trust */
-  trustBanner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 16, marginTop: 4, borderRadius: 20, borderWidth: 1 },
+  trustBanner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 4 },
   trustTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
   trustBody: { fontSize: 13, lineHeight: 18 },
 });

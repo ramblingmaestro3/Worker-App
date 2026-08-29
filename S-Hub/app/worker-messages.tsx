@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import WorkerNav from '@/components/WorkerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { listMyConversations, ConversationView } from '@/lib/api/bookings';
 import { supabase } from '@/lib/supabase';
@@ -166,7 +166,7 @@ export default function WorkerMessagesScreen() {
       )}
       </View>
 
-      <WorkerNav active="messages" />
+      <BottomNav role="worker" active="messages" />
     </SafeAreaView>
     </RequireVerifiedWorker>
   );

@@ -6,7 +6,8 @@ import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOp
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
-import CustomerNav from '@/components/CustomerNav';
+import BottomNav from '@/components/ui/BottomNav';
+import Card from '@/components/ui/Card';
 import { listMyServiceRequests, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listMyBookingsAsClient, ClientBookingView, BookingStatus } from '@/lib/api/bookings';
 
@@ -134,10 +135,10 @@ export default function BookingsScreen() {
                   return (
                     <TouchableOpacity
                       key={entry.id}
-                      style={[styles.card, { backgroundColor: T.card, borderColor: T.border }, cancelled && { opacity: 0.7 }]}
                       activeOpacity={0.85}
                       onPress={() => !cancelled && router.push(`/bid-comparison?requestId=${req.id}` as any)}
                     >
+                    <Card style={[styles.card, cancelled && { opacity: 0.7 }]}>
                       <View style={styles.cardTopRow}>
                         <View style={styles.cardLeft}>
                           <View style={[styles.iconWrap, { backgroundColor: T.inputBg }]}>
@@ -170,6 +171,7 @@ export default function BookingsScreen() {
                           </Text>
                         </View>
                       </View>
+                    </Card>
                     </TouchableOpacity>
                   );
                 }
@@ -181,10 +183,10 @@ export default function BookingsScreen() {
                 return (
                   <TouchableOpacity
                     key={entry.id}
-                    style={[styles.card, { backgroundColor: T.card, borderColor: T.border }, cancelled && { opacity: 0.7 }]}
                     activeOpacity={0.85}
                     onPress={() => router.push(`/chat?bookingId=${booking.id}` as any)}
                   >
+                  <Card style={[styles.card, cancelled && { opacity: 0.7 }]}>
                     <View style={styles.cardTopRow}>
                       <View style={styles.cardLeft}>
                         <View style={[styles.iconWrap, { backgroundColor: T.inputBg }]}>
@@ -220,6 +222,7 @@ export default function BookingsScreen() {
                         </Text>
                       </View>
                     </View>
+                  </Card>
                   </TouchableOpacity>
                 );
               })}
@@ -228,7 +231,7 @@ export default function BookingsScreen() {
         </View>
       </ScrollView>
 
-      <CustomerNav active="jobs" />
+      <BottomNav role="customer" active="jobs" />
     </View>
   );
 }
@@ -249,7 +252,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, fontWeight: '600' },
   emptyState: { alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 40 },
   emptyText: { fontSize: 13, textAlign: 'center' },
-  card: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 12 },
+  card: { gap: 12 },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   cardLeft: { flexDirection: 'row', gap: 12, flex: 1 },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

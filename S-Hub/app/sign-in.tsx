@@ -10,13 +10,14 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useThemeColors } from '../contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { signInWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
 
@@ -63,10 +64,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: T.card }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: T.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: T.card }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: T.bg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
         {/* ══ GREEN GRADIENT HEADER ══ */}
         <LinearGradient
@@ -96,20 +97,31 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputWrap}>
-            <View style={[styles.inputRow, { backgroundColor: T.inputBg }]}>
-              <FontAwesome5 name="envelope" size={15} color={T.subText} style={styles.inputIcon} />
-              <TextInput style={[styles.input, { color: T.text }]} placeholder="Email or Phone Number" placeholderTextColor={T.subText} value={credential} onChangeText={setCredential} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-            </View>
+            <Input
+              icon={<FontAwesome5 name="envelope" size={15} color={T.subText} />}
+              placeholder="Email or Phone Number"
+              value={credential}
+              onChangeText={setCredential}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           </View>
 
           <View style={styles.inputWrap}>
-            <View style={[styles.inputRow, { backgroundColor: T.inputBg }]}>
-              <FontAwesome5 name="lock" size={15} color={T.subText} style={styles.inputIcon} />
-              <TextInput style={[styles.input, { color: T.text }]} placeholder="Password" placeholderTextColor={T.subText} value={password} onChangeText={setPassword} secureTextEntry={!showPass} autoCapitalize="none" />
-              <TouchableOpacity onPress={() => setShowPass(!showPass)} activeOpacity={0.7}>
-                <Ionicons name={showPass ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
-              </TouchableOpacity>
-            </View>
+            <Input
+              icon={<FontAwesome5 name="lock" size={15} color={T.subText} />}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPass}
+              autoCapitalize="none"
+              trailing={
+                <TouchableOpacity onPress={() => setShowPass(!showPass)} activeOpacity={0.7}>
+                  <Ionicons name={showPass ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
+                </TouchableOpacity>
+              }
+            />
           </View>
 
           <TouchableOpacity style={styles.forgotRow} onPress={() => router.push('/reset-password' as any)} activeOpacity={0.7}>
@@ -118,29 +130,14 @@ export default function LoginScreen() {
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          <TouchableOpacity onPress={handleLogin} disabled={!credential || !password || loading} activeOpacity={0.85} style={styles.loginBtnWrap}>
-            <LinearGradient
-              colors={(!credential || !password || loading) ? [COLORS.muted, COLORS.muted] : [COLORS.primary, COLORS.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.loginBtn}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" style={{ flex: 1 }} />
-              ) : (
-                <>
-                  <View style={styles.loginBtnCircle}>
-                    <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
-                  </View>
-                  <Text style={styles.loginBtnText}>Login</Text>
-                  <View style={styles.loginBtnChevrons}>
-                    <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.6)" style={{ marginRight: -8 }} />
-                    <Ionicons name="chevron-forward" size={15} color="#fff" />
-                  </View>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+          <View style={styles.loginBtnWrap}>
+            <Button
+              label="Sign In"
+              onPress={handleLogin}
+              disabled={!credential || !password}
+              loading={loading}
+            />
+          </View>
 
           <View style={styles.dividerRow}>
             <View style={[styles.dividerLine, { backgroundColor: T.border }]} />
@@ -226,7 +223,6 @@ const styles = StyleSheet.create({
   /* Toggle */
   toggleWrap: {
     flexDirection: 'row',
-    backgroundColor: '#158100ff',
     borderRadius: 30,
     padding: 4,
     marginTop: 4,
@@ -259,23 +255,6 @@ const styles = StyleSheet.create({
   inputWrap: {
     marginBottom: 14,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgGrey,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  inputIcon: {
-    width: 18,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
-  },
 
   /* Forgot */
   forgotRow: {
@@ -298,39 +277,7 @@ const styles = StyleSheet.create({
 
   /* Login button */
   loginBtnWrap: {
-    borderRadius: 30,
     marginBottom: 24,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  loginBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 30,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-  },
-  loginBtnCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loginBtnChevrons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 10,
-  },
-  loginBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
 
   /* Divider */

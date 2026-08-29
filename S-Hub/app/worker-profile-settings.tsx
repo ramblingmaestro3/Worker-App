@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
-import WorkerNav from '@/components/WorkerNav';
+import BottomNav from '@/components/ui/BottomNav';
 import RequireVerifiedWorker from '@/components/RequireVerifiedWorker';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, WorkerProfile } from '@/lib/api/workerProfiles';
@@ -266,7 +266,7 @@ export default function WorkerProfileSettingsScreen() {
       </ScrollView>
       </View>
 
-      <WorkerNav active="profile" />
+      <BottomNav role="worker" active="profile" />
     </SafeAreaView>
     </RequireVerifiedWorker>
   );
