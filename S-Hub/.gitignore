@@ -36,6 +36,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# lint/typecheck output
+eslint-out.txt
+tsc-out.txt
+
 app-example
 
 # generated native folders

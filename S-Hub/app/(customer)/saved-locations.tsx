@@ -1,9 +1,12 @@
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import AppMap, { AppMapMarker } from '@/components/AppMap';
+import { consumePickedLocation } from '@/lib/locationPickerBridge';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -15,11 +18,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// Real-ish coordinates for the demo places until saved locations carry real
+// lat/lng from the location picker.
 const INITIAL = [
-  { id: 1, label: 'Home', address: 'Speedaf Ayeduase, Kumasi', icon: 'home-outline', pinned: true },
-  { id: 2, label: 'Work', address: 'Tech Hub, Accra Central', icon: 'briefcase-outline', pinned: true },
-  { id: 3, label: 'Gym', address: 'Fit Nation, Osu, Accra', icon: 'fitness-outline', pinned: false },
+  { id: 1, label: 'Home', address: 'Speedaf Ayeduase, Kumasi', icon: 'home-outline', pinned: true, latitude: 6.6885, longitude: -1.5844 },
+  { id: 2, label: 'Work', address: 'Tech Hub, Accra Central', icon: 'briefcase-outline', pinned: true, latitude: 5.5600, longitude: -0.2050 },
+  { id: 3, label: 'Gym', address: 'Fit Nation, Osu, Accra', icon: 'fitness-outline', pinned: false, latitude: 5.5558, longitude: -0.1793 },
 ];
+const FALLBACK_CENTER = { latitude: 6.6885, longitude: -1.6244 }; // Kumasi
 
 export default function SavedLocationsScreen() {
   const [locations, setLocations] = useState(INITIAL);
@@ -31,6 +37,40 @@ export default function SavedLocationsScreen() {
       { text: 'Remove', style: 'destructive', onPress: () => setLocations(l => l.filter(x => x.id !== id)) },
     ]);
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      const picked = consumePickedLocation();
+      if (picked) {
+        setLocations((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            label: picked.address.split(',')[0] || 'New Place',
+            address: picked.address,
+            icon: 'location-outline',
+            pinned: false,
+            latitude: picked.latitude,
+            longitude: picked.longitude,
+          },
+        ]);
+      }
+    }, [])
+  );
+
+  const mapMarkers: AppMapMarker[] = locations.map((loc) => ({
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    color: loc.pinned ? COLORS.primary : COLORS.accent,
+    title: loc.label,
+    subtitle: loc.address,
+  }));
+  const mapCenter = locations.length
+    ? {
+        latitude: locations.reduce((sum, l) => sum + l.latitude, 0) / locations.length,
+        longitude: locations.reduce((sum, l) => sum + l.longitude, 0) / locations.length,
+      }
+    : FALLBACK_CENTER;
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
@@ -49,8 +89,21 @@ export default function SavedLocationsScreen() {
         <ScreenContent>
 
           <View style={[s.mapBox, { backgroundColor: T.inputBg }]}>
-            <Ionicons name="map" size={42} color={COLORS.primary + '60'} />
-            <Text style={[s.mapText, { color: COLORS.primary }]}>Your saved places appear here</Text>
+            <AppMap
+              latitude={mapCenter.latitude}
+              longitude={mapCenter.longitude}
+              zoom={1.8}
+              markers={mapMarkers}
+              zoomEnabled={false}
+              scrollEnabled={false}
+              style={s.map}
+            />
+            {locations.length === 0 && (
+              <View style={s.mapEmptyOverlay} pointerEvents="none">
+                <Ionicons name="map" size={42} color={COLORS.primary + '60'} />
+                <Text style={[s.mapText, { color: COLORS.primary }]}>Your saved places appear here</Text>
+              </View>
+            )}
           </View>
 
           <Text style={[s.sectionLabel, { color: T.subText }]}>Saved Places</Text>
@@ -73,7 +126,7 @@ export default function SavedLocationsScreen() {
               </View>
             ))}
             <View style={[s.divider, { backgroundColor: T.divider }]} />
-            <TouchableOpacity style={s.addRow} activeOpacity={0.7} onPress={() => Alert.alert('Add Location', 'Location picker coming soon.')}>
+            <TouchableOpacity style={s.addRow} activeOpacity={0.7} onPress={() => router.push('/location-picker')}>
               <View style={[s.locIcon, { backgroundColor: COLORS.primary + '18' }]}>
                 <Ionicons name="add" size={20} color={COLORS.primary} />
               </View>
@@ -108,7 +161,9 @@ const s = StyleSheet.create({
   backBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '700' },
   scroll: { padding: 16, paddingBottom: 40 },
-  mapBox: { borderRadius: RADIUS.lg, height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 10 },
+  mapBox: { borderRadius: RADIUS.lg, height: 140, marginBottom: 20, overflow: 'hidden' },
+  map: { flex: 1 },
+  mapEmptyOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 10 },
   mapText: { fontSize: 13, fontWeight: '500' },
   sectionLabel: { fontSize: 12, fontWeight: '700', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase', letterSpacing: 0.8 },
   card: { borderRadius: RADIUS.lg, marginBottom: 20, borderWidth: 1, overflow: 'hidden' },

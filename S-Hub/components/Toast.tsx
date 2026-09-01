@@ -52,7 +52,10 @@ export default function Toast({ toast, bottomOffset = wvs(100) }: { toast: Toast
     }, 3500);
 
     return () => clearTimeout(timer);
-  }, [toast?.key]);
+    // Deliberately keyed on toast?.key, not the whole `toast` object — see
+    // docstring: only a new message (a bumped key) should restart the animation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast?.key, translateY, opacity]);
 
   if (!toast) return null;
 

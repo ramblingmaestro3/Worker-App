@@ -24,7 +24,7 @@ export async function getMyProfile(): Promise<{ success: boolean; data?: Profile
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, contact:profile_contact(phone,email)')
     .eq('id', auth.user.id)
     .single();
 
@@ -32,7 +32,11 @@ export async function getMyProfile(): Promise<{ success: boolean; data?: Profile
     return { success: false, error: error.message };
   }
 
-  return { success: true, data: data as Profile };
+  const { contact, ...rest } = data as any;
+  return {
+    success: true,
+    data: { ...rest, phone: contact?.phone ?? null, email: contact?.email ?? null } as Profile,
+  };
 }
 
 /**
@@ -64,8 +68,28 @@ export async function updateProfile(
     return { success: false, error: 'Not signed in.' };
   }
 
-  const { error } = await supabase.from('profiles').update(patch).eq('id', auth.user.id);
+  // phone/email live in profile_contact (owner-only-readable) rather than the
+  // broadly-readable profiles row — see 20260901140500_split_profile_contact_details.sql.
+  const { full_name, avatar_url, phone, email } = patch;
+  const profilePatch = {
+    ...(full_name !== undefined && { full_name }),
+    ...(avatar_url !== undefined && { avatar_url }),
+  };
+  const contactPatch = {
+    ...(phone !== undefined && { phone }),
+    ...(email !== undefined && { email }),
+  };
 
+  const [profileRes, contactRes] = await Promise.all([
+    Object.keys(profilePatch).length
+      ? supabase.from('profiles').update(profilePatch).eq('id', auth.user.id)
+      : Promise.resolve({ error: null }),
+    Object.keys(contactPatch).length
+      ? supabase.from('profile_contact').update(contactPatch).eq('id', auth.user.id)
+      : Promise.resolve({ error: null }),
+  ]);
+
+  const error = profileRes.error ?? contactRes.error;
   if (error) {
     return { success: false, error: error.message };
   }

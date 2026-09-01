@@ -41,7 +41,7 @@ function PulseRing({ delay, size }: { delay: number; size: number }) {
         Animated.timing(anim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [anim, delay]);
 
   return (
     <Animated.View
@@ -70,7 +70,7 @@ function SearchingView({ service }: { service: string }) {
         Animated.timing(dotsAnim, { toValue: 0, duration: 0,   useNativeDriver: false }),
       ])
     ).start();
-  }, []);
+  }, [dotsAnim]);
 
   const [dots, setDots] = useState('');
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function FindingWorkerScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
     }, 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fadeAnim]);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>

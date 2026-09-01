@@ -130,15 +130,26 @@ Deno.serve(async (req: Request) => {
 
   // Manual auth — verify_jwt is off so the preflight gets through.
   const authHeader = req.headers.get('Authorization') ?? '';
+  const authed = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } },
+  );
   try {
-    const authed = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } },
-    );
     const { data: { user } } = await authed.auth.getUser();
     if (!user) return json({ error: 'Sign in to use the AI assistant' }, 401);
   } catch {
+    return json({ error: 'Could not verify your session' }, 401);
+  }
+
+  // Caller is authenticated but otherwise unthrottled — cap calls per user so
+  // one account can't burn the shared GEMINI_API_KEY's quota/cost.
+  try {
+    const { data: allowed, error } = await authed.rpc('check_ai_analyze_rate_limit');
+    if (error) throw error;
+    if (!allowed) return json({ error: 'Too many requests — try again later.' }, 429);
+  } catch (err) {
+    console.error('rate limit check failed', err);
     return json({ error: 'Could not verify your session' }, 401);
   }
 

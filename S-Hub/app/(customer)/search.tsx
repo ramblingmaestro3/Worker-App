@@ -1,6 +1,7 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import AppMap, { AppMapMarker } from '@/components/AppMap';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -96,6 +97,25 @@ const wc = StyleSheet.create({
 /* ─── Sort/filter types ─── */
 type SortMode = 'none' | 'rating' | 'price_asc' | 'price_desc' | 'available';
 
+// Map view center — placeholder until real device geolocation is wired up
+// (Phase 4), same as the home tab's map preview. Each worker's marker is
+// placed around it at an angle/radius derived from their `distance` field
+// so the spread on the map roughly tracks the "X km away" shown in the list.
+const MAP_CENTER = { latitude: 6.6885, longitude: -1.6244 };
+function workerToMarker(w: typeof WORKERS[number], index: number, total: number): AppMapMarker {
+  const km = parseFloat(w.distance) || 1;
+  const angle = (index / total) * Math.PI * 2;
+  const radiusDeg = km * 0.009;
+  return {
+    latitude: MAP_CENTER.latitude + Math.sin(angle) * radiusDeg,
+    longitude: MAP_CENTER.longitude + Math.cos(angle) * radiusDeg,
+    color: w.color,
+    title: w.name,
+    subtitle: w.skill,
+    price: `GH₵ ${w.price}`,
+  };
+}
+
 /* ─── Main Screen ─── */
 export default function SearchScreen() {
   const { q } = useLocalSearchParams<{ q?: string }>();
@@ -151,6 +171,8 @@ export default function SearchScreen() {
       if (sortMode === 'price_asc') return a.price - b.price;
       return 0;
     });
+
+  const mapMarkers = filtered.map((w, i) => workerToMarker(w, i, filtered.length));
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.card }]} edges={['top', 'bottom']}>
@@ -294,9 +316,22 @@ export default function SearchScreen() {
           </View>
         )
       ) : (
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map" size={48} color={COLORS.primary + '60'} />
-          <Text style={[styles.mapText, { color: T.subText }]}>Map view coming soon</Text>
+        <View style={styles.mapWrapOuter}>
+          <ScreenContent style={styles.mapWrap}>
+            <AppMap
+              latitude={MAP_CENTER.latitude}
+              longitude={MAP_CENTER.longitude}
+              zoom={0.06}
+              markers={mapMarkers}
+              style={styles.map}
+            />
+            {filtered.length === 0 && (
+              <View style={styles.mapEmptyOverlay} pointerEvents="none">
+                <Ionicons name="map" size={48} color={COLORS.primary + '60'} />
+                <Text style={[styles.mapText, { color: T.subText }]}>No workers found</Text>
+              </View>
+            )}
+          </ScreenContent>
         </View>
       )}
 
@@ -495,9 +530,16 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
   emptySub: { fontSize: 13, color: COLORS.muted, textAlign: 'center', lineHeight: 20 },
 
-  /* Map placeholder */
-  mapPlaceholder: {
-    flex: 1,
+  /* Map view */
+  mapWrapOuter: { flex: 1, width: '100%', alignItems: 'center' },
+  mapWrap: { flex: 1 },
+  map: { flex: 1 },
+  mapEmptyOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,

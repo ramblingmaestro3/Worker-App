@@ -4,7 +4,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -102,7 +101,7 @@ function PulseRing({ delay, size, color }: { delay: number; size: number; color:
     );
     loop.start();
     return () => loop.stop();
-  }, []);
+  }, [anim, delay]);
   return (
     <Animated.View
       style={{
@@ -261,7 +260,6 @@ export default function AIAssistantScreen() {
   const [phase, setPhase] = useState<Phase>('upload');
   const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [description, setDescription] = useState('');
-  const [descFocused, setDescFocused] = useState(false);
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
@@ -468,8 +466,6 @@ export default function AIAssistantScreen() {
                 value={description}
                 onChangeText={setDescription}
                 textAlignVertical="top"
-                onFocus={() => setDescFocused(true)}
-                onBlur={() => setDescFocused(false)}
               />
 
               <TouchableOpacity style={s.analyzeBtn} onPress={runAnalysis} activeOpacity={0.85}>
