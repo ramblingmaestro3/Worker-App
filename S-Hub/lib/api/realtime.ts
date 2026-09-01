@@ -1,6 +1,5 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
-import { Booking } from './bookings';
 import { Message } from './messages';
 import { WorkerBid } from './workerBids';
 import { Notification } from './notifications';
@@ -28,10 +27,6 @@ export function subscribeToTable<T>(
 
 export function unsubscribe(channel: RealtimeChannel): void {
   supabase.removeChannel(channel);
-}
-
-export function subscribeToBookingStatus(bookingId: string, onChange: (booking: Booking) => void): RealtimeChannel {
-  return subscribeToTable<Booking>('bookings', `id=eq.${bookingId}`, onChange);
 }
 
 export function subscribeToBookingMessages(bookingId: string, onChange: (message: Message) => void): RealtimeChannel {

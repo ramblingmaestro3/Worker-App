@@ -65,29 +65,6 @@ export async function getServiceRequest(
   return { success: true, data: data as ServiceRequest };
 }
 
-/** Lists open requests any verified worker can browse and bid on. */
-export async function listOpenServiceRequests(
-  category?: string
-): Promise<{ success: boolean; data?: ServiceRequest[]; error?: string }> {
-  let query = supabase
-    .from('service_requests')
-    .select('*')
-    .eq('status', 'seeking_bids')
-    .order('created_at', { ascending: false });
-
-  if (category) {
-    query = query.eq('category', category);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, data: (data ?? []) as ServiceRequest[] };
-}
-
 /** Lists open requests matching any of a worker's skill categories — the job feed's core query. */
 export async function listOpenServiceRequestsForCategories(
   categories: string[]

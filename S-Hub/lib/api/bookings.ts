@@ -38,26 +38,6 @@ export async function getBooking(id: string): Promise<{ success: boolean; data?:
   return { success: true, data: data as Booking };
 }
 
-/** Lists bookings the signed-in user is a participant in, as either client or worker. */
-export async function listMyBookings(): Promise<{ success: boolean; data?: Booking[]; error?: string }> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    return { success: false, error: 'Not signed in.' };
-  }
-
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('*')
-    .or(`client_id.eq.${auth.user.id},worker_id.eq.${auth.user.id}`)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, data: (data ?? []) as Booking[] };
-}
-
 /** Worker advances the booking's status, stamping the matching timestamp column. */
 export async function advanceBookingStatus(
   bookingId: string,

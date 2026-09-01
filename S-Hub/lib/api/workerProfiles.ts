@@ -15,10 +15,6 @@ export const PREFERRED_TIME_OPTIONS: { value: PreferredTime; label: string; shor
   { value: 'evening', label: 'Evening (6pm–10pm)', shortLabel: 'Evening', icon: 'moon-outline' },
 ];
 
-export function preferredTimeLabel(value: string): string {
-  return PREFERRED_TIME_OPTIONS.find((o) => o.value === value)?.label ?? value;
-}
-
 export function preferredTimeShortLabel(value: string): string {
   return PREFERRED_TIME_OPTIONS.find((o) => o.value === value)?.shortLabel ?? value;
 }

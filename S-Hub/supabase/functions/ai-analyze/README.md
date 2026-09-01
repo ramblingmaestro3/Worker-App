@@ -1,4 +1,4 @@
-# ai-analyze
+update# ai-analyze
 
 Vision analysis for the customer **AI Help** screen (`app/ai-assistant.tsx`).
 Takes a problem photo, asks Google Gemini what's wrong, returns an identified
