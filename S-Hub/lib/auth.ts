@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
 import { Platform } from 'react-native';
+import { resetToCustomerHome, resetToWorkerHome } from '@/navigation/navigationRef';
 import { supabase } from './supabase';
 import { useAuthStore } from './stores/auth-store';
 
@@ -187,11 +187,11 @@ export async function signInWithPassword({
  */
 export async function routeSignedInUserByRole(preferredMode?: 'client' | 'worker'): Promise<void> {
   if (preferredMode === 'worker') {
-    router.replace('/worker-dashboard');
+    resetToWorkerHome();
     return;
   }
   if (preferredMode === 'client') {
-    router.replace('/home');
+    resetToCustomerHome();
     return;
   }
 
@@ -202,9 +202,9 @@ export async function routeSignedInUserByRole(preferredMode?: 'client' | 'worker
   await useAuthStore.getState().refreshProfile();
   const profile = useAuthStore.getState().profile;
   if (profile?.role === 'worker') {
-    router.replace('/worker-dashboard');
+    resetToWorkerHome();
   } else {
-    router.replace('/home');
+    resetToCustomerHome();
   }
 }
 

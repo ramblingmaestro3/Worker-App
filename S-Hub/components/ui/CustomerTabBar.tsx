@@ -1,5 +1,4 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { router } from 'expo-router';
 import { s } from '@/lib/scaling';
 import { useNavStore, type CustomerTabKey } from '@/lib/stores/nav-store';
 import NavPill, { type PillTab } from './NavPill';
@@ -11,7 +10,7 @@ const TAB_META: Record<CustomerTabKey, Omit<PillTab, 'key'>> = {
   profile: { icon: 'person-outline', iconActive: 'person' },
 };
 
-/** tabBar for app/(customer)/(tabs)/_layout.tsx — reproduces the floating pill visual, driven by the real Tabs navigator state so each tab keeps its own stack. */
+/** tabBar for navigation/CustomerTabs.tsx — reproduces the floating pill visual, driven by the real Tabs navigator state so each tab keeps its own stack. */
 export default function CustomerTabBar({ state, navigation }: BottomTabBarProps) {
   const setLastCustomerTab = useNavStore((store) => store.setLastCustomerTab);
 
@@ -32,7 +31,7 @@ export default function CustomerTabBar({ state, navigation }: BottomTabBarProps)
           setLastCustomerTab(key as CustomerTabKey);
         }
       }}
-      centerFab={{ icon: 'add', onPress: () => router.push('/post-a-job') }}
+      centerFab={{ icon: 'add', onPress: () => navigation.navigate('PostAJob' as never) }}
     />
   );
 }

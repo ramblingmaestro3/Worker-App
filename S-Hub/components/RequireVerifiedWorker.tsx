@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
-import { router, type Href } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { useWorkerVerification } from '@/hooks/use-worker-verification';
+import { resetToBecomeWorker, resetToSignIn, resetToVerificationPending } from '@/navigation/navigationRef';
 
-const REDIRECTS: Record<string, Href> = {
-  'signed-out': '/sign-in',
-  'not-worker': '/become-worker',
-  'no-submission': '/become-worker',
-  pending: '/verification-pending',
-  rejected: '/verification-pending',
+const REDIRECTS: Record<string, () => void> = {
+  'signed-out': resetToSignIn,
+  'not-worker': resetToBecomeWorker,
+  'no-submission': resetToBecomeWorker,
+  pending: resetToVerificationPending,
+  rejected: resetToVerificationPending,
 };
 
 /**
@@ -25,8 +25,8 @@ export default function RequireVerifiedWorker({ children }: { children: React.Re
   const T = useThemeColors();
 
   useEffect(() => {
-    const target = REDIRECTS[status];
-    if (target) router.replace(target);
+    const redirect = REDIRECTS[status];
+    if (redirect) redirect();
   }, [status]);
 
   if (status !== 'verified') {
@@ -40,3 +40,13 @@ export default function RequireVerifiedWorker({ children }: { children: React.Re
   return <>{children}</>;
 }
 
+/** Registers a screen component gated the same way RequireVerifiedWorker gates its children. */
+export function withVerifiedWorker<P extends object>(Component: React.ComponentType<P>) {
+  return function VerifiedWorkerScreen(props: P) {
+    return (
+      <RequireVerifiedWorker>
+        <Component {...props} />
+      </RequireVerifiedWorker>
+    );
+  };
+}

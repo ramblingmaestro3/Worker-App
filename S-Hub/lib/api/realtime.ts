@@ -7,8 +7,9 @@ import { Notification } from './notifications';
 /**
  * Generic postgres_changes subscription. Call inside a screen's
  * useFocusEffect and pass the returned channel to unsubscribe() on blur —
- * expo-router keeps stack screens mounted, so a plain useEffect cleanup
- * alone isn't enough to stop a background screen from still listening.
+ * the stack navigator keeps pushed-under screens mounted, so a plain
+ * useEffect cleanup alone isn't enough to stop a background screen from
+ * still listening.
  */
 export function subscribeToTable<T>(
   table: string,

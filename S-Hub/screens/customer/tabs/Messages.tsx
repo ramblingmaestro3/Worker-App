@@ -1,0 +1,219 @@
+import ScreenContent from '@/components/ScreenContent';
+import { COLORS } from '@/constants/theme';
+import { useThemeColors } from '@/contexts/ThemeContext';
+import { ConversationView, listMyConversations } from '@/lib/api/bookings';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import type { CustomerTabParamList, RootStackParamList } from '@/navigation/types';
+import { Ionicons } from '@expo/vector-icons';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCallback, useLayoutEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<CustomerTabParamList, 'messages'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
+
+function initialsOf(name: string): string {
+  return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+}
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return days === 1 ? 'Yesterday' : `${days} days ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+export default function MessagesScreen({ navigation }: Props) {
+  const [search, setSearch] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const myId = useAuthStore((s) => s.user?.id ?? null);
+  const [conversations, setConversations] = useState<ConversationView[]>([]);
+  const [loading, setLoading] = useState(true);
+  const T = useThemeColors();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: 'Messages',
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.iconBtn}
+          activeOpacity={0.8}
+          onPress={() => {
+            setShowSearch((v) => !v);
+            if (showSearch) setSearch('');
+          }}
+        >
+          <Ionicons name={showSearch ? 'close' : 'search-outline'} size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, showSearch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const result = await listMyConversations();
+        if (cancelled) return;
+        if (result.success) setConversations(result.data ?? []);
+        setLoading(false);
+      })();
+      return () => { cancelled = true; };
+    }, [])
+  );
+
+  const filtered = conversations.filter((c) =>
+    search.trim() === '' ? true :
+      c.worker.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.request_category ?? '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+      <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+
+      {showSearch && (
+        <View style={styles.searchWrapOuter}>
+          <ScreenContent style={[styles.searchWrap, { backgroundColor: T.inputBg }]}>
+            <Ionicons name="search-outline" size={17} color={T.subText} />
+            <TextInput
+              style={[styles.searchInput, { color: T.text }]}
+              placeholder="Search"
+              placeholderTextColor={T.subText}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoFocus
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={17} color={T.subText} />
+              </TouchableOpacity>
+            )}
+          </ScreenContent>
+        </View>
+      )}
+
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      ) : filtered.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="chatbubbles-outline" size={54} color={COLORS.primary + '50'} />
+          <Text style={[styles.emptyTitle, { color: T.text }]}>No conversations</Text>
+          <Text style={[styles.emptySub, { color: T.subText }]}>Post a job and connect with workers to start chatting.</Text>
+          <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate('PostAJob', {})} activeOpacity={0.85}>
+            <Text style={styles.emptyCtaText}>Post a Job</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.listWrapOuter}>
+          <ScreenContent style={styles.listWrap}>
+            <FlatList
+              style={styles.listBox}
+              data={filtered}
+              keyExtractor={(item) => item.booking_id}
+              renderItem={({ item: convo, index }) => {
+                const unread = !!convo.last_message && convo.last_message.sender_id !== myId && !convo.last_message.is_read;
+                return (
+                  <View>
+                    {index > 0 && <View style={[styles.divider, { backgroundColor: T.divider }]} />}
+                    <TouchableOpacity
+                      style={[styles.row, { backgroundColor: T.card }]}
+                      onPress={() => navigation.navigate('Chat', { bookingId: convo.booking_id })}
+                      activeOpacity={0.78}
+                    >
+                      <View style={styles.avatarWrap}>
+                        <View style={[styles.avatar, { backgroundColor: COLORS.accent + '20' }]}>
+                          <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.worker.full_name)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.content}>
+                        <View style={styles.topRow}>
+                          <Text style={[styles.name, { color: T.text }]} numberOfLines={1}>{convo.worker.full_name}</Text>
+                          {convo.last_message && (
+                            <Text style={[styles.time, { color: unread ? COLORS.primary : T.subText }, unread && { fontWeight: '700' }]}>
+                              {timeAgo(convo.last_message.created_at)}
+                            </Text>
+                          )}
+                        </View>
+                        {convo.request_category && (
+                          <View style={[styles.jobPill, { backgroundColor: T.inputBg }]}>
+                            <Text style={[styles.jobTitle, { color: T.subText }]} numberOfLines={1}>
+                              {convo.request_category.charAt(0).toUpperCase() + convo.request_category.slice(1)}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.bottomRow}>
+                          <Text style={[styles.lastMsg, { color: unread ? T.text : T.subText }, unread && { fontWeight: '600' }]} numberOfLines={1}>
+                            {convo.last_message?.message_text ?? 'No messages yet'}
+                          </Text>
+                          {unread && <View style={styles.unreadDot} />}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.list}
+            />
+          </ScreenContent>
+        </View>
+      )}
+
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1 },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '12', borderRadius: 20 },
+  searchWrapOuter: { width: '100%', alignItems: 'center' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, marginHorizontal: 16, marginVertical: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  searchInput: { flex: 1, fontSize: 14 },
+  list: { paddingBottom: 100 },
+  listWrapOuter: { flex: 1, width: '100%', alignItems: 'center' },
+  listWrap: { flex: 1 },
+  listBox: { width: '100%' },
+  divider: { height: 1 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  avatarWrap: { position: 'relative', flexShrink: 0 },
+  avatar: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
+  initials: { fontSize: 18, fontWeight: '800' },
+  content: { flex: 1 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  name: { fontSize: 15, fontWeight: '700' },
+  time: { fontSize: 11 },
+  jobPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 5 },
+  jobTitle: { fontSize: 11, fontWeight: '500', maxWidth: 180 },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  lastMsg: { flex: 1, fontSize: 13 },
+  unreadDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: COLORS.primary },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 10 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyCta: { backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 6 },
+  emptyCtaText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+});

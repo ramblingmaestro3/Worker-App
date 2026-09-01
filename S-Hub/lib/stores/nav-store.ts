@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { CustomerTabKey, WorkerTabKey } from '@/navigation/types';
 
-export type CustomerTabKey = 'home' | 'bookings' | 'messages' | 'profile';
-export type WorkerTabKey = 'worker-dashboard' | 'worker-jobs' | 'worker-messages' | 'worker-profile-settings';
+export type { CustomerTabKey, WorkerTabKey };
 
 type NavState = {
   lastCustomerTab: CustomerTabKey;
