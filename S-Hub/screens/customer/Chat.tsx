@@ -2,7 +2,7 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import EmptyState from '@/components/ui/EmptyState';
 import { getBookingWithContext, BookingChatContext } from '@/lib/api/bookings';
-import { blockUser, isBlockedWith } from '@/lib/api/blocking';
+import { blockUser, unblockUser, isBlockedWith } from '@/lib/api/blocking';
 import { submitReport } from '@/lib/api/reports';
 import { listMessages, sendMessage, markMessagesRead, Message } from '@/lib/api/messages';
 import { subscribeToBookingMessages, unsubscribe } from '@/lib/api/realtime';
@@ -213,6 +213,25 @@ export default function ChatScreen({ route, navigation }: Props) {
     ]);
   };
 
+  const handleUnblock = () => {
+    setMenuVisible(false);
+    if (!otherParty) return;
+    Alert.alert(`Unblock ${otherParty.full_name}?`, 'They will be able to message and contact you again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Unblock',
+        onPress: async () => {
+          const result = await unblockUser(otherParty.id);
+          if (!result.success) {
+            Alert.alert('Could Not Unblock', result.error ?? 'Something went wrong. Please try again.');
+            return;
+          }
+          setBlocked(false);
+        },
+      },
+    ]);
+  };
+
   const handleReport = () => {
     setMenuVisible(false);
     setReportReason('');
@@ -374,9 +393,9 @@ export default function ChatScreen({ route, navigation }: Props) {
                 <View style={[s.menuDivider, { backgroundColor: T.divider }]} />
               </>
             )}
-            <TouchableOpacity style={s.menuItem} activeOpacity={0.7} onPress={handleBlock}>
+            <TouchableOpacity style={s.menuItem} activeOpacity={0.7} onPress={blocked ? handleUnblock : handleBlock}>
               <Ionicons name="ban-outline" size={17} color={COLORS.danger} />
-              <Text style={[s.menuItemText, { color: COLORS.danger }]}>Block</Text>
+              <Text style={[s.menuItemText, { color: COLORS.danger }]}>{blocked ? 'Unblock' : 'Block'}</Text>
             </TouchableOpacity>
             <View style={[s.menuDivider, { backgroundColor: T.divider }]} />
             <TouchableOpacity style={s.menuItem} activeOpacity={0.7} onPress={handleReport}>

@@ -3,7 +3,8 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Animated,
   Easing,
@@ -16,16 +17,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
+import { listBidsForRequest, BidWithWorker } from '@/lib/api/workerBids';
+import { subscribeToRequestBids, unsubscribe } from '@/lib/api/realtime';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindingWorker'>;
 
-/* ─── Sample available workers ─── */
-const WORKERS = [
-  { id: 'w1', name: 'Kofi Mensah',   initials: 'KM', color: COLORS.accent, rating: 4.9, jobs: 143, price: 450, distance: '1.2 km', eta: '12 min', skills: ['Plumbing', 'Pipe Repair', 'Drainage'], verified: true,  online: true  },
-  { id: 'w2', name: 'Kwame Adjei',   initials: 'KA', color: '#1D6FBA', rating: 4.7, jobs: 98,  price: 400, distance: '2.0 km', eta: '18 min', skills: ['Plumbing', 'Bathroom Fix'],            verified: true,  online: true  },
-  { id: 'w3', name: 'Yaw Boateng',   initials: 'YB', color: '#92400E', rating: 4.8, jobs: 210, price: 500, distance: '3.4 km', eta: '25 min', skills: ['Plumbing', 'Water Heater'],            verified: false, online: true  },
-  { id: 'w4', name: 'Ama Owusu',     initials: 'AO', color: '#7C3AED', rating: 4.6, jobs: 62,  price: 380, distance: '4.1 km', eta: '30 min', skills: ['Plumbing', 'Leak Fix'],               verified: true,  online: false },
-];
+function effectivePrice(bid: BidWithWorker): number {
+  return bid.status === 'countered' && bid.counter_price != null ? bid.counter_price : bid.proposed_price;
+}
 
 /* ─── Animated pulse ring ─── */
 function PulseRing({ delay, size }: { delay: number; size: number }) {
@@ -62,33 +61,20 @@ function PulseRing({ delay, size }: { delay: number; size: number }) {
   );
 }
 
-/* ─── Searching animation view ─── */
+/* ─── Searching animation view — shown until the first real bid arrives ─── */
 function SearchingView({ service }: { service: string }) {
-  const dotsAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(dotsAnim, { toValue: 3, duration: 900, useNativeDriver: false }),
-        Animated.timing(dotsAnim, { toValue: 0, duration: 0,   useNativeDriver: false }),
-      ])
-    ).start();
-  }, [dotsAnim]);
-
   const [dots, setDots] = useState('');
   useEffect(() => {
-    const id = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 400);
+    const id = setInterval(() => setDots((d) => (d.length >= 3 ? '' : d + '.')), 400);
     return () => clearInterval(id);
   }, []);
 
   return (
     <View style={sv.wrap}>
-      {/* Pulse rings */}
       <View style={sv.radarWrap}>
-        <PulseRing delay={0}    size={200} />
-        <PulseRing delay={600}  size={200} />
+        <PulseRing delay={0} size={200} />
+        <PulseRing delay={600} size={200} />
         <PulseRing delay={1200} size={200} />
-        {/* Centre icon */}
         <View style={sv.centerIcon}>
           <Text style={{ fontSize: 34 }}>🔍</Text>
         </View>
@@ -96,11 +82,6 @@ function SearchingView({ service }: { service: string }) {
 
       <Text style={sv.title}>Finding workers{dots}</Text>
       <Text style={sv.sub}>Searching for available {service} workers near you</Text>
-
-      <View style={sv.statusRow}>
-        <Ionicons name="location-sharp" size={14} color={COLORS.primary} />
-        <Text style={sv.statusText}>Kumasi, Ghana</Text>
-      </View>
     </View>
   );
 }
@@ -111,118 +92,83 @@ const sv = StyleSheet.create({
   centerIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.primary + '30' },
   title: { fontSize: 20, fontWeight: '800', marginBottom: 6 },
   sub: { fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 10, paddingHorizontal: 30 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statusText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
 });
 
-/* ─── Worker card ─── */
-function WorkerCard({ worker, service, T, navigation }: { worker: typeof WORKERS[0]; service: string; T: any; navigation: Props['navigation'] }) {
+/* ─── Real bid preview card ─── */
+function BidPreviewCard({ bid, T, onPress }: { bid: BidWithWorker; T: any; onPress: () => void }) {
+  const initials = (bid.worker?.full_name ?? 'Worker')
+    .split(' ')
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
-    <View style={[wc.card, { backgroundColor: T.card, borderColor: T.border }]}>
-      {/* Avatar + online */}
-      <View style={wc.avatarWrap}>
-        <View style={[wc.avatar, { backgroundColor: worker.color + '20' }]}>
-          <Text style={[wc.initials, { color: worker.color }]}>{worker.initials}</Text>
-        </View>
-        {worker.online && <View style={wc.onlineDot} />}
+    <TouchableOpacity style={[wc.card, { backgroundColor: T.card, borderColor: T.border }]} onPress={onPress} activeOpacity={0.85}>
+      <View style={wc.avatar}>
+        <Text style={wc.initials}>{initials}</Text>
       </View>
 
       <View style={wc.info}>
-        <View style={wc.nameRow}>
-          <Text style={wc.name}>{worker.name}</Text>
-          {worker.verified && (
-            <View style={wc.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={13} color={COLORS.primary} />
-              <Text style={wc.verifiedText}>Verified</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Rating + jobs */}
-        <View style={wc.metaRow}>
-          <Ionicons name="star" size={12} color="#F59E0B" />
-          <Text style={wc.rating}>{worker.rating}</Text>
-          <Text style={wc.dot}>·</Text>
-          <Text style={wc.jobs}>{worker.jobs} jobs</Text>
-          <Text style={wc.dot}>·</Text>
-          <Ionicons name="location-outline" size={12} color={COLORS.muted} />
-          <Text style={wc.dist}>{worker.distance}</Text>
-        </View>
-
-        {/* Skills */}
-        <View style={wc.skillsRow}>
-          {worker.skills.slice(0, 3).map(sk => (
-            <View key={sk} style={wc.skill}>
-              <Text style={wc.skillText}>{sk}</Text>
-            </View>
-          ))}
-        </View>
+        <Text style={wc.name}>{bid.worker?.full_name ?? 'Worker'}</Text>
+        {bid.worker && (
+          <View style={wc.metaRow}>
+            <Ionicons name="star" size={12} color="#F59E0B" />
+            <Text style={wc.rating}>{bid.worker.rating_avg.toFixed(1)}</Text>
+            <Text style={wc.dot}>·</Text>
+            <Text style={wc.jobs}>{bid.worker.rating_count} reviews</Text>
+          </View>
+        )}
+        {!!bid.message && (
+          <Text style={wc.message} numberOfLines={1}>{bid.message}</Text>
+        )}
       </View>
 
-      {/* Right: price + ETA + button */}
       <View style={wc.right}>
-        <Text style={wc.price}>GH₵ {worker.price}</Text>
-        <View style={wc.etaRow}>
-          <Ionicons name="time-outline" size={11} color={COLORS.muted} />
-          <Text style={wc.eta}>{worker.eta}</Text>
-        </View>
-        <TouchableOpacity
-          style={wc.hireBtn}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('CustomerTabs', { screen: 'messages' })}
-        >
-          <Text style={wc.hireBtnText}>Hire</Text>
-        </TouchableOpacity>
+        <Text style={wc.price}>GH₵ {effectivePrice(bid)}</Text>
+        <Text style={wc.viewText}>View</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const wc = StyleSheet.create({
-  card: { flexDirection: 'row', borderRadius: 16, padding: 14, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, gap: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-  avatarWrap: { position: 'relative', flexShrink: 0 },
-  avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  initials: { fontSize: 16, fontWeight: '800' },
-  onlineDot: { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: COLORS.card },
+  card: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: 14, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, gap: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15', flexShrink: 0 },
+  initials: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
   info: { flex: 1 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  name: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: COLORS.primaryLight, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
-  verifiedText: { fontSize: 10, color: COLORS.primary, fontWeight: '700' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 7 },
+  name: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
   rating: { fontSize: 12, fontWeight: '700', color: COLORS.text },
   dot: { fontSize: 12, color: COLORS.muted },
   jobs: { fontSize: 11, color: COLORS.muted },
-  dist: { fontSize: 11, color: COLORS.muted },
-  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  skill: { backgroundColor: COLORS.bgGrey, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  skillText: { fontSize: 10, color: COLORS.muted, fontWeight: '600' },
-  right: { alignItems: 'flex-end', justifyContent: 'space-between', flexShrink: 0 },
-  price: { fontSize: 14, fontWeight: '800', color: COLORS.primary },
-  etaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  eta: { fontSize: 10, color: COLORS.muted },
-  hireBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginTop: 4 },
-  hireBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  message: { fontSize: 11, color: COLORS.muted },
+  right: { alignItems: 'flex-end', flexShrink: 0 },
+  price: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginBottom: 2 },
+  viewText: { fontSize: 11, color: COLORS.muted, fontWeight: '600' },
 });
-
-/* ─── Filter chips ─── */
-const FILTERS = ['Nearest', 'Highest Rated', 'Lowest Price', 'Most Jobs'];
 
 /* ─── Main Screen ─── */
 export default function FindingWorkerScreen({ route, navigation }: Props) {
-  const { service = 'Plumbing', jobTitle = 'Fix leaking bathroom pipe' } = route.params ?? {};
-
-  const [phase, setPhase]         = useState<'searching' | 'found'>('searching');
-  const [activeFilter, setFilter] = useState('Nearest');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { requestId, service = 'a', jobTitle } = route.params ?? ({} as Props['route']['params']);
   const T = useThemeColors();
+
+  const [bids, setBids] = useState<BidWithWorker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const wasEmpty = useRef(true);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
         <View style={s.headerInfo}>
           <Text style={[s.headerTitle, { color: T.text }]}>Finding Workers</Text>
-          <Text style={[s.headerSub, { color: T.subText }]} numberOfLines={1}>{service} · {jobTitle}</Text>
+          {!!(service || jobTitle) && (
+            <Text style={[s.headerSub, { color: T.subText }]} numberOfLines={1}>
+              {[service, jobTitle].filter(Boolean).join(' · ')}
+            </Text>
+          )}
         </View>
       ),
       headerRight: () => (
@@ -238,20 +184,63 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
     });
   }, [navigation, T, service, jobTitle]);
 
-  /* Simulate a 3-second search before showing results */
+  useFocusEffect(
+    useCallback(() => {
+      if (!requestId) {
+        setLoading(false);
+        return;
+      }
+      let cancelled = false;
+      let channel: ReturnType<typeof subscribeToRequestBids> | null = null;
+
+      (async () => {
+        setLoading(true);
+        const result = await listBidsForRequest(requestId);
+        if (cancelled) return;
+        const initial = result.success ? result.data ?? [] : [];
+        setBids(initial);
+        setLoading(false);
+        if (initial.length > 0) {
+          wasEmpty.current = false;
+          fadeAnim.setValue(1);
+        }
+
+        channel = subscribeToRequestBids(requestId, () => {
+          listBidsForRequest(requestId).then((r) => {
+            if (cancelled || !r.success) return;
+            setBids(r.data ?? []);
+          });
+        });
+      })();
+
+      return () => {
+        cancelled = true;
+        if (channel) unsubscribe(channel);
+      };
+    }, [requestId, fadeAnim])
+  );
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setPhase('found');
+    if (bids.length > 0 && wasEmpty.current) {
+      wasEmpty.current = false;
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [fadeAnim]);
+    }
+  }, [bids.length, fadeAnim]);
+
+  const found = bids.length > 0;
+  const topBids = [...bids]
+    .filter((b) => b.status === 'pending' || b.status === 'countered')
+    .sort((a, b) => effectivePrice(a) - effectivePrice(b))
+    .slice(0, 3);
+
+  const goToBids = () => {
+    if (requestId) navigation.navigate('BidComparison', { requestId });
+  };
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
 
-      {/* ── JOB POSTED BANNER ── */}
       <View style={s.postedBannerOuter}>
         <ScreenContent style={s.postedBanner}>
           <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
@@ -261,47 +250,39 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollOuter}>
         <ScreenContent style={s.scroll}>
+          {!loading && !found && <SearchingView service={service} />}
 
-        {/* ── SEARCHING ANIMATION ── */}
-        <SearchingView service={service} />
-
-        {/* ── RESULTS (fade in after search) ── */}
-        {phase === 'found' && (
-          <Animated.View style={{ opacity: fadeAnim }}>
-              {/* Found count */}
-            <View style={s.foundRow}>
-              <Text style={[s.foundText, { color: T.text }]}>{WORKERS.length} workers found nearby</Text>
-              <View style={s.liveChip}>
-                <View style={s.liveDot} />
-                <Text style={s.liveText}>Live</Text>
+          {found && (
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <View style={s.foundRow}>
+                <Text style={[s.foundText, { color: T.text }]}>
+                  {bids.length} {bids.length === 1 ? 'bid' : 'bids'} received
+                </Text>
+                <View style={s.liveChip}>
+                  <View style={s.liveDot} />
+                  <Text style={s.liveText}>Live</Text>
+                </View>
               </View>
-            </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtersRow}>
-              {FILTERS.map(f => (
-                <TouchableOpacity
-                  key={f}
-                  style={[s.filterChip, { backgroundColor: T.card, borderColor: T.border }, activeFilter === f && s.filterChipActive]}
-                  onPress={() => setFilter(f)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[s.filterText, { color: T.subText }, activeFilter === f && s.filterTextActive]}>{f}</Text>
-                </TouchableOpacity>
+              {topBids.map((bid) => (
+                <BidPreviewCard key={bid.id} bid={bid} T={T} onPress={goToBids} />
               ))}
-            </ScrollView>
 
-            {WORKERS.map(w => (
-              <WorkerCard key={w.id} worker={w} service={service} T={T} navigation={navigation} />
-            ))}
+              <TouchableOpacity style={s.viewAllBtn} activeOpacity={0.85} onPress={goToBids}>
+                <Text style={s.viewAllBtnText}>
+                  {bids.length > topBids.length ? 'View All Bids' : 'Review & Respond'}
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              </TouchableOpacity>
 
-            <View style={[s.tipBox, { backgroundColor: COLORS.primary + '15' }]}>
-              <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
-              <Text style={s.tipText}>
-                More workers may become available over the next few hours. We&apos;ll notify you instantly when they respond.
-              </Text>
-            </View>
-          </Animated.View>
-        )}
+              <View style={[s.tipBox, { backgroundColor: COLORS.primary + '15' }]}>
+                <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
+                <Text style={s.tipText}>
+                  More workers may bid over the next few hours. We&apos;ll keep this updated live.
+                </Text>
+              </View>
+            </Animated.View>
+          )}
         </ScreenContent>
       </ScrollView>
     </SafeAreaView>
@@ -330,12 +311,9 @@ const s = StyleSheet.create({
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.danger },
   liveText: { fontSize: 11, color: COLORS.danger, fontWeight: '800' },
 
-  filtersRow: { paddingHorizontal: 16, gap: 8, marginBottom: 14 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
-  filterChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' },
-  filterText: { fontSize: 12, fontWeight: '600' },
-  filterTextActive: { color: COLORS.primary },
+  viewAllBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, marginHorizontal: 16, marginTop: 4 },
+  viewAllBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  tipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 12, padding: 14, marginHorizontal: 16, marginTop: 8 },
+  tipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 12, padding: 14, marginHorizontal: 16, marginTop: 16 },
   tipText: { flex: 1, fontSize: 12, color: COLORS.primary, lineHeight: 18, fontWeight: '500' },
 });

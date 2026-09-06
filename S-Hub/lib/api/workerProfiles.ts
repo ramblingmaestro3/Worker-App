@@ -30,6 +30,7 @@ export type WorkerProfile = {
   languages: string | null;
   availability: AvailabilityDay[];
   preferred_times: PreferredTime[];
+  is_online: boolean;
   latitude: number | null;
   longitude: number | null;
   address: string | null;
@@ -52,6 +53,7 @@ export type VerifiedWorkerSummary = {
   latitude: number | null;
   longitude: number | null;
   availability: AvailabilityDay[];
+  is_online: boolean;
 };
 
 /** Every verified worker — the real backing for the client-side browse/search screens (home's "nearby workers", Search.tsx's list/map). No location/skill filter server-side; these screens filter client-side over the full list, same as the mock data they replace. */
@@ -59,7 +61,7 @@ export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: 
   const { data, error } = await supabase
     .from('worker_profiles')
     .select(
-      'id, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
+      'id, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
     )
     .eq('verification_status', 'verified');
 
@@ -84,6 +86,7 @@ export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: 
       // saves real availability via worker-availability.tsx, which writes
       // an array — so a plain `?? []` doesn't catch the pre-save shape.
       availability: Array.isArray(w.availability) ? w.availability : [],
+      is_online: w.is_online ?? true,
     })),
   };
 }
@@ -98,6 +101,7 @@ export type CreateWorkerProfileInput = {
   languages?: string;
   availability?: AvailabilityDay[];
   preferred_times?: PreferredTime[];
+  is_online?: boolean;
   latitude?: number;
   longitude?: number;
   address?: string;

@@ -21,8 +21,8 @@ const FAQS = [
   { q: 'How do I post a job?', a: 'Tap the + button at the bottom of the home screen, fill in the service details, describe the job, add photos, set your location and tap Next to schedule.' },
   { q: 'How are workers verified?', a: 'All workers on AdwumaGo go through an identity verification process. Look for the blue verified badge on worker profiles.' },
   { q: 'What if I\'m not satisfied with the work?', a: 'You can report an issue within 24 hours of job completion. Our support team will review the case and facilitate a resolution.' },
-  { q: 'How do I pay a worker?', a: 'Payments are made through the app using Mobile Money (MTN, Vodafone, AirtelTigo) or card. Funds are held securely until you confirm the job is complete.' },
-  { q: 'Can I cancel a job?', a: 'You can cancel a job up to 2 hours before the scheduled time without a penalty. Late cancellations may incur a small fee.' },
+  { q: 'How do I pay a worker?', a: 'AdwumaGo doesn\'t process payments. You agree on a price with the worker in the app, then pay them directly — cash, Mobile Money, or however you\'ve arranged — once the job is done.' },
+  { q: 'Can I cancel a job?', a: 'You can cancel a request or booking any time before it\'s marked complete, with no fee — just be considerate of the worker\'s time if they\'re already on the way.' },
   { q: 'How do I become a worker on AdwumaGo?', a: 'Go to Profile → Worker Profile to start the worker onboarding process. You\'ll need a valid Ghana ID and a skills assessment.' },
 ];
 

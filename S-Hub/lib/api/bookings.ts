@@ -28,16 +28,6 @@ const STATUS_TIMESTAMP_COLUMN: Partial<Record<BookingStatus, keyof Booking>> = {
   cancelled: 'cancelled_at',
 };
 
-export async function getBooking(id: string): Promise<{ success: boolean; data?: Booking; error?: string }> {
-  const { data, error } = await supabase.from('bookings').select('*').eq('id', id).single();
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, data: data as Booking };
-}
-
 /** Worker advances the booking's status, stamping the matching timestamp column. */
 export async function advanceBookingStatus(
   bookingId: string,

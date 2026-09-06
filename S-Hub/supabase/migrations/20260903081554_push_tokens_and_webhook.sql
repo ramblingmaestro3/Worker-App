@@ -69,6 +69,12 @@ create policy "Users can remove their own push tokens"
 -- ----------------------------------------------------------------------------
 create extension if not exists pg_net;
 
+-- REDACTED 2026-09-06: this version's literal secret value leaked via git
+-- history and was rotated. The literal is superseded immediately below by
+-- migration 20260906143000, which replaces this function to read the secret
+-- from Supabase Vault instead -- the redaction here changes nothing about
+-- the effective schema (CREATE OR REPLACE overwrites this on every fresh
+-- install), it only removes the dead literal from tracked source.
 create or replace function public.trigger_send_push_notification()
 returns trigger
 language plpgsql
@@ -79,7 +85,7 @@ begin
     url := 'https://ldyqkrrhnkkfmevpnyes.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'X-Webhook-Secret', 'd54f9b56b2a1cbfbd07aba93f336aa595b3426ab97d2a3357840b37306bcad74'
+      'X-Webhook-Secret', '__REDACTED_ROTATED_SEE_20260906143000__'
     ),
     body := jsonb_build_object('type', 'INSERT', 'table', 'notifications', 'record', to_jsonb(new))
   );

@@ -164,12 +164,17 @@ export default function PostAJobScreen({ route, navigation }: Props) {
     });
     setPosting(false);
 
-    if (!result.success) {
+    if (!result.success || !result.data) {
       Alert.alert('Could Not Post Job', result.error ?? 'Something went wrong. Please try again.');
       return;
     }
 
-    navigation.navigate('FindingWorker', {});
+    const categoryLabel = CATEGORIES.find((c) => c.key === category)?.label ?? category;
+    navigation.navigate('FindingWorker', {
+      requestId: result.data.id,
+      service: categoryLabel,
+      jobTitle: description.trim(),
+    });
   };
 
   return (

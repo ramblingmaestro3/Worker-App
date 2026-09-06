@@ -111,7 +111,7 @@ export default function HomeScreen({ navigation }: Props) {
       rating: w.rating_avg,
       initials: initialsOf(w.full_name),
       color: colorForId(w.id),
-      available: w.availability.some((d) => d.day === todayAbbrev && d.on),
+      available: w.is_online && w.availability.some((d) => d.day === todayAbbrev && d.on),
       distanceKm:
         myLoc && w.latitude != null && w.longitude != null
           ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)

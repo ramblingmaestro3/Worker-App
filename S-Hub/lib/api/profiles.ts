@@ -96,3 +96,37 @@ export async function updateProfile(
 
   return { success: true };
 }
+
+/**
+ * Permanently deletes the signed-in user's own account via the
+ * `delete-account` Edge Function (auth.users deletion needs the service role
+ * key, which the client never holds). Fails with a clear error, rather than
+ * silently no-op'ing, for an account with booking/message history — see
+ * that function's comment for why those aren't cascade-deleted.
+ */
+export async function deleteMyAccount(): Promise<{ success: boolean; error?: string; hasHistory?: boolean }> {
+  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string; code?: string }>(
+    'delete-account'
+  );
+
+  if (error) {
+    const ctx = (error as any).context;
+    let payload: any = null;
+    try {
+      payload = await ctx?.json?.();
+    } catch {
+      /* body wasn't JSON */
+    }
+    return {
+      success: false,
+      error: payload?.error || error.message || 'Could not delete your account. Please try again.',
+      hasHistory: payload?.code === 'has_history',
+    };
+  }
+
+  if (!data?.success) {
+    return { success: false, error: data?.error || 'Could not delete your account. Please try again.' };
+  }
+
+  return { success: true };
+}

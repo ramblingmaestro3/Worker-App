@@ -17,15 +17,23 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { resetToSignIn } from '@/navigation/navigationRef';
 import type { RootStackParamList } from '@/navigation/types';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { deleteMyAccount } from '@/lib/api/profiles';
 
 export default function SettingsScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Settings'>) {
   const { isDark, toggleDark } = useAppTheme();
   const T = useThemeColors();
+  const profile = useAuthStore((s) => s.profile);
+  const workerGateStatus = useAuthStore((s) => s.workerGateStatus);
   const [language, setLanguage] = useState('English');
   const [currency] = useState('GHS (₵)');
   const [pushNotifs, setPushNotifs] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [smsNotifs, setSmsNotifs] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isWorker = profile?.role === 'worker';
+  const roleLabel = isWorker ? (workerGateStatus === 'verified' ? 'Verified Pro' : 'Worker') : 'Client';
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, headerTitle: 'Settings' });
@@ -45,14 +53,14 @@ export default function SettingsScreen({ navigation }: NativeStackScreenProps<Ro
           <TouchableOpacity
             style={[s.profileCard, { backgroundColor: T.card, borderColor: T.border }]}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('WorkerPersonalInfo')}
+            onPress={() => navigation.navigate(isWorker ? 'WorkerPersonalInfo' : 'ProfileEdit')}
           >
             <View style={[s.profileAvatar, { backgroundColor: COLORS.primary }]}>
               <Ionicons name="person" size={26} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[s.profileName, { color: T.text }]}>Kofi Mensah</Text>
-              <Text style={[s.profileMeta, { color: COLORS.primary }]}>Verified Pro • Accra</Text>
+              <Text style={[s.profileName, { color: T.text }]}>{profile?.full_name || 'Your Account'}</Text>
+              <Text style={[s.profileMeta, { color: COLORS.primary }]}>{roleLabel}</Text>
             </View>
             <Ionicons name="pencil-outline" size={18} color={iconColor} />
           </TouchableOpacity>
@@ -175,13 +183,27 @@ export default function SettingsScreen({ navigation }: NativeStackScreenProps<Ro
             <TouchableOpacity
               style={s.deleteButton}
               activeOpacity={0.7}
+              disabled={deleting}
               onPress={() => Alert.alert('Delete Account', 'This will permanently delete your account and all data. This cannot be undone.', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => resetToSignIn() },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setDeleting(true);
+                    const result = await deleteMyAccount();
+                    setDeleting(false);
+                    if (!result.success) {
+                      Alert.alert('Could Not Delete Account', result.error ?? 'Something went wrong. Please try again.');
+                      return;
+                    }
+                    resetToSignIn();
+                  },
+                },
               ])}
             >
               <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
-              <Text style={s.deleteButtonText}>Delete My Account</Text>
+              <Text style={s.deleteButtonText}>{deleting ? 'Deleting…' : 'Delete My Account'}</Text>
             </TouchableOpacity>
           </View>
 

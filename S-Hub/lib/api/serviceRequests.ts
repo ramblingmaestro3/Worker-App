@@ -130,19 +130,6 @@ export async function countMyServiceRequests(): Promise<{ success: boolean; data
   return { success: true, data: count ?? 0 };
 }
 
-export async function updateServiceRequest(
-  id: string,
-  patch: Partial<CreateServiceRequestInput>
-): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.from('service_requests').update(patch).eq('id', id);
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
 /** Cancels an open request — only works while still `seeking_bids` (enforced by RLS). */
 export async function cancelServiceRequest(id: string): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase.from('service_requests').update({ status: 'cancelled' }).eq('id', id);

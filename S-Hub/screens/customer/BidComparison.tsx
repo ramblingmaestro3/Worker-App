@@ -8,7 +8,7 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import BottomNav from '@/components/ui/BottomNav';
 import type { RootStackParamList } from '@/navigation/types';
-import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
+import { getServiceRequest, cancelServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listBidsForRequest, acceptBid, counterBid, declineBid, BidWithWorker } from '@/lib/api/workerBids';
 import { subscribeToRequestBids, unsubscribe } from '@/lib/api/realtime';
 
@@ -30,6 +30,7 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
   const [respondingBidId, setRespondingBidId] = useState<string | null>(null);
   const [counterBidId, setCounterBidId] = useState<string | null>(null);
   const [counterPrice, setCounterPrice] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -131,6 +132,31 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
     ]);
   };
 
+  const handleWithdraw = () => {
+    Alert.alert(
+      'Withdraw this request?',
+      'Any pending bids will no longer be able to be accepted. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            if (!requestId) return;
+            setWithdrawing(true);
+            const result = await cancelServiceRequest(requestId);
+            setWithdrawing(false);
+            if (!result.success) {
+              Alert.alert('Could Not Withdraw', result.error ?? 'Something went wrong. Please try again.');
+              return;
+            }
+            navigation.navigate('CustomerTabs', { screen: 'bookings' });
+          },
+        },
+      ]
+    );
+  };
+
   const submitCounter = async (bid: BidWithWorker) => {
     const price = parseFloat(counterPrice);
     if (!price || price <= 0) return;
@@ -201,6 +227,13 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
               <Ionicons name="location-outline" size={16} color={T.subText} />
               <Text style={[styles.locationText, { color: T.subText }]}>{request.location_string}</Text>
             </View>
+          )}
+          {request.status === 'seeking_bids' && (
+            <TouchableOpacity onPress={handleWithdraw} disabled={withdrawing} style={styles.withdrawRow}>
+              <Text style={[styles.withdrawText, { color: COLORS.danger }]}>
+                {withdrawing ? 'Withdrawing…' : 'Withdraw this request'}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -342,6 +375,8 @@ const styles = StyleSheet.create({
   requestDesc: { fontSize: 14, marginTop: 2 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   locationText: { fontSize: 14 },
+  withdrawRow: { marginTop: 10 },
+  withdrawText: { fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '700' },
   emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 19, paddingHorizontal: 20 },

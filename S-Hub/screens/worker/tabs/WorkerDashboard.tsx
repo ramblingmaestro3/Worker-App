@@ -14,7 +14,7 @@ import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import Toast, { ToastState, ToastVariant } from '@/components/Toast';
 import { getMyProfile } from '@/lib/api/profiles';
-import { getMyWorkerProfile } from '@/lib/api/workerProfiles';
+import { getMyWorkerProfile, updateWorkerProfile } from '@/lib/api/workerProfiles';
 import { listOpenServiceRequestsForCategories, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listMyBids, matchCounterOffer, withdrawBid, WorkerBid } from '@/lib/api/workerBids';
 import { countMyCompletedBookings } from '@/lib/api/bookings';
@@ -144,6 +144,7 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
           skills = workerProfileResult.data.skills;
           setRatingAvg(workerProfileResult.data.rating_avg);
           setRatingCount(workerProfileResult.data.rating_count);
+          setOnline(workerProfileResult.data.is_online);
           if (workerProfileResult.data.latitude != null && workerProfileResult.data.longitude != null) {
             workerCoords.current = {
               latitude: workerProfileResult.data.latitude,
@@ -263,7 +264,16 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
         </View>
         <Switch
           value={online}
-          onValueChange={setOnline}
+          onValueChange={(next) => {
+            setOnline(next);
+            updateWorkerProfile({ is_online: next }).then((result) => {
+              if (!result.success) {
+                // Revert on failure so the UI doesn't claim a status that isn't real.
+                setOnline(!next);
+                showToast(result.error ?? 'Could not update your status.', 'warning');
+              }
+            });
+          }}
           trackColor={{ false: T.border, true: COLORS.primaryLight }}
           thumbColor={online ? COLORS.primary : '#ccc'}
         />

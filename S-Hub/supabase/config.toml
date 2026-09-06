@@ -406,6 +406,13 @@ allow_dynamic_registration = false
 # rejected by the gateway; the function verifies the caller's token itself.
 verify_jwt = false
 
+[functions.delete-account]
+# Lets a signed-in user permanently delete their own auth.users row via the
+# Admin API (which needs the service role key, so it can't be done from the
+# client directly). verify_jwt is off, same reasoning as ai-analyze: the
+# function verifies the caller's own token itself.
+verify_jwt = false
+
 [functions.send-push]
 # Sends an Expo push notification whenever a row lands in public.notifications
 # — invoked by a pg_net trigger, never by app clients. Requires the

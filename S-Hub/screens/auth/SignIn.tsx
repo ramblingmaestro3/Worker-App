@@ -182,6 +182,23 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
                   </>
                 )}
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.socialBtn, { backgroundColor: T.card, borderColor: T.border }]}
+                onPress={() => handleOAuth('apple')}
+                disabled={oauthLoading !== null}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Apple"
+              >
+                {oauthLoading === 'apple' ? (
+                  <ActivityIndicator size="small" color={T.text} />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={20} color={T.text} />
+                    <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Apple</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity

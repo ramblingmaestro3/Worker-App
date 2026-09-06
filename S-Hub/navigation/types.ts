@@ -37,7 +37,7 @@ export type RootStackParamList = {
   BidComparison: { requestId: string };
   Chat: { bookingId: string };
   JobDetail: { bookingId: string };
-  FindingWorker: { service?: string; jobTitle?: string };
+  FindingWorker: { requestId: string; service?: string; jobTitle?: string };
   LocationPicker: { lat?: string; lng?: string };
   Notifications: undefined;
   PostAJob: { category?: string };

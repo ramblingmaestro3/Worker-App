@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { s } from '@/lib/scaling';
-import type { CustomerTabKey, WorkerTabKey } from '@/navigation/types';
+import type { CustomerTabKey, RootStackParamList, WorkerTabKey } from '@/navigation/types';
 import NavPill, { type PillTab } from './NavPill';
 
 type TabKey = 'home' | 'jobs' | 'messages' | 'profile';
@@ -34,10 +35,11 @@ type Props = {
  * visible anyway by navigating into the tab navigator directly.
  */
 export default function BottomNav({ role, active }: Props) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isCustomer = role === 'customer';
   const tabs = isCustomer ? CUSTOMER_TABS : WORKER_TABS;
-  const byKey = Object.fromEntries(tabs.map((t) => [t.key, t.tabScreen]));
+  const customerByKey = Object.fromEntries(CUSTOMER_TABS.map((t) => [t.key, t.tabScreen])) as Record<TabKey, CustomerTabKey>;
+  const workerByKey = Object.fromEntries(WORKER_TABS.map((t) => [t.key, t.tabScreen])) as Record<TabKey, WorkerTabKey>;
 
   return (
     <NavPill
@@ -46,13 +48,14 @@ export default function BottomNav({ role, active }: Props) {
       maxWidth={isCustomer ? s(400) : s(320)}
       onPress={(key) => {
         if (key === active) return;
+        const tabKey = key as TabKey;
         if (isCustomer) {
-          navigation.navigate('CustomerTabs' as never, { screen: byKey[key] } as never);
+          navigation.navigate('CustomerTabs', { screen: customerByKey[tabKey] });
         } else {
-          navigation.navigate('WorkerTabs' as never, { screen: byKey[key] } as never);
+          navigation.navigate('WorkerTabs', { screen: workerByKey[tabKey] });
         }
       }}
-      centerFab={isCustomer ? { icon: 'add', onPress: () => navigation.navigate('PostAJob' as never) } : undefined}
+      centerFab={isCustomer ? { icon: 'add', onPress: () => navigation.navigate('PostAJob', {}) } : undefined}
     />
   );
 }

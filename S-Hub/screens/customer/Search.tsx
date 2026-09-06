@@ -188,7 +188,7 @@ export default function SearchScreen({ route, navigation }: Props) {
       price: w.hourly_rate ?? w.per_job_rate ?? null,
       initials: initialsOf(w.full_name),
       color: colorForId(w.id),
-      available: w.availability.some((d) => d.day === todayAbbrev && d.on),
+      available: w.is_online && w.availability.some((d) => d.day === todayAbbrev && d.on),
     }));
 
   // Chip press handlers
@@ -254,24 +254,11 @@ export default function SearchScreen({ route, navigation }: Props) {
             onChangeText={setSearch}
             autoCapitalize="none"
             returnKeyType="search"
-            onSubmitEditing={() => {
-              if (search.trim().length > 0)
-                navigation.navigate('FindingWorker', { service: search.trim(), jobTitle: search.trim() + ' job' });
-            }}
           />
           {search.length > 0 && (
-            <>
-              <TouchableOpacity onPress={() => setSearch('')} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={18} color={T.subText} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.findBtn}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('FindingWorker', { service: search.trim(), jobTitle: search.trim() + ' job' })}
-              >
-                <Text style={styles.findBtnText}>Find</Text>
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity onPress={() => setSearch('')} activeOpacity={0.7}>
+              <Ionicons name="close-circle" size={18} color={T.subText} />
+            </TouchableOpacity>
           )}
         </ScreenContent>
       </View>
@@ -510,13 +497,6 @@ const styles = StyleSheet.create({
   searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, marginHorizontal: 18, paddingHorizontal: 14, paddingVertical: 12, gap: 10, marginBottom: 14 },
   searchIcon: {},
   searchInput: { flex: 1, fontSize: 14 },
-  findBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  findBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   /* Filter chips */
   chipsRowOuter: { width: '100%', alignItems: 'center' },

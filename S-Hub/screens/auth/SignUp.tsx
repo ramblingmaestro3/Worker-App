@@ -26,6 +26,7 @@ import {
   isValidEmail,
   isValidGhanaPhone,
   passwordStrengthError,
+  formatGhanaPhone,
 } from '@/lib/auth';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -102,8 +103,16 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
     }
     if (result.needsVerification) {
       // Email confirmation is on project-wide — no session yet, so send them
-      // to enter the code before anything else can happen.
-      navigation.navigate('OtpVerification', { identifier: identifier.trim(), mode: 'email' });
+      // to enter the code before anything else can happen. Route by the
+      // actual identifier type: a phone signup needs the E.164-formatted
+      // number and 'phone' mode, or verifyOtp on the next screen won't match
+      // what Supabase actually sent the code to.
+      const trimmed = identifier.trim();
+      const isEmail = isEmailIdentifier(trimmed);
+      navigation.navigate('OtpVerification', {
+        identifier: isEmail ? trimmed : formatGhanaPhone(trimmed),
+        mode: isEmail ? 'email' : 'phone',
+      });
       return;
     }
     // No verification needed (e.g. confirmations off) — signUp already
@@ -253,6 +262,23 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                   <>
                     <AntDesign name="google" size={18} color="#EA4335" />
                     <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.socialBtn, { backgroundColor: T.card, borderColor: T.border }]}
+                onPress={() => handleOAuth('apple')}
+                disabled={oauthLoading !== null}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Apple"
+              >
+                {oauthLoading === 'apple' ? (
+                  <ActivityIndicator size="small" color={T.text} />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={20} color={T.text} />
+                    <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Apple</Text>
                   </>
                 )}
               </TouchableOpacity>

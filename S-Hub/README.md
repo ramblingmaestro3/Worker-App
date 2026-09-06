@@ -1,8 +1,12 @@
-# Welcome to your Expo app 👋
+# AdwumaGo (S-Hub)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native / Expo app connecting clients with verified blue-collar workers in Ghana, backed by Supabase (Postgres + Auth + Realtime + Edge Functions).
+
+> **Note on this repo's layout:** if you cloned the parent `Worker-App` repository, this Expo project lives one level down, at `Worker-App/S-Hub`. Run every command below from inside `S-Hub/`, not the repo root.
 
 ## Get started
+
+0. Use Node 20+ (see `.nvmrc` — `nvm use` if you have nvm installed).
 
 1. Install dependencies
 
@@ -21,7 +25,8 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    purpose — it's never committed — so ask a teammate for the project's
    Supabase URL/anon key, or get them yourself from the
    [Supabase dashboard](https://supabase.com/dashboard) if you have project
-   access, under Project Settings → API.
+   access, under Project Settings → API. All three team members should use the
+   **same** Supabase project so everyone's writes/reads hit the same data.
 
 3. Start the app
 
@@ -36,28 +41,29 @@ In the output, you'll find options to open the app in a
 - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Project structure
 
-## Get a fresh project
+This app uses plain [React Navigation](https://reactnavigation.org/), not Expo Router —
+there is no `app/` directory. Start here:
 
-When you're ready, run:
+- `App.tsx` — root `NavigationContainer` + `RootNavigator`.
+- `navigation/` — route tables and tab navigators (`RootNavigator.tsx`, `CustomerTabs.tsx`, `WorkerTabs.tsx`, `types.ts`).
+- `screens/` — every real screen, grouped by `auth/`, `common/`, `customer/`, `worker/`.
+- `lib/` — Supabase client, auth, and one `api/*.ts` module per backend concern (bookings, service requests, bids, profiles, etc).
+- `supabase/migrations/` — the live schema, RLS policies, and triggers. `supabase/functions/` — Edge Functions (AI photo analysis, push notifications, account deletion).
+- `Workerapp-Backend/` — an earlier Flask backend, kept for reference only; not part of the running app.
+
+## Backend
+
+This app talks to Supabase directly from the client — there's no separate API server to run. To change the schema, add a migration under `supabase/migrations/` and run:
 
 ```bash
-npm run reset-project
+npx supabase db push --linked
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+(requires `npx supabase login` and the project linked via `npx supabase link`).
 
 ## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [Expo documentation](https://docs.expo.dev/versions/v54.0.0/): this project targets SDK 54 — check the versioned docs, not the latest docs, since APIs have changed across versions.
+- [Supabase documentation](https://supabase.com/docs).
