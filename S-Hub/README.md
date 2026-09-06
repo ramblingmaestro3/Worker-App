@@ -10,7 +10,20 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Set up environment variables — **required**, the app throws on startup without this
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Then open `.env` and fill in the real values (see the comments in `.env.example`
+   for what each one is for and where it comes from). `.env` is gitignored on
+   purpose — it's never committed — so ask a teammate for the project's
+   Supabase URL/anon key, or get them yourself from the
+   [Supabase dashboard](https://supabase.com/dashboard) if you have project
+   access, under Project Settings → API.
+
+3. Start the app
 
    ```bash
    npx expo start

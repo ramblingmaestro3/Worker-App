@@ -5,6 +5,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { countMyCompletedBookingsAsClient } from '@/lib/api/bookings';
 import { countMyServiceRequests } from '@/lib/api/serviceRequests';
+import { listSavedLocations } from '@/lib/api/savedLocations';
 import { signOut } from '@/lib/auth';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { resetToSignIn } from '@/navigation/navigationRef';
@@ -101,6 +102,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [emailVerified, setEmailVerified] = useState(true);
   const [jobsPosted, setJobsPosted] = useState(0);
   const [completedJobs, setCompletedJobs] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -114,10 +116,11 @@ export default function ProfileScreen({ navigation }: Props) {
       (async () => {
         setLoading(true);
         setLoadError(false);
-        const [profileResult, jobsPostedResult, completedResult] = await Promise.all([
+        const [profileResult, jobsPostedResult, completedResult, savedResult] = await Promise.all([
           getMyProfile(),
           countMyServiceRequests(),
           countMyCompletedBookingsAsClient(),
+          listSavedLocations(),
         ]);
         if (cancelled) return;
         // A failed fetch here doesn't necessarily mean the session is
@@ -134,6 +137,7 @@ export default function ProfileScreen({ navigation }: Props) {
         setEmailVerified(!!useAuthStore.getState().user?.email_confirmed_at);
         setJobsPosted(jobsPostedResult.data ?? 0);
         setCompletedJobs(completedResult.data ?? 0);
+        setSavedCount(savedResult.data?.length ?? 0);
         setLoading(false);
       })();
       return () => { cancelled = true; };
@@ -205,7 +209,7 @@ export default function ProfileScreen({ navigation }: Props) {
               { value: profile.rating_avg.toFixed(1), label: 'Rating' },
               { value: String(jobsPosted), label: 'Jobs Posted' },
               { value: String(completedJobs), label: 'Completed' },
-              { value: '3', label: 'Saved' },
+              { value: String(savedCount), label: 'Saved' },
             ].map((stat, i, arr) => (
               <TouchableOpacity
                 key={stat.label}

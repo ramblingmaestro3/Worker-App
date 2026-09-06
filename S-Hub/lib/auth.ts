@@ -95,6 +95,15 @@ export async function signInWithOAuthProvider(
     });
 
     if (error) {
+      // Neither provider has real credentials configured yet (project-level
+      // toggle off, no client ID/secret) — GoTrue fails before any browser
+      // ever opens, with an internal-sounding "provider is not enabled"
+      // message. Give a message that actually explains what's wrong instead,
+      // matching the phone sign-up and AI-assistant unavailable patterns.
+      if (error.message.includes('not enabled') || error.message.includes('Unsupported provider')) {
+        const label = provider === 'google' ? 'Google' : 'Apple';
+        return { success: false, error: `Sign in with ${label} isn't available yet — please use email for now.` };
+      }
       return { success: false, error: error.message };
     }
 

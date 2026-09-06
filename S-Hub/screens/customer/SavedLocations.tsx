@@ -1,13 +1,16 @@
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import EmptyState from '@/components/ui/EmptyState';
 import AppMap, { AppMapMarker } from '@/components/AppMap';
 import { consumePickedLocation } from '@/lib/locationPickerBridge';
+import { listSavedLocations, createSavedLocation, deleteSavedLocation, SavedLocation } from '@/lib/api/savedLocations';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StatusBar,
@@ -21,54 +24,85 @@ import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SavedLocations'>;
 
-// Real-ish coordinates for the demo places until saved locations carry real
-// lat/lng from the location picker.
-const INITIAL = [
-  { id: 1, label: 'Home', address: 'Speedaf Ayeduase, Kumasi', icon: 'home-outline', pinned: true, latitude: 6.6885, longitude: -1.5844 },
-  { id: 2, label: 'Work', address: 'Tech Hub, Accra Central', icon: 'briefcase-outline', pinned: true, latitude: 5.5600, longitude: -0.2050 },
-  { id: 3, label: 'Gym', address: 'Fit Nation, Osu, Accra', icon: 'fitness-outline', pinned: false, latitude: 5.5558, longitude: -0.1793 },
-];
 const FALLBACK_CENTER = { latitude: 6.6885, longitude: -1.6244 }; // Kumasi
 
+function iconFor(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes('home')) return 'home-outline';
+  if (l.includes('work') || l.includes('office')) return 'briefcase-outline';
+  if (l.includes('gym') || l.includes('fit')) return 'fitness-outline';
+  return 'location-outline';
+}
+
 export default function SavedLocationsScreen({ navigation }: Props) {
-  const [locations, setLocations] = useState(INITIAL);
+  const [locations, setLocations] = useState<SavedLocation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const T = useThemeColors();
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerTitle: 'Saved Locations' });
   }, [navigation]);
 
-  const remove = (id: number) => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const result = await listSavedLocations();
+    if (result.success) {
+      setLocations(result.data ?? []);
+    } else {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  const remove = (id: string) => {
     Alert.alert('Remove', 'Remove this saved location?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => setLocations(l => l.filter(x => x.id !== id)) },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          const previous = locations;
+          setLocations((l) => l.filter((x) => x.id !== id));
+          const result = await deleteSavedLocation(id);
+          if (!result.success) {
+            setLocations(previous);
+            Alert.alert('Could Not Remove', result.error ?? 'Something went wrong. Please try again.');
+          }
+        },
+      },
     ]);
   };
 
   useFocusEffect(
     useCallback(() => {
-      const picked = consumePickedLocation();
-      if (picked) {
-        setLocations((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
+      let cancelled = false;
+      (async () => {
+        await load();
+        if (cancelled) return;
+
+        const picked = consumePickedLocation();
+        if (picked) {
+          const result = await createSavedLocation({
             label: picked.address.split(',')[0] || 'New Place',
             address: picked.address,
-            icon: 'location-outline',
-            pinned: false,
             latitude: picked.latitude,
             longitude: picked.longitude,
-          },
-        ]);
-      }
-    }, [])
+          });
+          if (!cancelled && result.success && result.data) {
+            setLocations((prev) => [...prev, result.data!]);
+          }
+        }
+      })();
+      return () => { cancelled = true; };
+    }, [load])
   );
 
   const mapMarkers: AppMapMarker[] = locations.map((loc) => ({
     latitude: loc.latitude,
     longitude: loc.longitude,
-    color: loc.pinned ? COLORS.primary : COLORS.accent,
+    color: COLORS.primary,
     title: loc.label,
     subtitle: loc.address,
   }));
@@ -105,32 +139,47 @@ export default function SavedLocationsScreen({ navigation }: Props) {
           </View>
 
           <Text style={[s.sectionLabel, { color: T.subText }]}>Saved Places</Text>
-          <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
-            {locations.map((loc, i) => (
-              <View key={loc.id}>
-                {i > 0 && <View style={[s.divider, { backgroundColor: T.divider }]} />}
-                <View style={s.locRow}>
-                  <View style={[s.locIcon, { backgroundColor: loc.pinned ? COLORS.primary + '18' : T.inputBg }]}>
-                    <Ionicons name={loc.icon as any} size={20} color={loc.pinned ? COLORS.primary : T.subText} />
+          {loading ? (
+            <View style={[s.card, { backgroundColor: T.card, borderColor: T.border, padding: 24, alignItems: 'center' }]}>
+              <ActivityIndicator color={COLORS.primary} />
+            </View>
+          ) : error ? (
+            <EmptyState
+              icon="cloud-offline-outline"
+              title="Couldn't load your saved places"
+              body="Check your connection and try again."
+              actionLabel="Retry"
+              onAction={load}
+              tone="error"
+            />
+          ) : (
+            <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
+              {locations.map((loc, i) => (
+                <View key={loc.id}>
+                  {i > 0 && <View style={[s.divider, { backgroundColor: T.divider }]} />}
+                  <View style={s.locRow}>
+                    <View style={[s.locIcon, { backgroundColor: COLORS.primary + '18' }]}>
+                      <Ionicons name={iconFor(loc.label) as any} size={20} color={COLORS.primary} />
+                    </View>
+                    <View style={s.locInfo}>
+                      <Text style={[s.locLabel, { color: T.text }]}>{loc.label}</Text>
+                      <Text style={[s.locAddress, { color: T.subText }]} numberOfLines={1}>{loc.address}</Text>
+                    </View>
+                    <TouchableOpacity style={s.removeBtn} onPress={() => remove(loc.id)}>
+                      <Ionicons name="close-circle-outline" size={20} color={T.subText} />
+                    </TouchableOpacity>
                   </View>
-                  <View style={s.locInfo}>
-                    <Text style={[s.locLabel, { color: T.text }]}>{loc.label}</Text>
-                    <Text style={[s.locAddress, { color: T.subText }]} numberOfLines={1}>{loc.address}</Text>
-                  </View>
-                  <TouchableOpacity style={s.removeBtn} onPress={() => remove(loc.id)}>
-                    <Ionicons name="close-circle-outline" size={20} color={T.subText} />
-                  </TouchableOpacity>
                 </View>
-              </View>
-            ))}
-            <View style={[s.divider, { backgroundColor: T.divider }]} />
-            <TouchableOpacity style={s.addRow} activeOpacity={0.7} onPress={() => navigation.navigate('LocationPicker', {})}>
-              <View style={[s.locIcon, { backgroundColor: COLORS.primary + '18' }]}>
-                <Ionicons name="add" size={20} color={COLORS.primary} />
-              </View>
-              <Text style={[s.locLabel, { color: COLORS.primary }]}>Add a place</Text>
-            </TouchableOpacity>
-          </View>
+              ))}
+              {locations.length > 0 && <View style={[s.divider, { backgroundColor: T.divider }]} />}
+              <TouchableOpacity style={s.addRow} activeOpacity={0.7} onPress={() => navigation.navigate('LocationPicker', {})}>
+                <View style={[s.locIcon, { backgroundColor: COLORS.primary + '18' }]}>
+                  <Ionicons name="add" size={20} color={COLORS.primary} />
+                </View>
+                <Text style={[s.locLabel, { color: COLORS.primary }]}>Add a place</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <Text style={[s.sectionLabel, { color: T.subText }]}>Recent Searches</Text>
           <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
