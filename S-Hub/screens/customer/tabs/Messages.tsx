@@ -1,7 +1,11 @@
 import ScreenContent from '@/components/ScreenContent';
+import EmptyState from '@/components/ui/EmptyState';
+import HighlightedText from '@/components/ui/HighlightedText';
+import SwipeableRow from '@/components/ui/SwipeableRow';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ConversationView, listMyConversations } from '@/lib/api/bookings';
+import { usePinnedConversationsStore } from '@/lib/stores/pinned-conversations-store';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { CustomerTabParamList, RootStackParamList } from '@/navigation/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,10 +13,10 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -26,6 +30,8 @@ type Props = CompositeScreenProps<
   BottomTabScreenProps<CustomerTabParamList, 'messages'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+const ACTIVE_STATUSES = ['accepted', 'en_route', 'arrived', 'in_progress'];
 
 function initialsOf(name: string): string {
   return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
@@ -49,7 +55,10 @@ export default function MessagesScreen({ navigation }: Props) {
   const myId = useAuthStore((s) => s.user?.id ?? null);
   const [conversations, setConversations] = useState<ConversationView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const T = useThemeColors();
+  const pinnedIds = usePinnedConversationsStore((s) => s.pinnedIds);
+  const togglePin = usePinnedConversationsStore((s) => s.togglePin);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -69,24 +78,112 @@ export default function MessagesScreen({ navigation }: Props) {
     });
   }, [navigation, showSearch]);
 
+  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
+    setLoading(true);
+    setError(false);
+    const result = await listMyConversations();
+    if (cancelledRef?.current) return;
+    if (result.success) {
+      setConversations(result.data ?? []);
+    } else {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        const result = await listMyConversations();
-        if (cancelled) return;
-        if (result.success) setConversations(result.data ?? []);
-        setLoading(false);
-      })();
-      return () => { cancelled = true; };
-    }, [])
+      const cancelledRef = { current: false };
+      load(cancelledRef);
+      return () => { cancelledRef.current = true; };
+    }, [load])
   );
 
-  const filtered = conversations.filter((c) =>
-    search.trim() === '' ? true :
-      c.worker.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.request_category ?? '').toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () =>
+      conversations.filter((c) =>
+        search.trim() === '' ? true :
+          c.worker.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          (c.request_category ?? '').toLowerCase().includes(search.toLowerCase()) ||
+          (c.last_message?.message_text ?? '').toLowerCase().includes(search.toLowerCase())
+      ),
+    [conversations, search]
   );
+
+  // Pinned conversations surface once, at the top, regardless of job status —
+  // everything else buckets into Active (job still underway) or Archived
+  // (completed/cancelled), same booking_status the bookings page filters on.
+  const { pinned, active, archived } = useMemo(() => {
+    const pinnedList: ConversationView[] = [];
+    const activeList: ConversationView[] = [];
+    const archivedList: ConversationView[] = [];
+    for (const c of filtered) {
+      if (pinnedIds.includes(c.booking_id)) {
+        pinnedList.push(c);
+      } else if (ACTIVE_STATUSES.includes(c.booking_status)) {
+        activeList.push(c);
+      } else {
+        archivedList.push(c);
+      }
+    }
+    return { pinned: pinnedList, active: activeList, archived: archivedList };
+  }, [filtered, pinnedIds]);
+
+  const renderRow = (convo: ConversationView, isLast: boolean) => {
+    const unread = !!convo.last_message && convo.last_message.sender_id !== myId && !convo.last_message.is_read;
+    const pinnedRow = pinnedIds.includes(convo.booking_id);
+    return (
+      <SwipeableRow key={convo.booking_id} pinned={pinnedRow} onTogglePin={() => togglePin(convo.booking_id)}>
+        <TouchableOpacity
+          style={[styles.row, { backgroundColor: T.card }, !isLast && [styles.rowDivider, { borderColor: T.divider }]]}
+          onPress={() => navigation.navigate('Chat', { bookingId: convo.booking_id })}
+          activeOpacity={0.78}
+        >
+          <View style={styles.avatarWrap}>
+            <View style={[styles.avatar, { backgroundColor: COLORS.accent + '20' }]}>
+              <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.worker.full_name)}</Text>
+            </View>
+            {pinnedRow && (
+              <View style={[styles.pinBadge, { borderColor: T.card }]}>
+                <Ionicons name="pin" size={9} color="#fff" />
+              </View>
+            )}
+          </View>
+          <View style={styles.content}>
+            <View style={styles.topRow}>
+              <HighlightedText
+                text={convo.worker.full_name}
+                query={search}
+                style={[styles.name, { color: T.text }, unread && styles.nameUnread]}
+                numberOfLines={1}
+              />
+              <View style={styles.timeGroup}>
+                {unread && <View style={styles.unreadDotSmall} />}
+                {convo.last_message && (
+                  <Text style={[styles.time, { color: unread ? COLORS.primary : T.subText }, unread && { fontWeight: '700' }]}>
+                    {timeAgo(convo.last_message.created_at)}
+                  </Text>
+                )}
+              </View>
+            </View>
+            {convo.request_category && (
+              <View style={[styles.jobPill, { backgroundColor: T.inputBg }, unread && { backgroundColor: COLORS.primaryLight }]}>
+                <Text style={[styles.jobTitle, { color: unread ? COLORS.primary : T.subText }, unread && { fontWeight: '700' }]} numberOfLines={1}>
+                  {convo.request_category.charAt(0).toUpperCase() + convo.request_category.slice(1)}
+                </Text>
+              </View>
+            )}
+            <HighlightedText
+              text={convo.last_message?.message_text ?? 'No messages yet'}
+              query={search}
+              style={[styles.lastMsg, { color: unread ? T.text : T.subText }, unread && { fontWeight: '600' }]}
+              numberOfLines={1}
+            />
+          </View>
+        </TouchableOpacity>
+      </SwipeableRow>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
@@ -98,7 +195,7 @@ export default function MessagesScreen({ navigation }: Props) {
             <Ionicons name="search-outline" size={17} color={T.subText} />
             <TextInput
               style={[styles.searchInput, { color: T.text }]}
-              placeholder="Search"
+              placeholder="Search by name, job, or message"
               placeholderTextColor={T.subText}
               value={search}
               onChangeText={setSearch}
@@ -118,67 +215,57 @@ export default function MessagesScreen({ navigation }: Props) {
         <View style={styles.empty}>
           <ActivityIndicator color={COLORS.primary} />
         </View>
+      ) : error ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load messages"
+          body="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => load()}
+          tone="error"
+        />
       ) : filtered.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="chatbubbles-outline" size={54} color={COLORS.primary + '50'} />
-          <Text style={[styles.emptyTitle, { color: T.text }]}>No conversations</Text>
-          <Text style={[styles.emptySub, { color: T.subText }]}>Post a job and connect with workers to start chatting.</Text>
-          <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate('PostAJob', {})} activeOpacity={0.85}>
-            <Text style={styles.emptyCtaText}>Post a Job</Text>
-          </TouchableOpacity>
+          <Text style={[styles.emptyTitle, { color: T.text }]}>{search ? 'No matches' : 'No conversations'}</Text>
+          <Text style={[styles.emptySub, { color: T.subText }]}>
+            {search ? 'Try a different name, job, or message text.' : 'Post a job and connect with workers to start chatting.'}
+          </Text>
+          {!search && (
+            <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate('PostAJob', {})} activeOpacity={0.85}>
+              <Text style={styles.emptyCtaText}>Post a Job</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <View style={styles.listWrapOuter}>
           <ScreenContent style={styles.listWrap}>
-            <FlatList
-              style={styles.listBox}
-              data={filtered}
-              keyExtractor={(item) => item.booking_id}
-              renderItem={({ item: convo, index }) => {
-                const unread = !!convo.last_message && convo.last_message.sender_id !== myId && !convo.last_message.is_read;
-                return (
-                  <View>
-                    {index > 0 && <View style={[styles.divider, { backgroundColor: T.divider }]} />}
-                    <TouchableOpacity
-                      style={[styles.row, { backgroundColor: T.card }]}
-                      onPress={() => navigation.navigate('Chat', { bookingId: convo.booking_id })}
-                      activeOpacity={0.78}
-                    >
-                      <View style={styles.avatarWrap}>
-                        <View style={[styles.avatar, { backgroundColor: COLORS.accent + '20' }]}>
-                          <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.worker.full_name)}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.content}>
-                        <View style={styles.topRow}>
-                          <Text style={[styles.name, { color: T.text }]} numberOfLines={1}>{convo.worker.full_name}</Text>
-                          {convo.last_message && (
-                            <Text style={[styles.time, { color: unread ? COLORS.primary : T.subText }, unread && { fontWeight: '700' }]}>
-                              {timeAgo(convo.last_message.created_at)}
-                            </Text>
-                          )}
-                        </View>
-                        {convo.request_category && (
-                          <View style={[styles.jobPill, { backgroundColor: T.inputBg }]}>
-                            <Text style={[styles.jobTitle, { color: T.subText }]} numberOfLines={1}>
-                              {convo.request_category.charAt(0).toUpperCase() + convo.request_category.slice(1)}
-                            </Text>
-                          </View>
-                        )}
-                        <View style={styles.bottomRow}>
-                          <Text style={[styles.lastMsg, { color: unread ? T.text : T.subText }, unread && { fontWeight: '600' }]} numberOfLines={1}>
-                            {convo.last_message?.message_text ?? 'No messages yet'}
-                          </Text>
-                          {unread && <View style={styles.unreadDot} />}
-                        </View>
-                      </View>
-                    </TouchableOpacity>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+              {pinned.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: T.subText }]}>PINNED</Text>
+                  <View style={[styles.section, { borderColor: T.border }]}>
+                    {pinned.map((c, i) => renderRow(c, i === pinned.length - 1))}
                   </View>
-                );
-              }}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.list}
-            />
+                </>
+              )}
+              {active.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: T.subText }]}>ACTIVE</Text>
+                  <View style={[styles.section, { borderColor: T.border }]}>
+                    {active.map((c, i) => renderRow(c, i === active.length - 1))}
+                  </View>
+                </>
+              )}
+              {archived.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: T.subText }]}>ARCHIVED</Text>
+                  <View style={[styles.section, { borderColor: T.border }]}>
+                    {archived.map((c, i) => renderRow(c, i === archived.length - 1))}
+                  </View>
+                </>
+              )}
+            </ScrollView>
           </ScreenContent>
         </View>
       )}
@@ -193,24 +280,31 @@ const styles = StyleSheet.create({
   searchWrapOuter: { width: '100%', alignItems: 'center' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, marginHorizontal: 16, marginVertical: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   searchInput: { flex: 1, fontSize: 14 },
-  list: { paddingBottom: 100 },
+  list: { paddingHorizontal: 16, paddingBottom: 100 },
   listWrapOuter: { flex: 1, width: '100%', alignItems: 'center' },
   listWrap: { flex: 1 },
-  listBox: { width: '100%' },
-  divider: { height: 1 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  section: { borderRadius: 16, borderWidth: 1, overflow: 'hidden', marginBottom: 4 },
+  sectionLabel: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.5, marginTop: 14, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
+  rowDivider: { borderBottomWidth: 1 },
   avatarWrap: { position: 'relative', flexShrink: 0 },
   avatar: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
   initials: { fontSize: 18, fontWeight: '800' },
+  pinBadge: {
+    position: 'absolute', bottom: -2, right: -2,
+    width: 18, height: 18, borderRadius: 9, borderWidth: 2,
+    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+  },
   content: { flex: 1 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  name: { fontSize: 15, fontWeight: '700' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
+  name: { flex: 1, fontSize: 15, fontWeight: '700' },
+  nameUnread: { fontWeight: '800' },
+  timeGroup: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0 },
+  unreadDotSmall: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: COLORS.primary },
   time: { fontSize: 11 },
   jobPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 5 },
   jobTitle: { fontSize: 11, fontWeight: '500', maxWidth: 180 },
-  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lastMsg: { flex: 1, fontSize: 13 },
-  unreadDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: COLORS.primary },
+  lastMsg: { fontSize: 13 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: '700' },
   emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 20 },

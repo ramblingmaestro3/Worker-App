@@ -1,15 +1,18 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { ThemeProvider, useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
-import { routeSignedInUserByRole } from '@/lib/auth';
+import OfflineBanner from '@/components/OfflineBanner';
+import { routeSignedInUserByRole, signOutIntent } from '@/lib/auth';
+import { registerForPushNotifications } from '@/lib/pushNotifications';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { supabase } from '@/lib/supabase';
-import { navigateToResetPassword, navigationRef } from '@/navigation/navigationRef';
+import { navigateToResetPassword, navigationRef, resetToSignIn } from '@/navigation/navigationRef';
 import RootNavigator from '@/navigation/RootNavigator';
 
 /**
@@ -64,6 +67,38 @@ function AppNavigator() {
 
   useEffect(() => useAuthStore.getState().init(), []);
 
+  // Global session-expiry handler: if the user was signed in and the store
+  // flips to signed-out WITHOUT signOutIntent having been set (i.e. nobody
+  // called signOut()), the refresh token died out from under them — expired,
+  // revoked, or the device was offline past its expiry — so every screen's
+  // next request would otherwise just fail silently (indistinguishable from
+  // the read/write failures Issue 4 already handles). Redirect to sign-in
+  // with an explanation instead of leaving them stranded on a dead session.
+  // An intentional sign-out already handles its own redirect at the call
+  // site, so this skips it there via the consumed flag.
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    const prevStatus = prevStatusRef.current;
+    prevStatusRef.current = status;
+    if (prevStatus === 'signed-in' && status === 'signed-out') {
+      if (signOutIntent.current) {
+        signOutIntent.current = false;
+      } else {
+        resetToSignIn();
+        Alert.alert('Session Expired', 'Please sign in again to continue.');
+      }
+    }
+  }, [status]);
+
+  // Request permission and (re-)register this device's push token whenever
+  // the user is signed in — covers first sign-in, a relaunch with an
+  // existing session, and switching accounts. registerForPushNotifications
+  // never throws; it just skips quietly if permission is denied or push
+  // isn't configured for this build (see its own docstring).
+  useEffect(() => {
+    if (status === 'signed-in') registerForPushNotifications();
+  }, [status]);
+
   const checkEntryScreenRedirect = useCallback(() => {
     if (status !== 'signed-in' || !navigationRef.isReady()) return;
     const name = navigationRef.getCurrentRoute()?.name;
@@ -85,6 +120,7 @@ function AppNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme} onStateChange={checkEntryScreenRedirect}>
       <RootNavigator />
+      <OfflineBanner />
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </NavigationContainer>
   );

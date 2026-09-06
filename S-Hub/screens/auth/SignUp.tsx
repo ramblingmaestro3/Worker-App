@@ -18,7 +18,15 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { signUpWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
+import {
+  signUpWithPassword,
+  signInWithOAuthProvider,
+  routeSignedInUserByRole,
+  isEmailIdentifier,
+  isValidEmail,
+  isValidGhanaPhone,
+  passwordStrengthError,
+} from '@/lib/auth';
 import type { RootStackParamList } from '@/navigation/types';
 
 const PRIMARY = COLORS.primary;
@@ -33,14 +41,57 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [identifierError, setIdentifierError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const T = useThemeColors();
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, headerTitle: 'Sign Up' });
   }, [navigation]);
 
+  /** Validates all fields, setting per-field inline errors. Returns whether the form is valid. */
+  const validate = (): boolean => {
+    let valid = true;
+
+    if (!name.trim()) {
+      setNameError('Enter your full name.');
+      valid = false;
+    } else {
+      setNameError('');
+    }
+
+    const trimmedIdentifier = identifier.trim();
+    if (!trimmedIdentifier) {
+      setIdentifierError('Enter your email or phone number.');
+      valid = false;
+    } else if (isEmailIdentifier(trimmedIdentifier)) {
+      if (!isValidEmail(trimmedIdentifier)) {
+        setIdentifierError('Enter a valid email address.');
+        valid = false;
+      } else {
+        setIdentifierError('');
+      }
+    } else if (!isValidGhanaPhone(trimmedIdentifier)) {
+      setIdentifierError('Enter a valid Ghanaian phone number, e.g. 024 123 4567.');
+      valid = false;
+    } else {
+      setIdentifierError('');
+    }
+
+    const pwError = password ? passwordStrengthError(password) : 'Enter a password.';
+    if (pwError) {
+      setPasswordError(pwError);
+      valid = false;
+    } else {
+      setPasswordError('');
+    }
+
+    return valid;
+  };
+
   const handleSignUp = async () => {
-    if (!name || !identifier || !password) return;
+    if (!validate()) return;
     setError('');
     setLoading(true);
     const result = await signUpWithPassword({ fullName: name, identifier, password, role });
@@ -49,13 +100,20 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
       setError(result.error ?? 'Something went wrong creating your account.');
       return;
     }
-    // Email confirmation is disabled project-wide, so signUp already returns
-    // an active session — no verification code is sent, go straight in.
-    if (role === 'worker') {
-      navigation.replace('BecomeWorker');
-    } else {
-      navigation.replace('CustomerTabs', { screen: 'home' });
+    if (result.needsVerification) {
+      // Email confirmation is on project-wide — no session yet, so send them
+      // to enter the code before anything else can happen.
+      navigation.navigate('OtpVerification', { identifier: identifier.trim(), mode: 'email' });
+      return;
     }
+    // No verification needed (e.g. confirmations off) — signUp already
+    // returned an active session, go straight in. Routed through
+    // routeSignedInUserByRole (rather than a raw navigation.replace) so a
+    // 'worker' choice here is treated the same as everywhere else: not
+    // eligible yet (just signed up, hasn't submitted the become-worker
+    // application), so it lands on BecomeWorker without prematurely marking
+    // 'worker' as the remembered side.
+    await routeSignedInUserByRole(role);
   };
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
@@ -114,7 +172,13 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
             </View>
 
             <View style={styles.inputBox}>
-              <Input label="Full Name" placeholder="Enter your Full Name" value={name} onChangeText={setName} />
+              <Input
+                label="Full Name"
+                placeholder="Enter your Full Name"
+                value={name}
+                onChangeText={(v) => { setName(v); if (nameError) setNameError(''); }}
+                error={nameError}
+              />
             </View>
 
             <View style={styles.inputBox}>
@@ -124,17 +188,19 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={identifier}
-                onChangeText={setIdentifier}
+                onChangeText={(v) => { setIdentifier(v); if (identifierError) setIdentifierError(''); }}
+                error={identifierError}
               />
             </View>
 
             <View style={styles.inputBox}>
               <Input
                 label="Password"
-                placeholder="Enter your Password"
+                placeholder="At least 8 characters, with upper/lowercase, a number & symbol"
                 secureTextEntry={!showPassword}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(v) => { setPassword(v); if (passwordError) setPasswordError(''); }}
+                error={passwordError}
                 trailing={
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}

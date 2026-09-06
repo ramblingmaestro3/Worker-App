@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import { routeSignedInUserByRole } from '@/lib/auth';
 import type { RootStackParamList } from '@/navigation/types';
 
 const BENEFITS = [
@@ -84,7 +85,7 @@ export default function WorkerGateScreen({ navigation }: NativeStackScreenProps<
         <TouchableOpacity
           style={styles.primaryBtn}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('WorkerTabs', { screen: 'worker-dashboard' })}
+          onPress={() => void routeSignedInUserByRole('worker')}
         >
           <MaterialCommunityIcons name="briefcase-check" size={20} color="#fff" />
           <Text style={styles.primaryBtnText}>Start Earning</Text>

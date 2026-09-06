@@ -1,7 +1,10 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import EmptyState from '@/components/ui/EmptyState';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
+import { countMyCompletedBookingsAsClient } from '@/lib/api/bookings';
+import { countMyServiceRequests } from '@/lib/api/serviceRequests';
 import { signOut } from '@/lib/auth';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { resetToSignIn } from '@/navigation/navigationRef';
@@ -96,7 +99,11 @@ export default function ProfileScreen({ navigation }: Props) {
   const [notifications, setNotifications] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [emailVerified, setEmailVerified] = useState(true);
+  const [jobsPosted, setJobsPosted] = useState(0);
+  const [completedJobs, setCompletedJobs] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const T = useThemeColors();
 
   const iconSize = ms(17);
@@ -105,19 +112,49 @@ export default function ProfileScreen({ navigation }: Props) {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const profileResult = await getMyProfile();
+        setLoading(true);
+        setLoadError(false);
+        const [profileResult, jobsPostedResult, completedResult] = await Promise.all([
+          getMyProfile(),
+          countMyServiceRequests(),
+          countMyCompletedBookingsAsClient(),
+        ]);
         if (cancelled) return;
+        // A failed fetch here doesn't necessarily mean the session is
+        // invalid — that's handled globally now (App.tsx's session-expiry
+        // watcher, driven by real auth state, not a guess from one query
+        // failing). Could just as easily be a dropped connection, so this
+        // offers a retry instead of forcing the user back to sign-in.
         if (!profileResult.success) {
-          resetToSignIn();
+          setLoadError(true);
+          setLoading(false);
           return;
         }
         setProfile(profileResult.data ?? null);
         setEmailVerified(!!useAuthStore.getState().user?.email_confirmed_at);
+        setJobsPosted(jobsPostedResult.data ?? 0);
+        setCompletedJobs(completedResult.data ?? 0);
         setLoading(false);
       })();
       return () => { cancelled = true; };
-    }, [])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reloadKey])
   );
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load your profile"
+          body="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => setReloadKey((k) => k + 1)}
+          tone="error"
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (loading || !profile) {
     return (
@@ -166,8 +203,8 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={[styles.statsStrip, { backgroundColor: T.card, borderColor: T.border }]}>
             {[
               { value: profile.rating_avg.toFixed(1), label: 'Rating' },
-              { value: '12', label: 'Jobs Posted' },
-              { value: '8', label: 'Completed' },
+              { value: String(jobsPosted), label: 'Jobs Posted' },
+              { value: String(completedJobs), label: 'Completed' },
               { value: '3', label: 'Saved' },
             ].map((stat, i, arr) => (
               <TouchableOpacity

@@ -223,6 +223,11 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
+# NOTE: keep this false until [auth.email.smtp] below has real credentials —
+# the project's built-in mailer can't actually deliver (see SUPABASE_OTP_SETUP.md
+# and the 2026-09-06 audit notes). Flipping this on without working SMTP
+# makes every email signup fail outright with a 500 "Error sending
+# confirmation email" instead of the previous silent auto-confirm.
 enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
@@ -247,6 +252,12 @@ otp_expiry = 3600
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
+
+# Signup confirmation email — surfaces the 6-digit {{ .Token }} the app's
+# OtpVerification screen asks the user to enter (see lib/auth.ts).
+[auth.email.template.confirmation]
+subject = "Confirm your AdwumaGo signup"
+content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
@@ -385,6 +396,16 @@ allow_dynamic_registration = false
 # secret (supabase secrets set GEMINI_API_KEY=...).
 # verify_jwt is off so the browser's CORS preflight (which carries no auth) isn't
 # rejected by the gateway; the function verifies the caller's token itself.
+verify_jwt = false
+
+[functions.send-push]
+# Sends an Expo push notification whenever a row lands in public.notifications
+# — invoked by a pg_net trigger, never by app clients. Requires the
+# PUSH_WEBHOOK_SECRET secret (see supabase/functions/send-push/index.ts).
+# verify_jwt is off — this project's API keys are the newer
+# sb_publishable_/sb_secret_ format, not legacy JWTs, so the gateway's JWT
+# check has nothing valid to check here; the function authenticates the
+# caller itself via the X-Webhook-Secret header instead.
 verify_jwt = false
 
 [edge_runtime]

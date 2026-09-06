@@ -2,10 +2,13 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import ScreenContent from '@/components/ScreenContent';
+import EmptyState from '@/components/ui/EmptyState';
 import { getWorkerProfile, preferredTimeShortLabel } from '@/lib/api/workerProfiles';
+import { listReviewsForUser } from '@/lib/api/reviews';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     ActivityIndicator,
     Alert,
@@ -18,92 +21,36 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
-import { WORKERS } from './Search';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WorkerProfile'>;
 
 const DARK = '#1A1A1A';
 
-/* ─── Extra detail not carried on the search-result cards ───
-   Keyed by worker id — bio, skills, certifications, reviews. Mock-mode only. */
-const WORKER_DETAILS: Record<number, {
-    bio: string;
-    jobsDone: number;
-    onTime: number;
-    experience: string;
-    skills: string[];
-    certifications: string[];
-    reviews: { author: string; initials: string; color: string; rating: number; comment: string; date: string }[];
-}> = {
-    1: {
-        bio: 'Licensed plumber with 6 years of experience fixing leaks, installing fittings, and handling full bathroom plumbing across Kumasi.',
-        jobsDone: 143, onTime: 98, experience: '6 yrs',
-        skills: ['Pipe Repair', 'Leak Detection', 'Bathroom Fitting', 'Drainage', 'Water Heater'],
-        certifications: ['Ghana Water & Sanitation', 'First Aid Certified'],
-        reviews: [
-            { author: 'Akosua Badu', initials: 'AB', color: '#7C3AED', rating: 5, comment: 'Fixed the leak fast and left everything clean. Highly recommend!', date: '30 Jun' },
-            { author: 'Ernest Ofori', initials: 'EO', color: '#1D6FBA', rating: 5, comment: 'Very professional, arrived on time and explained everything clearly.', date: '28 Jun' },
-        ],
-    },
-    2: {
-        bio: 'Certified electrician specializing in home wiring, socket installation, and safety inspections. Fast, careful, and reliable.',
-        jobsDone: 96, onTime: 95, experience: '5 yrs',
-        skills: ['Wiring', 'Socket Installation', 'Circuit Repair', 'Safety Inspection'],
-        certifications: ['GESE Certified', 'Electrical Safety Board'],
-        reviews: [
-            { author: 'Linda Owusu', initials: 'LO', color: '#DC2626', rating: 4, comment: 'Good work, a little late but communicated well.', date: '2 days ago' },
-        ],
-    },
-    3: {
-        bio: 'Skilled carpenter for cabinets, furniture repair, and custom woodwork. Detail-oriented with a strong eye for finish quality.',
-        jobsDone: 73, onTime: 92, experience: '4 yrs',
-        skills: ['Cabinet Making', 'Furniture Repair', 'Custom Woodwork', 'Door Fitting'],
-        certifications: ['Ghana Carpentry Guild'],
-        reviews: [
-            { author: 'Mabel Asante', initials: 'MA', color: '#D97706', rating: 5, comment: 'Beautiful cabinet work, exactly what I asked for.', date: '1 week ago' },
-        ],
-    },
-    4: {
-        bio: 'Professional painter offering interior and exterior painting with premium, long-lasting finishes.',
-        jobsDone: 54, onTime: 97, experience: '3 yrs',
-        skills: ['Interior Painting', 'Exterior Painting', 'Wall Prep', 'Color Consulting'],
-        certifications: ['First Aid Certified'],
-        reviews: [
-            { author: 'Kojo Antwi', initials: 'KA', color: '#0891B2', rating: 5, comment: 'Neat work, finished ahead of schedule.', date: '3 days ago' },
-        ],
-    },
-    5: {
-        bio: 'Reliable home cleaner offering deep cleaning, move-in/move-out cleaning, and regular housekeeping.',
-        jobsDone: 38, onTime: 99, experience: '2 yrs',
-        skills: ['Deep Cleaning', 'Move-in/out Cleaning', 'Laundry', 'Kitchen Detailing'],
-        certifications: [],
-        reviews: [
-            { author: 'Efua Mensah', initials: 'EM', color: '#7C3AED', rating: 5, comment: 'Spotless every time. Very trustworthy.', date: '5 days ago' },
-        ],
-    },
-};
-
 function initialsOf(name: string): string {
     return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
 }
 
+const REVIEW_AVATAR_PALETTE = ['#7C3AED', '#D97706', '#1D6FBA', '#DC2626', '#0891B2', '#2FAE60'];
+function colorForId(id: string): string {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    return REVIEW_AVATAR_PALETTE[Math.abs(hash) % REVIEW_AVATAR_PALETTE.length];
+}
+
+function formatReviewDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 type ViewModel = {
-    isRealMode: boolean;
     workerId: string;
     name: string;
     initials: string;
-    color: string;
     skillLabel: string;
     rating: number;
     reviewCount: number;
-    distance: string | null;
-    available: boolean | null;
     price: number | null;
     bio: string | null;
     skills: string[];
-    certifications: string[];
-    jobsDone: number | null;
-    onTimePct: number | null;
     experience: string | null;
     preferredTimes: string[];
     reviews: { author: string; initials: string; color: string; rating: number; comment: string; date: string }[];
@@ -111,88 +58,65 @@ type ViewModel = {
 
 export default function WorkerProfileScreen({ route, navigation }: Props) {
     const T = useThemeColors();
-    const { id } = route.params;
+    const { id, fromBooking } = route.params;
 
     useLayoutEffect(() => {
         navigation.setOptions({ headerTitle: 'Worker Profile' });
     }, [navigation]);
 
-    const numericId = Number(id);
-    const mockWorker = !Number.isNaN(numericId) ? WORKERS.find((w) => w.id === numericId) : undefined;
-    const isRealMode = !mockWorker && !!id;
-
-    const [realVm, setRealVm] = useState<ViewModel | null>(null);
-    const [loading, setLoading] = useState(isRealMode);
+    const [vm, setVm] = useState<ViewModel | null>(null);
+    const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
     const [saved, setSaved] = useState(false);
 
-    useEffect(() => {
-        if (!isRealMode) return;
-        let cancelled = false;
-        (async () => {
-            const result = await getWorkerProfile(id);
-            if (cancelled) return;
-            if (!result.success || !result.data) {
-                setLoadError(true);
-                setLoading(false);
-                return;
-            }
-            const w = result.data;
-            setRealVm({
-                isRealMode: true,
-                workerId: w.id,
-                name: w.full_name || 'Worker',
-                initials: initialsOf(w.full_name || '?'),
-                color: COLORS.accent,
-                skillLabel: w.skills[0] ?? 'General services',
-                rating: w.rating_avg,
-                reviewCount: w.rating_count,
-                distance: null,
-                available: null,
-                price: w.hourly_rate,
-                bio: w.bio,
-                skills: w.skills,
-                certifications: [],
-                jobsDone: null,
-                onTimePct: null,
-                experience: w.years_experience != null ? `${w.years_experience} yrs` : null,
-                preferredTimes: (w.preferred_times ?? []).map(preferredTimeShortLabel),
-                reviews: [],
-            });
+    const load = useCallback(async (cancelledRef?: { current: boolean }) => {
+        setLoading(true);
+        setLoadError(false);
+        const [result, reviewsResult] = await Promise.all([
+            getWorkerProfile(id),
+            listReviewsForUser(id),
+        ]);
+        if (cancelledRef?.current) return;
+        if (!result.success || !result.data) {
+            setLoadError(true);
             setLoading(false);
-        })();
-        return () => { cancelled = true; };
-    }, [isRealMode, id]);
+            return;
+        }
+        const w = result.data;
+        const reviews = (reviewsResult.data ?? []).map((r) => ({
+            author: r.reviewer?.full_name || 'AdwumaGo user',
+            initials: initialsOf(r.reviewer?.full_name || '?'),
+            color: colorForId(r.reviewer_id),
+            rating: r.rating,
+            comment: r.comment ?? '',
+            date: formatReviewDate(r.created_at),
+        }));
+        setVm({
+            workerId: w.id,
+            name: w.full_name || 'Worker',
+            initials: initialsOf(w.full_name || '?'),
+            skillLabel: w.skills[0] ?? 'General services',
+            rating: w.rating_avg,
+            reviewCount: w.rating_count,
+            price: w.hourly_rate,
+            bio: w.bio,
+            skills: w.skills,
+            experience: w.years_experience != null ? `${w.years_experience} yrs` : null,
+            preferredTimes: (w.preferred_times ?? []).map(preferredTimeShortLabel),
+            reviews,
+        });
+        setLoading(false);
+    }, [id]);
 
-    const vm: ViewModel | null = mockWorker
-        ? (() => {
-            const details = WORKER_DETAILS[mockWorker.id];
-            if (!details) return null;
-            return {
-                isRealMode: false,
-                workerId: String(mockWorker.id),
-                name: mockWorker.name,
-                initials: mockWorker.initials,
-                color: mockWorker.color,
-                skillLabel: mockWorker.skill,
-                rating: mockWorker.rating,
-                reviewCount: mockWorker.reviews,
-                distance: mockWorker.distance,
-                available: mockWorker.available,
-                price: mockWorker.price,
-                bio: details.bio,
-                skills: details.skills,
-                certifications: details.certifications,
-                jobsDone: details.jobsDone,
-                onTimePct: details.onTime,
-                experience: details.experience,
-                preferredTimes: [],
-                reviews: details.reviews,
-            };
-        })()
-        : realVm;
+    useFocusEffect(
+        useCallback(() => {
+            const cancelledRef = { current: false };
+            load(cancelledRef);
+            return () => { cancelledRef.current = true; };
+        }, [load])
+    );
 
-    if (isRealMode && loading) {
+    if (loading) {
         return (
             <SafeAreaView style={[s.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['bottom']}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
@@ -203,20 +127,27 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
     if (!vm || loadError) {
         return (
             <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
-                <View style={s.notFound}>
-                    <Ionicons name="person-remove-outline" size={wms(40)} color={T.subText} />
-                    <Text style={[s.notFoundText, { color: T.text }]}>Worker not found</Text>
-                    <TouchableOpacity style={s.notFoundBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-                        <Text style={s.notFoundBtnText}>Go Back</Text>
-                    </TouchableOpacity>
-                </View>
+                <EmptyState
+                    icon={loadError ? 'cloud-offline-outline' : 'person-remove-outline'}
+                    title={loadError ? "Couldn't load this profile" : 'Worker not found'}
+                    body={loadError ? 'Check your connection and try again.' : 'This worker profile is no longer available.'}
+                    actionLabel={loadError ? 'Retry' : undefined}
+                    onAction={loadError ? () => load() : undefined}
+                    tone={loadError ? 'error' : 'default'}
+                />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'center', paddingVertical: wvs(12) }}>
+                    <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Go Back</Text>
+                </TouchableOpacity>
             </SafeAreaView>
         );
     }
 
+    // A worker viewed from an existing chat/booking just returns there — no
+    // real thread exists yet for someone browsed fresh from search/home
+    // (messaging is booking-gated), so that case goes to the messages tab
+    // instead of pretending a conversation is already open.
     const handleMessage = () => {
-        if (vm.isRealMode) {
-            // Got here from a real chat thread (or a direct link) — just return to it.
+        if (fromBooking) {
             navigation.goBack();
             return;
         }
@@ -227,31 +158,12 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
     const handleEmail = () => Alert.alert('Email', 'Emailing from the app is coming soon.');
 
     const handlePrimaryAction = () => {
-        if (vm.isRealMode) {
-            navigation.navigate('PostAJob', {});
-            return;
-        }
-        Alert.alert(
-            `Book ${vm.name}?`,
-            `Starting price is GH₵ ${vm.price}. A request will be sent to them.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Book',
-                    onPress: () => {
-                        Alert.alert('Request Sent', `${vm.name} has been notified of your booking request.`);
-                        navigation.navigate('CustomerTabs', { screen: 'bookings' });
-                    },
-                },
-            ]
-        );
+        navigation.navigate('PostAJob', {});
     };
 
     const pills = [
         vm.experience ? { icon: 'time-outline', label: vm.experience } : null,
         { icon: 'star', label: `${vm.rating.toFixed(1)} ★` },
-        vm.distance ? { icon: 'location-outline', label: vm.distance } : null,
-        vm.available !== null ? { icon: vm.available ? 'checkmark-circle-outline' : 'close-circle-outline', label: vm.available ? 'Available' : 'Busy' } : null,
         vm.preferredTimes.length > 0 ? { icon: 'time-outline', label: vm.preferredTimes.join(', ') } : null,
     ].filter((p): p is { icon: string; label: string } => p !== null);
 
@@ -259,9 +171,8 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
         { value: vm.skillLabel, label: 'Primary Skill' },
         { value: vm.price != null ? `GH₵ ${vm.price}` : '—', label: 'Starting Price' },
         { value: vm.experience ?? '—', label: 'Experience' },
-        { value: vm.jobsDone != null ? String(vm.jobsDone) : String(vm.reviewCount), label: vm.jobsDone != null ? 'Jobs Done' : 'Reviews' },
-        { value: vm.onTimePct != null ? `${vm.onTimePct}%` : `${vm.rating.toFixed(1)} ★`, label: vm.onTimePct != null ? 'On-time Rate' : 'Rating' },
-        { value: String(vm.certifications.length), label: 'Certifications' },
+        { value: String(vm.reviewCount), label: 'Reviews' },
+        { value: `${vm.rating.toFixed(1)} ★`, label: 'Rating' },
     ];
 
     return (
@@ -276,7 +187,7 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
                     <View style={s.heroTopRow}>
                         {vm.price != null ? (
                             <View style={s.priceBadge}>
-                                <Text style={s.priceBadgeText}>GH₵ {vm.price}{vm.isRealMode ? '/hr' : ''}</Text>
+                                <Text style={s.priceBadgeText}>GH₵ {vm.price}/hr</Text>
                             </View>
                         ) : <View />}
                         <TouchableOpacity style={s.bookmarkBtn} onPress={() => setSaved((v) => !v)} activeOpacity={0.8}>
@@ -317,7 +228,7 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
                     )}
 
                     <TouchableOpacity style={s.primaryBtn} onPress={handlePrimaryAction} activeOpacity={0.85}>
-                        <Text style={s.primaryBtnText}>{vm.isRealMode ? 'Post a Job' : 'Hire Now'}</Text>
+                        <Text style={s.primaryBtnText}>Post a Job</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -353,20 +264,6 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
                                 </View>
                             ))}
                         </View>
-                    </View>
-                )}
-
-                {/* ══ CERTIFICATIONS ══ */}
-                {vm.certifications.length > 0 && (
-                    <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
-                        <Text style={[s.cardTitle, { color: T.text }]}>Certifications</Text>
-                        {vm.certifications.map((cert, i) => (
-                            <View key={cert} style={[s.certRow, i > 0 && [s.rowDivider, { borderTopWidth: ws(1), borderColor: T.divider }]]}>
-                                <Ionicons name="ribbon-outline" size={wms(15)} color={COLORS.primary} />
-                                <Text style={[s.certText, { color: T.text }]}>{cert}</Text>
-                                <Ionicons name="checkmark-circle" size={wms(16)} color="#22C55E" />
-                            </View>
-                        ))}
                     </View>
                 )}
 
@@ -415,12 +312,6 @@ const s = StyleSheet.create({
     scrollOuter: { alignItems: 'center' },
     scroll: { width: '100%', paddingBottom: wvs(20) },
 
-    /* Not found */
-    notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: ws(12), padding: ws(24) },
-    notFoundText: { fontSize: wms(15), fontWeight: '700' },
-    notFoundBtn: { backgroundColor: COLORS.primary, borderRadius: ws(10), paddingHorizontal: ws(20), paddingVertical: wvs(10), marginTop: wvs(4) },
-    notFoundBtnText: { color: '#fff', fontWeight: '700', fontSize: wms(13) },
-
     /* Hero card */
     heroCard: { borderRadius: ws(28), marginHorizontal: ws(16), padding: ws(18), alignItems: 'center' },
     heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: wvs(6) },
@@ -461,12 +352,6 @@ const s = StyleSheet.create({
     skillsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ws(8) },
     skillChip: { borderRadius: ws(10), borderWidth: ws(1), paddingHorizontal: ws(12), paddingVertical: wvs(7) },
     skillText: { fontSize: wms(12), fontWeight: '700' },
-
-    rowDivider: { height: wvs(1) },
-
-    /* Certifications */
-    certRow: { flexDirection: 'row', alignItems: 'center', gap: ws(10), paddingVertical: wvs(10) },
-    certText: { flex: 1, fontSize: wms(13), fontWeight: '600' },
 
     /* Reviews */
     reviewsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: wvs(10) },

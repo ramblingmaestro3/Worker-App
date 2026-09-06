@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import { routeSignedInUserByRole } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { s, vs, ms } from '@/lib/scaling';
 import type { RootStackParamList } from '@/navigation/types';
@@ -120,19 +121,16 @@ export default function OtpVerificationScreen({ route, navigation }: NativeStack
     }
     if (data.session) {
       const role = data.user?.user_metadata?.role;
-      if (role === 'worker') {
-        navigation.replace('BecomeWorker');
-      } else {
-        navigation.replace('CustomerTabs', { screen: 'home' });
-      }
+      // Routed through routeSignedInUserByRole rather than a raw
+      // navigation.replace so a 'worker' choice is only ever landed on (and
+      // remembered) once the account is actually a verified worker — see
+      // its docstring. A fresh signup never is yet, so this lands on
+      // BecomeWorker exactly as before, just without prematurely marking
+      // 'worker' as the remembered side.
+      await routeSignedInUserByRole(role === 'worker' ? 'worker' : 'client');
     } else {
       setError('Verification succeeded but no session was created. Try signing in.');
     }
-  };
-
-  // Development bypass: skip OTP and go straight to home
-  const handleSkip = () => {
-    navigation.replace('CustomerTabs', { screen: 'home' });
   };
 
   const formattedTime = `(00:${timeLeft < 10 ? `0${timeLeft}` : timeLeft})`;
@@ -202,10 +200,6 @@ export default function OtpVerificationScreen({ route, navigation }: NativeStack
           {verifying ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyText}>Verify</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip} activeOpacity={0.7}>
-          <Text style={styles.skipText}>Skip for now</Text>
-        </TouchableOpacity>
-
         <View style={[styles.securityNote, { backgroundColor: T.inputBg, borderColor: T.border }]}>
           <Ionicons name="shield-checkmark-outline" size={ms(20)} color={COLORS.primary} />
           <Text style={[styles.securityText, { color: T.subText }]}>
@@ -252,8 +246,6 @@ const styles = StyleSheet.create({
     marginTop: vs(4),
   },
   verifyText: { fontSize: ms(16), fontWeight: '700', color: '#fff' },
-  skipButton: { paddingVertical: vs(12), marginTop: vs(4) },
-  skipText: { fontSize: ms(14), fontWeight: '600', color: COLORS.primary },
   securityNote: {
     width: '100%',
     maxWidth: s(544),

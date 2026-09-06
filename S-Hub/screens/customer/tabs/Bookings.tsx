@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -10,6 +9,7 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 import Card from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
 import type { CustomerTabParamList, RootStackParamList } from '@/navigation/types';
 import { listMyServiceRequests, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listMyBookingsAsClient, ClientBookingView, BookingStatus } from '@/lib/api/bookings';
@@ -49,6 +49,7 @@ export default function BookingsScreen({ navigation }: Props) {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [clientBookings, setClientBookings] = useState<ClientBookingView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -57,19 +58,23 @@ export default function BookingsScreen({ navigation }: Props) {
     });
   }, [navigation, T]);
 
+  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
+    setLoading(true);
+    setError(false);
+    const [reqResult, bookingResult] = await Promise.all([listMyServiceRequests(), listMyBookingsAsClient()]);
+    if (cancelledRef?.current) return;
+    if (reqResult.success) setRequests(reqResult.data ?? []);
+    if (bookingResult.success) setClientBookings(bookingResult.data ?? []);
+    if (!reqResult.success || !bookingResult.success) setError(true);
+    setLoading(false);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        setLoading(true);
-        const [reqResult, bookingResult] = await Promise.all([listMyServiceRequests(), listMyBookingsAsClient()]);
-        if (cancelled) return;
-        if (reqResult.success) setRequests(reqResult.data ?? []);
-        if (bookingResult.success) setClientBookings(bookingResult.data ?? []);
-        setLoading(false);
-      })();
-      return () => { cancelled = true; };
-    }, [])
+      const cancelledRef = { current: false };
+      load(cancelledRef);
+      return () => { cancelledRef.current = true; };
+    }, [load])
   );
 
   const entries: Entry[] = useMemo(() => {
@@ -128,6 +133,15 @@ export default function BookingsScreen({ navigation }: Props) {
             <View style={styles.emptyState}>
               <ActivityIndicator color={COLORS.primary} />
             </View>
+          ) : error ? (
+            <EmptyState
+              icon="cloud-offline-outline"
+              title="Couldn't load your bookings"
+              body="Check your connection and try again."
+              actionLabel="Retry"
+              onAction={() => load()}
+              tone="error"
+            />
           ) : filteredEntries.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="briefcase-outline" size={36} color={T.subText} />
@@ -144,7 +158,7 @@ export default function BookingsScreen({ navigation }: Props) {
                     <TouchableOpacity
                       key={entry.id}
                       activeOpacity={0.85}
-                      onPress={() => !cancelled && router.push({ pathname: '/(customer)/bid-comparison', params: { requestId: req.id } })}
+                      onPress={() => !cancelled && navigation.navigate('BidComparison', { requestId: req.id })}
                     >
                     <Card style={[styles.card, cancelled && { opacity: 0.7 }]}>
                       <View style={styles.cardTopRow}>
@@ -192,7 +206,7 @@ export default function BookingsScreen({ navigation }: Props) {
                   <TouchableOpacity
                     key={entry.id}
                     activeOpacity={0.85}
-                    onPress={() => navigation.navigate('Chat', { bookingId: booking.id })}
+                    onPress={() => navigation.navigate('JobDetail', { bookingId: booking.id })}
                   >
                   <Card style={[styles.card, cancelled && { opacity: 0.7 }]}>
                     <View style={styles.cardTopRow}>

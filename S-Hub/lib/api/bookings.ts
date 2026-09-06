@@ -58,6 +58,20 @@ export async function advanceBookingStatus(
   return { success: true };
 }
 
+/** Client cancels their own booking — only works while it isn't already completed or cancelled (enforced by RLS). */
+export async function cancelBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+    .eq('id', bookingId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
 export type WorkerBookingView = Booking & {
   client: { full_name: string } | null;
   request: { category: string; description: string | null; location_string: string | null; location_region: string | null } | null;
@@ -142,6 +156,26 @@ export async function countMyCompletedBookings(): Promise<{ success: boolean; da
   return { success: true, data: count ?? 0 };
 }
 
+/** Counts the signed-in client's completed bookings — used for the client profile's "Completed" stat, filtered the same way (client_id + status='completed') as the bookings page's "Completed" tab. */
+export async function countMyCompletedBookingsAsClient(): Promise<{ success: boolean; data?: number; error?: string }> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return { success: false, error: 'Not signed in.' };
+  }
+
+  const { count, error } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', auth.user.id)
+    .eq('status', 'completed');
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: count ?? 0 };
+}
+
 export type ConversationParticipant = { id: string; full_name: string; avatar_url: string | null };
 
 export type ConversationView = {
@@ -203,10 +237,11 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
 export type BookingChatContext = Booking & {
   client: ConversationParticipant | null;
   worker: ConversationParticipant | null;
-  request: { category: string; description: string | null } | null;
+  request: { category: string; description: string | null; location_string: string | null; scheduled_for: string | null } | null;
+  bid: { proposed_price: number; counter_price: number | null } | null;
 };
 
-/** Fetches one booking with both participants' profiles and the linked request, for the chat screen's header/banner. */
+/** Fetches one booking with both participants' profiles and the linked request/bid, for the chat screen's header/banner and the job-detail screen. */
 export async function getBookingWithContext(
   bookingId: string
 ): Promise<{ success: boolean; data?: BookingChatContext; error?: string }> {
@@ -215,7 +250,8 @@ export async function getBookingWithContext(
     .select(
       `*, client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
        worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url),
-       request:service_requests!bookings_request_id_fkey(category,description)`
+       request:service_requests!bookings_request_id_fkey(category,description,location_string,scheduled_for),
+       bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)`
     )
     .eq('id', bookingId)
     .single();

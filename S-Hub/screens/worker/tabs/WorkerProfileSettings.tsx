@@ -18,12 +18,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import EmptyState from '@/components/ui/EmptyState';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, WorkerProfile } from '@/lib/api/workerProfiles';
 import { countMyCompletedBookings } from '@/lib/api/bookings';
 import { signOut } from '@/lib/auth';
-import { resetToSignIn } from '@/navigation/navigationRef';
+import { setActiveSide } from '@/lib/activeSide';
+import { resetToCustomerHome, resetToSignIn } from '@/navigation/navigationRef';
 import type { RootStackParamList, WorkerTabParamList } from '@/navigation/types';
 
 function initialsOf(name: string): string {
@@ -96,19 +98,29 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
   const [workerProfile, setWorkerProfile] = useState<WorkerProfile | null>(null);
   const [completedJobs, setCompletedJobs] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
+        setLoading(true);
+        setLoadError(false);
         const [profileResult, workerResult, completedResult] = await Promise.all([
           getMyProfile(),
           getMyWorkerProfile(),
           countMyCompletedBookings(),
         ]);
         if (cancelled) return;
+        // A failed fetch here doesn't necessarily mean the session is
+        // invalid — that's handled globally now (App.tsx's session-expiry
+        // watcher, driven by real auth state, not a guess from one query
+        // failing). Could just as easily be a dropped connection, so this
+        // offers a retry instead of forcing the user back to sign-in.
         if (!profileResult.success) {
-          resetToSignIn();
+          setLoadError(true);
+          setLoading(false);
           return;
         }
         setProfile(profileResult.data ?? null);
@@ -117,8 +129,24 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
         setLoading(false);
       })();
       return () => { cancelled = true; };
-    }, [])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reloadKey])
   );
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load your profile"
+          body="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => setReloadKey((k) => k + 1)}
+          tone="error"
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (loading || !profile) {
     return (
@@ -242,7 +270,10 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
             icon={<MaterialCommunityIcons name="swap-horizontal" size={wms(17)} color={COLORS.primary} />}
             label="Switch to Client Mode"
             subtitle="Post jobs and hire workers instead"
-            onPress={() => navigation.navigate('CustomerTabs', { screen: 'home' })}
+            onPress={() => {
+              void setActiveSide('client');
+              resetToCustomerHome();
+            }}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
           <MenuItem

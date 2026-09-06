@@ -1,5 +1,6 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import EmptyState from '@/components/ui/EmptyState';
 import { ws, wvs, wms } from '@/lib/scaling';
 import {
   listMyNotifications,
@@ -53,6 +54,8 @@ export default function WorkerNotificationsScreen({ navigation }: Props) {
   const T = useThemeColors();
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -60,10 +63,16 @@ export default function WorkerNotificationsScreen({ navigation }: Props) {
       let channel: ReturnType<typeof subscribeToMyNotifications> | null = null;
 
       (async () => {
+        setLoading(true);
+        setError(false);
         const userId = useAuthStore.getState().user?.id;
         const result = await listMyNotifications();
         if (cancelled) return;
-        if (result.success) setNotifs(result.data ?? []);
+        if (result.success) {
+          setNotifs(result.data ?? []);
+        } else {
+          setError(true);
+        }
         setLoading(false);
 
         if (userId) {
@@ -77,7 +86,8 @@ export default function WorkerNotificationsScreen({ navigation }: Props) {
         cancelled = true;
         if (channel) unsubscribe(channel);
       };
-    }, [])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reloadKey])
   );
 
   const unreadCount = notifs.filter((n) => !n.is_read).length;
@@ -157,6 +167,15 @@ export default function WorkerNotificationsScreen({ navigation }: Props) {
           <View style={s.empty}>
             <ActivityIndicator color={COLORS.primary} />
           </View>
+        ) : error ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Couldn't load notifications"
+            body="Check your connection and try again."
+            actionLabel="Retry"
+            onAction={() => setReloadKey((k) => k + 1)}
+            tone="error"
+          />
         ) : notifs.length === 0 ? (
           <View style={s.empty}>
             <Ionicons name="notifications-off-outline" size={wms(52)} color={COLORS.primary + '50'} />

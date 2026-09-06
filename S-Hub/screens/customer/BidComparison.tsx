@@ -25,6 +25,8 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [bids, setBids] = useState<BidWithWorker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [respondingBidId, setRespondingBidId] = useState<string | null>(null);
   const [counterBidId, setCounterBidId] = useState<string | null>(null);
   const [counterPrice, setCounterPrice] = useState('');
@@ -53,9 +55,11 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
           return;
         }
         setLoading(true);
+        setLoadError(false);
         const [reqResult, bidsResult] = await Promise.all([getServiceRequest(requestId), listBidsForRequest(requestId)]);
         if (cancelled) return;
         if (reqResult.success) setRequest(reqResult.data ?? null);
+        else setLoadError(true);
         if (bidsResult.success) setBids(bidsResult.data ?? []);
         setLoading(false);
 
@@ -76,7 +80,7 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
         if (channel) unsubscribe(channel);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [requestId])
+    }, [requestId, reloadKey])
   );
 
   const activeBids = bids.filter((b) => b.status === 'pending' || b.status === 'countered');
@@ -153,8 +157,22 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
   if (!requestId || !request) {
     return (
       <View style={[styles.container, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
-        <Ionicons name="document-text-outline" size={40} color={T.subText} />
-        <Text style={{ color: T.text, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 16 }}>Request not found</Text>
+        <Ionicons
+          name={loadError ? 'cloud-offline-outline' : 'document-text-outline'}
+          size={40}
+          color={loadError ? COLORS.danger + '80' : T.subText}
+        />
+        <Text style={{ color: T.text, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 16 }}>
+          {loadError ? "Couldn't load this request" : 'Request not found'}
+        </Text>
+        {loadError && (
+          <TouchableOpacity
+            style={{ backgroundColor: COLORS.danger, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10, marginBottom: 12 }}
+            onPress={() => setReloadKey((k) => k + 1)}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Go Back</Text>
         </TouchableOpacity>

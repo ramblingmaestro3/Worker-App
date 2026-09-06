@@ -10,19 +10,23 @@ type Props = {
   body: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** 'error' tints the icon and action button danger-red so a failed fetch reads as distinct from a genuinely empty list, not the same visual. Defaults to 'default'. */
+  tone?: 'default' | 'error';
 };
 
-export default function EmptyState({ icon, title, body, actionLabel, onAction }: Props) {
+/** Shared empty/error placeholder for any data-fetching screen — pass tone="error" with a retry actionLabel/onAction for a failed fetch, omit it for a genuine "nothing here yet" state. */
+export default function EmptyState({ icon, title, body, actionLabel, onAction, tone = 'default' }: Props) {
   const T = useThemeColors();
+  const iconColor = tone === 'error' ? COLORS.danger + '80' : COLORS.primary + '55';
 
   return (
     <View style={styles.wrap}>
-      <Ionicons name={icon} size={48} color={COLORS.primary + '55'} />
+      <Ionicons name={icon} size={48} color={iconColor} />
       <Text style={[styles.title, { color: T.text }]}>{title}</Text>
       <Text style={[styles.body, { color: T.subText }]}>{body}</Text>
       {!!actionLabel && !!onAction && (
         <View style={styles.action}>
-          <Button label={actionLabel} onPress={onAction} fullWidth={false} />
+          <Button label={actionLabel} onPress={onAction} fullWidth={false} variant={tone === 'error' ? 'danger' : 'primary'} />
         </View>
       )}
     </View>

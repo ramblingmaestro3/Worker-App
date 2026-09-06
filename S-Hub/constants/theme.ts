@@ -1,37 +1,37 @@
 export const COLORS = {
-  // ── Primary Brand (AdwumaGo gold) ──
-  primary: '#F0AE2E',  // Warm amber gold
-  primaryDark: '#C4841A',  // Deeper gold for pressed states / gradients
-  primaryLight: 'rgba(240,174,46,0.16)',  // Translucent gold wash for dark surfaces
+  // ── Primary Brand (Ghana green) ──
+  primary: '#006B3F',  // Ghana green
+  primaryDark: '#004D2C',  // Darker green for pressed states
+  primaryLight: '#E6F4EE',  // Light green for backgrounds
 
-  // ── Accent (Ghana green) ──
-  accent: '#2FAE60',
-  accentDark: '#1E8A49',
-  accentLight: 'rgba(47,174,96,0.16)',
+  // ── Accent (Ghana gold) ──
+  accent: '#FCD116',
+  accentDark: '#D4A900',
+  accentLight: '#FFFBEA',
 
   // ── Danger / Action (Ghana red) ──
-  danger: '#E1293D',
-  dangerLight: 'rgba(225,41,61,0.16)',
+  danger: '#CE1126',
+  dangerLight: '#FDECEA',
 
-  // ── Neutrals (warm dark) ──
-  background: '#120C09',  // Warm near-black page background
-  card: '#1C130D',  // Elevated warm-dark surface
-  dark: '#F5F1EA',  // Warm off-white — highest-contrast foreground
-  text: '#F5F1EA',  // Primary text
-  muted: '#A99C8E',  // Secondary/muted text
-  border: '#2A2019',  // Subtle warm-dark borders
-  bgGrey: '#231A12',  // Input / subtle-surface background
+  // ── Neutrals (light) ──
+  background: '#FAFAF5',  // Cream white page background
+  card: '#FFFFFF',  // Pure white cards
+  dark: '#1A1A1A',  // Near black — highest-contrast foreground
+  text: '#1A1A1A',  // Primary text
+  muted: '#6B6B6B',  // Secondary/muted text
+  border: '#E8E8E0',  // Subtle borders
+  bgGrey: '#F2F2EC',  // Input / subtle-surface background
 
   // ── Status ──
-  success: '#2FAE60',  // Ghana green
-  warning: '#F0AE2E',  // Gold
-  error: '#E1293D',  // Ghana red
+  success: '#006B3F',  // Ghana green
+  warning: '#FCD116',  // Ghana gold
+  error: '#CE1126',  // Ghana red
 
   // ── Verified badge ──
-  verified: '#4DA3FF',  // Blue verified tick
+  verified: '#1D9BF0',  // Blue verified tick
 
   // ── Stars ──
-  star: '#F0AE2E',  // Gold stars — matches primary
+  star: '#FCD116',  // Gold stars — matches accent
 };
 
 export const FONTS = {

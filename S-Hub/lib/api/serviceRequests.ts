@@ -111,6 +111,25 @@ export async function listMyServiceRequests(): Promise<{
   return { success: true, data: (data ?? []) as ServiceRequest[] };
 }
 
+/** Counts every request the signed-in client has ever posted, regardless of status — used for the "Jobs Posted" stat, filtered the same way (client_id-scoped, no status filter) as the bookings page's combined request+booking list. */
+export async function countMyServiceRequests(): Promise<{ success: boolean; data?: number; error?: string }> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return { success: false, error: 'Not signed in.' };
+  }
+
+  const { count, error } = await supabase
+    .from('service_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', auth.user.id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: count ?? 0 };
+}
+
 export async function updateServiceRequest(
   id: string,
   patch: Partial<CreateServiceRequestInput>

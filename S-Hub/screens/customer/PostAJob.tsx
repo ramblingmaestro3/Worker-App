@@ -46,6 +46,7 @@ export default function PostAJobScreen({ route, navigation }: Props) {
   const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [location, setLocation] = useState<PickedLocation | null>(null);
+  const [budget, setBudget] = useState('');
   const [posting, setPosting] = useState(false);
 
   useLayoutEffect(() => {
@@ -132,6 +133,12 @@ export default function PostAJobScreen({ route, navigation }: Props) {
       Alert.alert('Set a schedule', 'Please pick both a date and time for the job.');
       return;
     }
+    const trimmedBudget = budget.trim();
+    const budgetValue = trimmedBudget ? parseFloat(trimmedBudget) : undefined;
+    if (trimmedBudget && (budgetValue === undefined || Number.isNaN(budgetValue) || budgetValue <= 0)) {
+      Alert.alert('Invalid budget', 'Enter a valid amount, or leave it blank to let workers propose their own price.');
+      return;
+    }
 
     setPosting(true);
     const uploadedPhotos = (
@@ -153,6 +160,7 @@ export default function PostAJobScreen({ route, navigation }: Props) {
       location_region: location.region ?? undefined,
       photos: uploadedPhotos,
       scheduled_for,
+      initial_offer_price: budgetValue,
     });
     setPosting(false);
 
@@ -338,12 +346,23 @@ export default function PostAJobScreen({ route, navigation }: Props) {
             )}
           </View>
 
-          <View style={[styles.priceBox, { backgroundColor: COLORS.primaryLight, borderLeftColor: COLORS.primary }]}>
-            <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.priceLabel}>Suggested Price Range</Text>
-              <Text style={[styles.priceValue, { color: T.text }]}>
-                Similar jobs in your area: <Text style={{ fontWeight: 'bold' }}>GH₵150–GH₵250</Text>
+          <View style={[styles.section, styles.card, { backgroundColor: T.card, borderColor: T.border }]}>
+            <Text style={[styles.sectionLabel, { color: T.subText }]}>YOUR BUDGET (OPTIONAL)</Text>
+            <View style={[styles.budgetInputRow, { backgroundColor: T.inputBg, borderColor: T.border }]}>
+              <Text style={[styles.budgetPrefix, { color: T.text }]}>GH₵</Text>
+              <TextInput
+                style={[styles.budgetInput, { color: T.text }]}
+                placeholder="e.g. 200"
+                placeholderTextColor={T.subText}
+                keyboardType="numeric"
+                value={budget}
+                onChangeText={(t) => setBudget(t.replace(/[^0-9.]/g, ''))}
+              />
+            </View>
+            <View style={styles.budgetHintRow}>
+              <Ionicons name="information-circle-outline" size={16} color={T.subText} />
+              <Text style={[styles.budgetHint, { color: T.subText }]}>
+                Set what you&apos;re willing to pay, or leave it blank to let workers propose their own price.
               </Text>
             </View>
           </View>
@@ -406,9 +425,11 @@ const styles = StyleSheet.create({
   locationLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   locationText: { fontSize: 14, fontWeight: '600' },
   changeText: { fontSize: 13, color: COLORS.primary, textDecorationLine: 'underline' },
-  priceBox: { flexDirection: 'row', gap: 12, borderLeftWidth: 4, borderRadius: 16, padding: 16 },
-  priceLabel: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
-  priceValue: { fontSize: 14 },
+  budgetInputRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, gap: 8 },
+  budgetPrefix: { fontSize: 16, fontWeight: '700' },
+  budgetInput: { flex: 1, fontSize: 16, fontWeight: '600', paddingVertical: 14 },
+  budgetHintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  budgetHint: { flex: 1, fontSize: 12, lineHeight: 17 },
   postButtonBar: {
     position: 'absolute', bottom: 92, left: 0, right: 0,
     alignItems: 'center', paddingHorizontal: 20,

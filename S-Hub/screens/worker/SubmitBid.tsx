@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
+import AppMap from '@/components/AppMap';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
 import { createBid, listMyBids, WorkerBid } from '@/lib/api/workerBids';
 import type { RootStackParamList } from '@/navigation/types';
@@ -26,6 +27,9 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const bidAmount = parseFloat(bidAmountText) || 0;
 
@@ -47,11 +51,17 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
         setLoading(false);
         return;
       }
+      setLoading(true);
+      setLoadError(false);
       const [reqResult, bidsResult] = await Promise.all([
         getServiceRequest(params.requestId),
         listMyBids(),
       ]);
-      if (reqResult.success && reqResult.data) setRequest(reqResult.data);
+      if (reqResult.success && reqResult.data) {
+        setRequest(reqResult.data);
+      } else if (!reqResult.success) {
+        setLoadError(true);
+      }
       if (bidsResult.success) {
         const activeBid = (bidsResult.data ?? []).find(
           (b) => b.request_id === params.requestId && (b.status === 'pending' || b.status === 'countered')
@@ -60,7 +70,7 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
       }
       setLoading(false);
     })();
-  }, [params.requestId]);
+  }, [params.requestId, reloadKey]);
 
   const handleSubmit = async () => {
     if (!params.requestId || bidAmount <= 0) return;
@@ -103,9 +113,20 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
   if (!request) {
     return (
       <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={[]}>
-        <Ionicons name="alert-circle-outline" size={wms(40)} color={T.subText} />
-        <Text style={[styles.emptyTitle, { color: T.text }]}>Job not found</Text>
-        <Text style={[styles.emptySub, { color: T.subText }]}>This request may have been removed or already assigned.</Text>
+        <Ionicons
+          name={loadError ? 'cloud-offline-outline' : 'alert-circle-outline'}
+          size={wms(40)}
+          color={loadError ? COLORS.danger + '80' : T.subText}
+        />
+        <Text style={[styles.emptyTitle, { color: T.text }]}>{loadError ? "Couldn't load this job" : 'Job not found'}</Text>
+        <Text style={[styles.emptySub, { color: T.subText }]}>
+          {loadError ? 'Check your connection and try again.' : 'This request may have been removed or already assigned.'}
+        </Text>
+        {loadError && (
+          <TouchableOpacity style={[styles.backLinkBtn, { backgroundColor: COLORS.danger }]} onPress={() => setReloadKey((k) => k + 1)}>
+            <Text style={[styles.backLinkText, { color: '#fff' }]}>Retry</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
           <Text style={styles.backLinkText}>Back to Dashboard</Text>
         </TouchableOpacity>
@@ -174,6 +195,35 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
 
         {!!request.description && (
           <Text style={[styles.description, { color: T.subText }]}>{request.description}</Text>
+        )}
+
+        {request.photos.length > 0 && (
+          <View>
+            <Text style={[styles.label, { color: T.subText }]}>PHOTOS FROM CLIENT</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+              {request.photos.map((uri) => (
+                <TouchableOpacity key={uri} onPress={() => setPreviewPhoto(uri)} activeOpacity={0.85}>
+                  <Image source={{ uri }} style={styles.photoThumb} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {request.latitude != null && request.longitude != null && (
+          <View>
+            <Text style={[styles.label, { color: T.subText }]}>JOB LOCATION</Text>
+            <View style={[styles.mapPreview, { borderColor: T.border }]}>
+              <AppMap
+                latitude={request.latitude}
+                longitude={request.longitude}
+                zoom={0.02}
+                markers={[{ latitude: request.latitude, longitude: request.longitude, color: COLORS.primary }]}
+                zoomEnabled={false}
+                scrollEnabled={false}
+              />
+            </View>
+          </View>
         )}
 
         <View style={[styles.card, { backgroundColor: T.card, borderColor: T.border }]}>
@@ -257,6 +307,15 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       </View>
       </View>
+
+      <Modal visible={previewPhoto !== null} transparent animationType="fade" onRequestClose={() => setPreviewPhoto(null)}>
+        <TouchableOpacity style={styles.photoModalBackdrop} activeOpacity={1} onPress={() => setPreviewPhoto(null)}>
+          {previewPhoto && <Image source={{ uri: previewPhoto }} style={styles.photoModalImage} resizeMode="contain" />}
+          <TouchableOpacity style={styles.photoModalClose} onPress={() => setPreviewPhoto(null)} hitSlop={12}>
+            <Ionicons name="close" size={wms(24)} color="#fff" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -273,6 +332,12 @@ const styles = StyleSheet.create({
   description: { fontSize: wms(13), lineHeight: wms(19), marginTop: wvs(-12) },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: ws(4), marginTop: wvs(4) },
   locationText: { fontSize: wms(13) },
+  photoRow: { gap: ws(10), paddingRight: ws(4) },
+  photoThumb: { width: ws(88), height: ws(88), borderRadius: ws(14) },
+  mapPreview: { height: wvs(140), borderRadius: ws(16), borderWidth: ws(1), overflow: 'hidden' },
+  photoModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  photoModalImage: { width: '100%', height: '80%' },
+  photoModalClose: { position: 'absolute', top: wvs(50), right: ws(20), width: ws(40), height: ws(40), borderRadius: ws(20), backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   card: { borderWidth: ws(1), borderRadius: ws(20), padding: ws(16), gap: ws(12) },
   label: { fontSize: wms(11), fontWeight: '700', letterSpacing: wms(0.5), marginBottom: wvs(8) },
   inputBox: { flexDirection: 'row', alignItems: 'center', gap: ws(10), borderWidth: ws(1), borderRadius: ws(14), height: wvs(56), paddingHorizontal: ws(14) },

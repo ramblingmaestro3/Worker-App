@@ -40,6 +40,54 @@ export type WorkerProfile = {
   updated_at: string;
 };
 
+export type VerifiedWorkerSummary = {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  skills: string[];
+  hourly_rate: number | null;
+  per_job_rate: number | null;
+  rating_avg: number;
+  rating_count: number;
+  latitude: number | null;
+  longitude: number | null;
+  availability: AvailabilityDay[];
+};
+
+/** Every verified worker — the real backing for the client-side browse/search screens (home's "nearby workers", Search.tsx's list/map). No location/skill filter server-side; these screens filter client-side over the full list, same as the mock data they replace. */
+export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: VerifiedWorkerSummary[]; error?: string }> {
+  const { data, error } = await supabase
+    .from('worker_profiles')
+    .select(
+      'id, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
+    )
+    .eq('verification_status', 'verified');
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return {
+    success: true,
+    data: (data ?? []).map((w: any) => ({
+      id: w.id,
+      full_name: w.profile?.full_name || 'Worker',
+      avatar_url: w.profile?.avatar_url ?? null,
+      skills: w.skills ?? [],
+      hourly_rate: w.hourly_rate,
+      per_job_rate: w.per_job_rate,
+      rating_avg: w.rating_avg,
+      rating_count: w.rating_count,
+      latitude: w.latitude,
+      longitude: w.longitude,
+      // The DB column defaults to '{}'::jsonb (an object) until a worker
+      // saves real availability via worker-availability.tsx, which writes
+      // an array — so a plain `?? []` doesn't catch the pre-save shape.
+      availability: Array.isArray(w.availability) ? w.availability : [],
+    })),
+  };
+}
+
 export type CreateWorkerProfileInput = {
   skills: string[];
   bio?: string;

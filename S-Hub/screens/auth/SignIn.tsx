@@ -42,6 +42,10 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
     const result = await signInWithPassword({ identifier: credential, password });
     if (!result.success) {
       setLoading(false);
+      if (result.needsVerification) {
+        navigation.navigate('OtpVerification', { identifier: credential.trim(), mode: 'email' });
+        return;
+      }
       setError(result.error ?? 'Something went wrong signing in.');
       return;
     }

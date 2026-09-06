@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLayoutEffect, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useLayoutEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, RADIUS } from '@/constants/theme';
@@ -10,8 +11,12 @@ import { s } from '@/lib/scaling';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import AppMap, { AppMapMarker } from '@/components/AppMap';
+import { useHasUnreadNotifications } from '@/hooks/use-unread-notifications';
+import { listVerifiedWorkers, VerifiedWorkerSummary } from '@/lib/api/workerProfiles';
+import { listBlockedUserIds } from '@/lib/api/blocking';
+import { useMyLocation } from '@/lib/useMyLocation';
+import { distanceKm } from '@/lib/geo';
 import type { CustomerTabParamList, RootStackParamList } from '@/navigation/types';
-import { WORKERS } from '../Search';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<CustomerTabParamList, 'home'>,
@@ -31,26 +36,106 @@ const CATEGORIES: { key: string; label: string; icon: string }[] = [
   { key: 'moving', label: 'Moving', icon: 'car-sport-outline' },
 ];
 
-// Map preview center — placeholder until real device geolocation is wired
-// up (Phase 4). Markers are derived from the same WORKERS list Search.tsx
-// uses, jittered around the center so the preview isn't empty.
-const MAP_CENTER = { latitude: 6.6885, longitude: -1.6244 };
-const NEARBY_MARKERS: AppMapMarker[] = WORKERS.map((w, i) => {
-  const angle = (i / WORKERS.length) * Math.PI * 2;
-  const radius = 0.012 + (i % 3) * 0.006;
-  return {
-    latitude: MAP_CENTER.latitude + Math.sin(angle) * radius,
-    longitude: MAP_CENTER.longitude + Math.cos(angle) * radius,
-    color: w.color,
-    title: w.name,
-    subtitle: w.skill,
-    price: `GH₵ ${w.price}`,
-  };
-});
+const AVATAR_PALETTE = [COLORS.accent, '#1D6FBA', '#D97706', '#7C3AED', '#0891B2', '#2FAE60', '#DC2626'];
+function colorForId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+function initialsOf(name: string): string {
+  return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+}
+const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+type NearbyWorker = {
+  id: string;
+  name: string;
+  skill: string;
+  rating: number;
+  initials: string;
+  color: string;
+  available: boolean;
+  distanceKm: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  price: number | null;
+};
+
+// Map preview fallback center (Kumasi), used only until the device's real
+// location resolves or if permission is denied.
+const FALLBACK_CENTER = { latitude: 6.6885, longitude: -1.6244 };
 
 export default function HomeScreen({ navigation }: Props) {
   const T = useThemeColors();
   const [query, setQuery] = useState('');
+  const hasUnread = useHasUnreadNotifications();
+  const { location: myLoc, loading: locLoading } = useMyLocation();
+
+  const [rawWorkers, setRawWorkers] = useState<VerifiedWorkerSummary[]>([]);
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
+    setLoading(true);
+    setLoadError(false);
+    const [workersResult, blockedResult] = await Promise.all([listVerifiedWorkers(), listBlockedUserIds()]);
+    if (cancelledRef?.current) return;
+    if (!workersResult.success || !workersResult.data) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setRawWorkers(workersResult.data);
+    setBlockedIds(new Set(blockedResult.data ?? []));
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const cancelledRef = { current: false };
+      load(cancelledRef);
+      return () => { cancelledRef.current = true; };
+    }, [load])
+  );
+
+  const todayAbbrev = DAY_ABBREVS[new Date().getDay()];
+  const nearbyWorkers: NearbyWorker[] = rawWorkers
+    .filter((w) => !blockedIds.has(w.id))
+    .map((w) => ({
+      id: w.id,
+      name: w.full_name,
+      skill: w.skills[0] ?? 'General services',
+      rating: w.rating_avg,
+      initials: initialsOf(w.full_name),
+      color: colorForId(w.id),
+      available: w.availability.some((d) => d.day === todayAbbrev && d.on),
+      distanceKm:
+        myLoc && w.latitude != null && w.longitude != null
+          ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
+          : null,
+      latitude: w.latitude,
+      longitude: w.longitude,
+      price: w.hourly_rate ?? w.per_job_rate ?? null,
+    }))
+    .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
+    .slice(0, 10);
+
+  const mapCenter = myLoc ?? FALLBACK_CENTER;
+  const mapMarkers: AppMapMarker[] = nearbyWorkers
+    .filter((w) => w.latitude != null && w.longitude != null)
+    .map((w) => ({
+      latitude: w.latitude as number,
+      longitude: w.longitude as number,
+      color: w.color,
+      title: w.name,
+      subtitle: w.skill,
+      price: w.price != null ? `GH₵ ${w.price}` : undefined,
+    }));
+
+  const locationLabel = myLoc?.label ?? (locLoading ? 'Locating…' : 'Set your location');
 
   const handleSelectCategory = (categoryKey: string) => {
     navigation.navigate('PostAJob', { category: categoryKey });
@@ -68,7 +153,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={[styles.greeting, { color: T.subText }]}>Find a worker near</Text>
           <TouchableOpacity style={styles.locationRow} onPress={() => navigation.navigate('SavedLocations')} activeOpacity={0.7}>
             <Ionicons name="location" size={15} color={COLORS.primary} />
-            <Text style={[styles.locationText, { color: T.text }]}>Kumasi, Ashanti</Text>
+            <Text style={[styles.locationText, { color: T.text }]}>{locationLabel}</Text>
             <Ionicons name="chevron-down" size={14} color={T.subText} />
           </TouchableOpacity>
         </View>
@@ -76,11 +161,11 @@ export default function HomeScreen({ navigation }: Props) {
       headerRight: () => (
         <TouchableOpacity style={[styles.bellBtn, { backgroundColor: T.inputBg }]} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
           <Ionicons name="notifications-outline" size={20} color={T.text} />
-          <View style={styles.bellDot} />
+          {hasUnread && <View style={styles.bellDot} />}
         </TouchableOpacity>
       ),
     });
-  }, [navigation, T]);
+  }, [navigation, T, hasUnread, locationLabel]);
 
   return (
     <View style={[styles.container, { backgroundColor: T.bg }]}>
@@ -108,10 +193,10 @@ export default function HomeScreen({ navigation }: Props) {
           {/* ── Map preview ── */}
           <TouchableOpacity style={styles.mapCard} onPress={() => navigation.navigate('Search', {})} activeOpacity={0.9}>
             <AppMap
-              latitude={MAP_CENTER.latitude}
-              longitude={MAP_CENTER.longitude}
+              latitude={mapCenter.latitude}
+              longitude={mapCenter.longitude}
               zoom={0.045}
-              markers={NEARBY_MARKERS}
+              markers={mapMarkers}
               scrollEnabled={false}
               zoomEnabled={false}
               style={styles.map}
@@ -119,7 +204,7 @@ export default function HomeScreen({ navigation }: Props) {
             <View style={styles.mapOverlay} pointerEvents="none">
               <View style={[styles.mapPill, { backgroundColor: T.card }]}>
                 <View style={styles.mapPillDot} />
-                <Text style={[styles.mapPillText, { color: T.text }]}>{WORKERS.length} workers nearby</Text>
+                <Text style={[styles.mapPillText, { color: T.text }]}>{nearbyWorkers.length} workers nearby</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -167,28 +252,43 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.workerRow}>
-            {WORKERS.map((w) => (
-              <TouchableOpacity
-                key={w.id}
-                style={[styles.workerCard, { backgroundColor: T.card, borderColor: T.border }]}
-                onPress={() => navigation.navigate('WorkerProfile', { id: String(w.id) })}
-                activeOpacity={0.85}
-              >
-                <View style={[styles.workerAvatar, { backgroundColor: w.color + '20' }]}>
-                  <Text style={[styles.workerInitials, { color: w.color }]}>{w.initials}</Text>
-                  {w.available && <View style={styles.onlineDot} />}
-                </View>
-                <Text style={[styles.workerName, { color: T.text }]} numberOfLines={1}>{w.name}</Text>
-                <Text style={[styles.workerSkill, { color: T.subText }]} numberOfLines={1}>{w.skill}</Text>
-                <View style={styles.workerMetaRow}>
-                  <Ionicons name="star" size={11} color={COLORS.accent} />
-                  <Text style={[styles.workerRating, { color: T.text }]}>{w.rating}</Text>
-                  <Text style={[styles.workerDist, { color: T.subText }]}> · {w.distance}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {loading ? (
+            <View style={styles.workerRowLoading}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            </View>
+          ) : loadError ? (
+            <TouchableOpacity style={styles.workerRowError} onPress={() => setReloadKey((k) => k + 1)} activeOpacity={0.8}>
+              <Ionicons name="cloud-offline-outline" size={18} color={T.subText} />
+              <Text style={[styles.workerRowErrorText, { color: T.subText }]}>Couldn&apos;t load workers — tap to retry</Text>
+            </TouchableOpacity>
+          ) : nearbyWorkers.length === 0 ? (
+            <Text style={[styles.workerRowErrorText, { color: T.subText, paddingVertical: 8 }]}>No verified workers nearby yet.</Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.workerRow}>
+              {nearbyWorkers.map((w) => (
+                <TouchableOpacity
+                  key={w.id}
+                  style={[styles.workerCard, { backgroundColor: T.card, borderColor: T.border }]}
+                  onPress={() => navigation.navigate('WorkerProfile', { id: w.id })}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.workerAvatar, { backgroundColor: w.color + '20' }]}>
+                    <Text style={[styles.workerInitials, { color: w.color }]}>{w.initials}</Text>
+                    {w.available && <View style={styles.onlineDot} />}
+                  </View>
+                  <Text style={[styles.workerName, { color: T.text }]} numberOfLines={1}>{w.name}</Text>
+                  <Text style={[styles.workerSkill, { color: T.subText }]} numberOfLines={1}>{w.skill}</Text>
+                  <View style={styles.workerMetaRow}>
+                    <Ionicons name="star" size={11} color={COLORS.accent} />
+                    <Text style={[styles.workerRating, { color: T.text }]}>{w.rating.toFixed(1)}</Text>
+                    {w.distanceKm != null && (
+                      <Text style={[styles.workerDist, { color: T.subText }]}> · {w.distanceKm.toFixed(1)} km</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
 
           {/* ── Trust banner ── */}
           <Card style={styles.trustBanner}>
@@ -249,6 +349,9 @@ const styles = StyleSheet.create({
 
   /* Nearby workers */
   workerRow: { gap: 12, paddingBottom: 4, paddingRight: 4 },
+  workerRowLoading: { height: 120, alignItems: 'center', justifyContent: 'center' },
+  workerRowError: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
+  workerRowErrorText: { fontSize: 12.5, fontWeight: '500' },
   workerCard: { width: 140, borderWidth: 1, borderRadius: RADIUS.lg, padding: 14, gap: 4 },
   workerAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 6, position: 'relative' },
   workerInitials: { fontSize: 15, fontWeight: '800' },

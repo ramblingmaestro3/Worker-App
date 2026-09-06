@@ -36,6 +36,7 @@ export type RootStackParamList = {
   CustomerTabs: NavigatorScreenParams<CustomerTabParamList>;
   BidComparison: { requestId: string };
   Chat: { bookingId: string };
+  JobDetail: { bookingId: string };
   FindingWorker: { service?: string; jobTitle?: string };
   LocationPicker: { lat?: string; lng?: string };
   Notifications: undefined;
@@ -44,7 +45,10 @@ export type RootStackParamList = {
   Promotions: undefined;
   SavedLocations: undefined;
   Search: { q?: string };
-  WorkerProfile: { id: string };
+  /** fromBooking: true when navigated from an existing chat/booking (WorkerProfile's
+   * "message" button then returns to that thread); omitted when browsing a stranger
+   * from search/home, where there's no existing conversation to return to. */
+  WorkerProfile: { id: string; fromBooking?: boolean };
 
   // Worker
   WorkerTabs: NavigatorScreenParams<WorkerTabParamList>;

@@ -5,7 +5,9 @@ import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import { setActiveSide } from '@/lib/activeSide';
 import { ws, wvs, wms } from '@/lib/scaling';
+import { resetToWorkerHome } from '@/navigation/navigationRef';
 import type { RootStackParamList } from '@/navigation/types';
 
 export default function VerifiedScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Verified'>) {
@@ -20,7 +22,8 @@ export default function VerifiedScreen({ navigation }: NativeStackScreenProps<Ro
   }, [navigation]);
 
   const handleGoToDashboard = () => {
-    navigation.navigate('WorkerTabs', { screen: 'worker-dashboard' });
+    void setActiveSide('worker');
+    resetToWorkerHome();
   };
 
   return (

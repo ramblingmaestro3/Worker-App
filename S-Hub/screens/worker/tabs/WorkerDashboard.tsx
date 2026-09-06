@@ -11,6 +11,7 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { distanceKm } from '@/lib/geo';
 import Card from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
 import Toast, { ToastState, ToastVariant } from '@/components/Toast';
 import { getMyProfile } from '@/lib/api/profiles';
 import { getMyWorkerProfile } from '@/lib/api/workerProfiles';
@@ -19,6 +20,7 @@ import { listMyBids, matchCounterOffer, withdrawBid, WorkerBid } from '@/lib/api
 import { countMyCompletedBookings } from '@/lib/api/bookings';
 import { subscribeToTable, unsubscribe } from '@/lib/api/realtime';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { useHasUnreadNotifications } from '@/hooks/use-unread-notifications';
 import type { RootStackParamList, WorkerTabParamList } from '@/navigation/types';
 
 function timeAgo(iso: string): string {
@@ -66,11 +68,14 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
   const [ratingCount, setRatingCount] = useState(0);
   const [jobsDone, setJobsDone] = useState(0);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [feedError, setFeedError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [myBids, setMyBids] = useState<Map<string, WorkerBid>>(new Map());
   const [respondingBidId, setRespondingBidId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const workerCoords = useRef<{ latitude: number; longitude: number } | null>(null);
   const toastKey = useRef(0);
+  const hasUnread = useHasUnreadNotifications();
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -90,10 +95,11 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
       headerRight: () => (
         <TouchableOpacity style={[styles.notifBtn, { backgroundColor: T.inputBg }]} onPress={() => navigation.navigate('WorkerNotifications')}>
           <Ionicons name="notifications-outline" size={wms(19)} color={T.text} />
+          {hasUnread && <View style={styles.notifDot} />}
         </TouchableOpacity>
       ),
     });
-  }, [navigation, fullName, T]);
+  }, [navigation, fullName, T, hasUnread]);
 
   const showToast = useCallback((message: string, variant: ToastVariant) => {
     toastKey.current += 1;
@@ -102,7 +108,12 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
 
   const loadFeed = useCallback(async (skills: string[]) => {
     const result = await listOpenServiceRequestsForCategories(skills);
-    if (result.success) setRequests(result.data ?? []);
+    if (result.success) {
+      setRequests(result.data ?? []);
+      setFeedError(false);
+    } else {
+      setFeedError(true);
+    }
   }, []);
 
   const loadMyBids = useCallback(async () => {
@@ -191,7 +202,8 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
         if (requestsChannel) unsubscribe(requestsChannel);
         if (bidsChannel) unsubscribe(bidsChannel);
       };
-    }, [loadFeed, loadMyBids, showToast, navigation])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadFeed, loadMyBids, showToast, navigation, reloadKey])
   );
 
   const handlePlaceBid = (requestId: string) => {
@@ -283,6 +295,15 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
           <View style={styles.emptyState}>
             <ActivityIndicator color={COLORS.primary} />
           </View>
+        ) : feedError ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Couldn't load requests"
+            body="Check your connection and try again."
+            actionLabel="Retry"
+            onAction={() => setReloadKey((k) => k + 1)}
+            tone="error"
+          />
         ) : enrichedRequests.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="briefcase-outline" size={wms(36)} color={T.subText} />
@@ -388,6 +409,12 @@ const styles = StyleSheet.create({
   notifBtn: {
     width: ws(38), height: ws(38), borderRadius: ws(19),
     alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
+  },
+  notifDot: {
+    position: 'absolute', top: wvs(8), right: ws(9),
+    width: ws(6), height: ws(6), borderRadius: ws(3),
+    backgroundColor: COLORS.danger,
   },
 
   /* Status row */

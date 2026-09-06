@@ -1,11 +1,18 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import EmptyState from '@/components/ui/EmptyState';
 import AppMap, { AppMapMarker } from '@/components/AppMap';
+import { listVerifiedWorkers, VerifiedWorkerSummary } from '@/lib/api/workerProfiles';
+import { listBlockedUserIds } from '@/lib/api/blocking';
+import { useMyLocation } from '@/lib/useMyLocation';
+import { distanceKm } from '@/lib/geo';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   ScrollView,
@@ -24,33 +31,31 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 /* ─── Data ─── */
 const FILTER_CHIPS = ['Filter', 'Price', 'Rating', 'Availability'];
 
-export const WORKERS = [
-  {
-    id: 1, name: 'Kofi Mensah', skill: 'Plumber',
-    rating: 4.8, reviews: 120, distance: '2.1 km',
-    price: 450, initials: 'KM', color: COLORS.accent, available: true,
-  },
-  {
-    id: 2, name: 'Kwame Adjei', skill: 'Electrician',
-    rating: 4.7, reviews: 89, distance: '1.8 km',
-    price: 400, initials: 'KA', color: '#1D6FBA', available: true,
-  },
-  {
-    id: 3, name: 'Yaw Boateng', skill: 'Carpenter',
-    rating: 4.6, reviews: 73, distance: '2.5 km',
-    price: 350, initials: 'YB', color: '#D97706', available: false,
-  },
-  {
-    id: 4, name: 'Ama Owusu', skill: 'Painter',
-    rating: 4.9, reviews: 54, distance: '3.0 km',
-    price: 300, initials: 'AO', color: '#7C3AED', available: true,
-  },
-  {
-    id: 5, name: 'Nana Asante', skill: 'Cleaner',
-    rating: 4.5, reviews: 38, distance: '1.2 km',
-    price: 200, initials: 'NA', color: '#0891B2', available: true,
-  },
-];
+const AVATAR_PALETTE = [COLORS.accent, '#1D6FBA', '#D97706', '#7C3AED', '#0891B2', '#2FAE60', '#DC2626'];
+function colorForId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+function initialsOf(name: string): string {
+  return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+}
+const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+type WorkerCard = {
+  id: string;
+  name: string;
+  skill: string;
+  rating: number;
+  reviews: number;
+  distanceKm: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  price: number | null;
+  initials: string;
+  color: string;
+  available: boolean;
+};
 
 const wc = StyleSheet.create({
   card: {
@@ -100,22 +105,20 @@ const wc = StyleSheet.create({
 /* ─── Sort/filter types ─── */
 type SortMode = 'none' | 'rating' | 'price_asc' | 'price_desc' | 'available';
 
-// Map view center — placeholder until real device geolocation is wired up
-// (Phase 4), same as the home tab's map preview. Each worker's marker is
-// placed around it at an angle/radius derived from their `distance` field
-// so the spread on the map roughly tracks the "X km away" shown in the list.
-const MAP_CENTER = { latitude: 6.6885, longitude: -1.6244 };
-function workerToMarker(w: typeof WORKERS[number], index: number, total: number): AppMapMarker {
-  const km = parseFloat(w.distance) || 1;
-  const angle = (index / total) * Math.PI * 2;
-  const radiusDeg = km * 0.009;
+// Fallback map center (Kumasi) used only until the device's real location
+// resolves, or if permission is denied — real worker coordinates always
+// drive marker placement, nothing here is fabricated per-worker.
+const FALLBACK_CENTER = { latitude: 6.6885, longitude: -1.6244 };
+
+function workerToMarker(w: WorkerCard): AppMapMarker | null {
+  if (w.latitude == null || w.longitude == null) return null;
   return {
-    latitude: MAP_CENTER.latitude + Math.sin(angle) * radiusDeg,
-    longitude: MAP_CENTER.longitude + Math.cos(angle) * radiusDeg,
+    latitude: w.latitude,
+    longitude: w.longitude,
     color: w.color,
     title: w.name,
     subtitle: w.skill,
-    price: `GH₵ ${w.price}`,
+    price: w.price != null ? `GH₵ ${w.price}` : undefined,
   };
 }
 
@@ -131,10 +134,62 @@ export default function SearchScreen({ route, navigation }: Props) {
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const T = useThemeColors();
+  const { location: myLoc } = useMyLocation();
+
+  const [rawWorkers, setRawWorkers] = useState<VerifiedWorkerSummary[]>([]);
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerTitle: 'Search Workers' });
   }, [navigation]);
+
+  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
+    setLoading(true);
+    setLoadError(false);
+    const [workersResult, blockedResult] = await Promise.all([listVerifiedWorkers(), listBlockedUserIds()]);
+    if (cancelledRef?.current) return;
+    if (!workersResult.success || !workersResult.data) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setRawWorkers(workersResult.data);
+    setBlockedIds(new Set(blockedResult.data ?? []));
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const cancelledRef = { current: false };
+      load(cancelledRef);
+      return () => { cancelledRef.current = true; };
+    }, [load])
+  );
+
+  const todayAbbrev = DAY_ABBREVS[new Date().getDay()];
+  const workers: WorkerCard[] = rawWorkers
+    .filter((w) => !blockedIds.has(w.id))
+    .map((w) => ({
+      id: w.id,
+      name: w.full_name,
+      skill: w.skills[0] ?? 'General services',
+      rating: w.rating_avg,
+      reviews: w.rating_count,
+      distanceKm:
+        myLoc && w.latitude != null && w.longitude != null
+          ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
+          : null,
+      latitude: w.latitude,
+      longitude: w.longitude,
+      price: w.hourly_rate ?? w.per_job_rate ?? null,
+      initials: initialsOf(w.full_name),
+      color: colorForId(w.id),
+      available: w.availability.some((d) => d.day === todayAbbrev && d.on),
+    }));
 
   // Chip press handlers
   const handleChipPress = (chip: string) => {
@@ -159,7 +214,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   };
 
   // 1. Filter by search text
-  const searched = WORKERS.filter(w =>
+  const searched = workers.filter(w =>
     search.trim().length === 0
       ? true
       : w.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -170,16 +225,18 @@ export default function SearchScreen({ route, navigation }: Props) {
   const filtered = [...searched]
     .filter(w => sortMode === 'available' ? w.available : true)
     .filter(w => (minRating != null ? w.rating >= minRating : true))
-    .filter(w => (priceMin.trim() ? w.price >= parseFloat(priceMin) : true))
-    .filter(w => (priceMax.trim() ? w.price <= parseFloat(priceMax) : true))
+    .filter(w => (priceMin.trim() ? w.price != null && w.price >= parseFloat(priceMin) : true))
+    .filter(w => (priceMax.trim() ? w.price != null && w.price <= parseFloat(priceMax) : true))
+    .filter(w => (radiusKm != null ? w.distanceKm == null || w.distanceKm <= radiusKm : true))
     .sort((a, b) => {
       if (sortMode === 'rating') return b.rating - a.rating;
-      if (sortMode === 'price_desc') return b.price - a.price;
-      if (sortMode === 'price_asc') return a.price - b.price;
+      if (sortMode === 'price_desc') return (b.price ?? -Infinity) - (a.price ?? -Infinity);
+      if (sortMode === 'price_asc') return (a.price ?? Infinity) - (b.price ?? Infinity);
       return 0;
     });
 
-  const mapMarkers = filtered.map((w, i) => workerToMarker(w, i, filtered.length));
+  const mapMarkers = filtered.map(workerToMarker).filter((m): m is AppMapMarker => m !== null);
+  const mapCenter = myLoc ?? FALLBACK_CENTER;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.card }]} edges={['bottom']}>
@@ -267,15 +324,28 @@ export default function SearchScreen({ route, navigation }: Props) {
       </View>
 
       {/* ── RESULTS ── */}
-      {viewMode === 'list' ? (
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : loadError ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load workers"
+          body="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => setReloadKey((k) => k + 1)}
+          tone="error"
+        />
+      ) : viewMode === 'list' ? (
         filtered.length > 0 ? (
           <View style={styles.listWrapOuter}>
             <ScreenContent style={styles.listWrap}>
               <FlatList
                 data={filtered}
-                keyExtractor={(item) => String(item.id)}
+                keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={[wc.card, { backgroundColor: T.card, borderColor: T.border }]} onPress={() => navigation.navigate('WorkerProfile', { id: String(item.id) })} activeOpacity={0.8}>
+                  <TouchableOpacity style={[wc.card, { backgroundColor: T.card, borderColor: T.border }]} onPress={() => navigation.navigate('WorkerProfile', { id: item.id })} activeOpacity={0.8}>
                     <View style={[wc.avatar, { backgroundColor: item.color + '20' }]}>
                       <Text style={[wc.initials, { color: item.color }]}>{item.initials}</Text>
                       {item.available && <View style={wc.onlineDot} />}
@@ -285,17 +355,19 @@ export default function SearchScreen({ route, navigation }: Props) {
                       <Text style={[wc.skill, { color: T.subText }]}>{item.skill}</Text>
                       <View style={wc.metaRow}>
                         <Ionicons name="star" size={11} color={COLORS.accent} />
-                        <Text style={[wc.rating, { color: T.text }]}> {item.rating}</Text>
+                        <Text style={[wc.rating, { color: T.text }]}> {item.rating.toFixed(1)}</Text>
                         <Text style={[wc.reviews, { color: T.subText }]}> ({item.reviews})</Text>
                       </View>
                       <View style={wc.distRow}>
                         <Ionicons name="location-outline" size={11} color={T.subText} />
-                        <Text style={[wc.dist, { color: T.subText }]}> {item.distance} away</Text>
+                        <Text style={[wc.dist, { color: T.subText }]}>
+                          {' '}{item.distanceKm != null ? `${item.distanceKm.toFixed(1)} km away` : 'Distance unavailable'}
+                        </Text>
                       </View>
                     </View>
                     <View style={wc.priceCol}>
                       <Text style={[wc.fromLabel, { color: T.subText }]}>From</Text>
-                      <Text style={wc.price}>GH₵ {item.price}</Text>
+                      <Text style={wc.price}>{item.price != null ? `GH₵ ${item.price}` : 'Ask'}</Text>
                     </View>
                   </TouchableOpacity>
                 )}
@@ -315,8 +387,8 @@ export default function SearchScreen({ route, navigation }: Props) {
         <View style={styles.mapWrapOuter}>
           <ScreenContent style={styles.mapWrap}>
             <AppMap
-              latitude={MAP_CENTER.latitude}
-              longitude={MAP_CENTER.longitude}
+              latitude={mapCenter.latitude}
+              longitude={mapCenter.longitude}
               zoom={0.06}
               markers={mapMarkers}
               style={styles.map}

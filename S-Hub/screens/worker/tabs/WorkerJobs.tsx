@@ -8,6 +8,7 @@ import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOp
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import EmptyState from '@/components/ui/EmptyState';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { listMyBookingsAsWorker, WorkerBookingView } from '@/lib/api/bookings';
 import { subscribeToTable, unsubscribe } from '@/lib/api/realtime';
@@ -55,6 +56,7 @@ export default function WorkerJobsScreen({ navigation }: Props) {
   const T = useThemeColors();
   const [filter, setFilter] = useState<Filter>('active');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [bookings, setBookings] = useState<WorkerBookingView[]>([]);
 
   useLayoutEffect(() => {
@@ -63,7 +65,12 @@ export default function WorkerJobsScreen({ navigation }: Props) {
 
   const load = useCallback(async () => {
     const result = await listMyBookingsAsWorker();
-    if (result.success) setBookings(result.data ?? []);
+    if (result.success) {
+      setBookings(result.data ?? []);
+      setError(false);
+    } else {
+      setError(true);
+    }
   }, []);
 
   useFocusEffect(
@@ -130,6 +137,15 @@ export default function WorkerJobsScreen({ navigation }: Props) {
         <View style={styles.empty}>
           <ActivityIndicator color={COLORS.primary} />
         </View>
+      ) : error ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load your jobs"
+          body="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => load()}
+          tone="error"
+        />
       ) : filtered.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="briefcase-outline" size={wms(44)} color={T.subText + '50'} />
@@ -153,7 +169,12 @@ export default function WorkerJobsScreen({ navigation }: Props) {
             const location = booking.request?.location_string ?? booking.request?.location_region ?? '';
 
             return (
-              <View key={booking.id} style={[styles.jobCard, { backgroundColor: T.card, borderColor: T.border }]}>
+              <TouchableOpacity
+                key={booking.id}
+                activeOpacity={0.85}
+                style={[styles.jobCard, { backgroundColor: T.card, borderColor: T.border }]}
+                onPress={() => navigation.navigate('JobDetail', { bookingId: booking.id })}
+              >
                 <View style={[styles.clientAvatar, { backgroundColor: color + '18' }]}>
                   <Text style={[styles.clientInitials, { color }]}>{initialsOf(clientName)}</Text>
                 </View>
@@ -174,7 +195,7 @@ export default function WorkerJobsScreen({ navigation }: Props) {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </ScrollView>

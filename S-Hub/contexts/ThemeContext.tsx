@@ -27,9 +27,9 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme() ?? 'dark';
-  // Default to 'dark' — AdwumaGo's brand theme is dark-first; only change when user explicitly toggles
-  const [preference, setPreferenceState] = useState<ColorScheme>('dark');
+  const systemScheme = useSystemColorScheme() ?? 'light';
+  // Default to 'light' — AdwumaGo's brand theme is light-first (green & white); only change when user explicitly toggles
+  const [preference, setPreferenceState] = useState<ColorScheme>('light');
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load persisted preference on mount
@@ -51,7 +51,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Only resolve after storage is loaded to avoid a flash
   const colorScheme: 'light' | 'dark' = !isLoaded
-    ? 'dark'
+    ? 'light'
     : preference === 'system'
       ? systemScheme
       : preference;
