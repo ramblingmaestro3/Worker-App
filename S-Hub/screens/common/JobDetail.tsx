@@ -8,7 +8,7 @@ import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
-import { getBookingWithContext, BookingChatContext, BookingStatus } from '@/lib/api/bookings';
+import { getBookingWithContext, advanceBookingStatus, cancelBooking, BookingChatContext, BookingStatus } from '@/lib/api/bookings';
 import { getMyReviewForBooking, submitReview, Review } from '@/lib/api/reviews';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { s, vs, ms } from '@/lib/scaling';
@@ -30,6 +30,14 @@ const TIMELINE_STEPS: { key: 'accepted_at' | 'en_route_at' | 'arrived_at' | 'com
   { key: 'arrived_at', label: 'Worker arrived' },
   { key: 'completed_at', label: 'Completed' },
 ];
+
+/** The worker's next forward step from each status, and the button label that advances it. */
+const NEXT_STEP: Partial<Record<BookingStatus, { status: BookingStatus; label: string }>> = {
+  accepted: { status: 'en_route', label: 'Mark En Route' },
+  en_route: { status: 'arrived', label: 'Mark Arrived' },
+  arrived: { status: 'in_progress', label: 'Start Job' },
+  in_progress: { status: 'completed', label: 'Mark Completed' },
+};
 
 function initialsOf(name: string): string {
   return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
@@ -66,6 +74,8 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [draftRating, setDraftRating] = useState(0);
   const [draftComment, setDraftComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: true, headerTitle: 'Job Details' });
@@ -120,6 +130,37 @@ export default function JobDetailScreen({ route, navigation }: Props) {
       comment: draftComment.trim() || null,
       created_at: new Date().toISOString(),
     });
+  };
+
+  const handleAdvance = async (nextStatus: BookingStatus) => {
+    setUpdatingStatus(true);
+    const result = await advanceBookingStatus(bookingId, nextStatus);
+    setUpdatingStatus(false);
+    if (!result.success) {
+      Alert.alert('Could Not Update Job', result.error ?? 'Something went wrong. Please try again.');
+      return;
+    }
+    load();
+  };
+
+  const handleCancel = () => {
+    Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, Cancel',
+        style: 'destructive',
+        onPress: async () => {
+          setCancelling(true);
+          const result = await cancelBooking(bookingId);
+          setCancelling(false);
+          if (!result.success) {
+            Alert.alert('Could Not Cancel', result.error ?? 'Something went wrong. Please try again.');
+            return;
+          }
+          load();
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -264,6 +305,36 @@ export default function JobDetailScreen({ route, navigation }: Props) {
             )}
           </Card>
 
+          {!isClientViewer && NEXT_STEP[context.status] && (
+            <TouchableOpacity
+              style={[styles.advanceBtn, { backgroundColor: COLORS.primary }, updatingStatus && { opacity: 0.7 }]}
+              onPress={() => handleAdvance(NEXT_STEP[context.status]!.status)}
+              disabled={updatingStatus}
+              activeOpacity={0.85}
+            >
+              {updatingStatus ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.advanceBtnText}>{NEXT_STEP[context.status]!.label}</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {isClientViewer && !cancelled && context.status !== 'completed' && (
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: COLORS.danger }, cancelling && { opacity: 0.7 }]}
+              onPress={handleCancel}
+              disabled={cancelling}
+              activeOpacity={0.85}
+            >
+              {cancelling ? (
+                <ActivityIndicator size="small" color={COLORS.danger} />
+              ) : (
+                <Text style={styles.cancelBtnText}>Cancel Booking</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           {context.status === 'completed' && (
             <>
               <Text style={[styles.sectionLabel, { color: T.subText }]}>
@@ -358,6 +429,11 @@ const styles = StyleSheet.create({
   timelineDot: { width: s(8), height: s(8), borderRadius: s(4) },
   timelineLabel: { flex: 1, fontSize: ms(13.5), fontWeight: '600' },
   timelineTime: { fontSize: ms(11.5) },
+
+  advanceBtn: { marginTop: vs(20), paddingVertical: vs(14), borderRadius: RADIUS.full, alignItems: 'center' },
+  advanceBtnText: { color: '#fff', fontSize: ms(14.5), fontWeight: '700' },
+  cancelBtn: { marginTop: vs(14), paddingVertical: vs(13), borderRadius: RADIUS.full, alignItems: 'center', borderWidth: 1.5 },
+  cancelBtnText: { color: COLORS.danger, fontSize: ms(14), fontWeight: '700' },
 
   reviewCard: { gap: vs(12), alignItems: 'center' },
   starsRow: { flexDirection: 'row', gap: s(6) },
