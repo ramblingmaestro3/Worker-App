@@ -10,7 +10,8 @@
 // secret the trigger sends as X-Webhook-Secret, checked below.
 //
 // Deploy: supabase functions deploy send-push
-// Secret:  supabase secrets set PUSH_WEBHOOK_SECRET=d54f9b56b2a1cbfbd07aba93f336aa595b3426ab97d2a3357840b37306bcad74
+// Secret:  supabase secrets set PUSH_WEBHOOK_SECRET=<generate one, e.g. `openssl rand -hex 32`>
+// and configure the same value as the trigger's X-Webhook-Secret header.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
