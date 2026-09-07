@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { routeSignedInUserByRole } from '@/lib/auth';
@@ -45,12 +46,13 @@ export default function WorkerGateScreen({ navigation }: NativeStackScreenProps<
   const T = useThemeColors();
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: '' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} />
+      <ScreenHeader title="" onBack={() => navigation.goBack()} />
 
       {/* Hero */}
       <View style={styles.heroSection}>

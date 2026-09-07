@@ -27,6 +27,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 
 const TYPE_META: Record<NotificationType, { icon: string; bg: string; color: string }> = {
@@ -110,20 +111,8 @@ export default function WorkerNotificationsScreen({ navigation }: Props) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => (
-        <View style={s.headerCenter}>
-          <Text style={[s.title, { color: T.text }]}>Notifications</Text>
-          {unreadCount > 0 && <View style={s.badge}><Text style={s.badgeText}>{unreadCount}</Text></View>}
-        </View>
-      ),
-      headerRight: () => (
-        <TouchableOpacity onPress={markAllRead} disabled={unreadCount === 0}>
-          <Text style={[s.markAllText, unreadCount === 0 && { opacity: 0.3 }]}>Mark all read</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, T, unreadCount]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const unread = notifs.filter((n) => !n.is_read);
   const read = notifs.filter((n) => n.is_read);
@@ -159,8 +148,19 @@ export default function WorkerNotificationsScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        titleRight={unreadCount > 0 ? <View style={s.badge}><Text style={s.badgeText}>{unreadCount}</Text></View> : null}
+        right={
+          <TouchableOpacity onPress={markAllRead} disabled={unreadCount === 0}>
+            <Text style={[s.markAllText, unreadCount === 0 && { opacity: 0.3 }]}>Mark all read</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <View style={s.pageInner}>
         {loading ? (
@@ -213,8 +213,6 @@ const s = StyleSheet.create({
   safe: { flex: 1 },
   pageInner: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center' },
 
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: ws(8) },
-  title: { fontSize: wms(20), fontWeight: '800' },
   badge: { backgroundColor: COLORS.danger, borderRadius: ws(10), minWidth: ws(20), height: ws(20), alignItems: 'center', justifyContent: 'center', paddingHorizontal: ws(5) },
   badgeText: { fontSize: wms(11), fontWeight: '800', color: '#fff' },
   markAllText: { fontSize: wms(13), color: COLORS.primary, fontWeight: '600' },

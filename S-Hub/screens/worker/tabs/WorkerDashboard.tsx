@@ -78,28 +78,8 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
   const hasUnread = useHasUnreadNotifications();
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => (
-        <View style={styles.headerLeft}>
-          <View style={[styles.avatarSmall, { backgroundColor: COLORS.primary + '20' }]}>
-            <Text style={styles.avatarInitials}>
-              {fullName ? fullName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() : '?'}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.greeting, { color: T.subText }]}>Welcome back</Text>
-            <Text style={[styles.userName, { color: T.text }]} numberOfLines={1}>{fullName || 'Worker'}</Text>
-          </View>
-        </View>
-      ),
-      headerRight: () => (
-        <TouchableOpacity style={[styles.notifBtn, { backgroundColor: T.inputBg }]} onPress={() => navigation.navigate('WorkerNotifications')}>
-          <Ionicons name="notifications-outline" size={wms(19)} color={T.text} />
-          {hasUnread && <View style={styles.notifDot} />}
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, fullName, T, hasUnread]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const showToast = useCallback((message: string, variant: ToastVariant) => {
     toastKey.current += 1;
@@ -250,8 +230,26 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
     });
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={[]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <View style={styles.dashHeader}>
+        <View style={styles.headerLeft}>
+          <View style={[styles.avatarSmall, { backgroundColor: COLORS.primary + '20' }]}>
+            <Text style={styles.avatarInitials}>
+              {fullName ? fullName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() : '?'}
+            </Text>
+          </View>
+          <View>
+            <Text style={[styles.greeting, { color: T.subText }]}>Welcome back</Text>
+            <Text style={[styles.userName, { color: T.text }]} numberOfLines={1}>{fullName || 'Worker'}</Text>
+          </View>
+        </View>
+        <TouchableOpacity style={[styles.notifBtn, { backgroundColor: T.inputBg }]} onPress={() => navigation.navigate('WorkerNotifications')}>
+          <Ionicons name="notifications-outline" size={wms(19)} color={T.text} />
+          {hasUnread && <View style={styles.notifDot} />}
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.pageInner}>
       {/* ── Online status ── */}
@@ -408,6 +406,7 @@ const styles = StyleSheet.create({
   pageInner: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center' },
 
   /* Header */
+  dashHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: ws(20), paddingTop: wvs(12), paddingBottom: wvs(4) },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: ws(12), flex: 1, marginRight: ws(12) },
   avatarSmall: {
     width: ws(42), height: ws(42), borderRadius: ws(21),

@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import EmptyState from '@/components/ui/EmptyState';
@@ -60,7 +61,7 @@ export default function WorkerJobsScreen({ navigation }: Props) {
   const [bookings, setBookings] = useState<WorkerBookingView[]>([]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerTitle: 'My Jobs' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const load = useCallback(async () => {
@@ -108,8 +109,10 @@ export default function WorkerJobsScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={[]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <ScreenHeader title="My Jobs" />
 
       <View style={styles.pageInner}>
       {/* Tab Filters */}

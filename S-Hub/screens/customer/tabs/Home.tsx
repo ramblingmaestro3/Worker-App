@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -146,9 +147,14 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: '',
-      headerLeft: () => (
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
+      <StatusBar barStyle={T.statusBar} />
+
+      <View style={styles.homeHeader}>
         <View>
           <Text style={[styles.greeting, { color: T.subText }]}>Find a worker near</Text>
           <TouchableOpacity style={styles.locationRow} onPress={() => navigation.navigate('SavedLocations')} activeOpacity={0.7}>
@@ -157,19 +163,11 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons name="chevron-down" size={14} color={T.subText} />
           </TouchableOpacity>
         </View>
-      ),
-      headerRight: () => (
         <TouchableOpacity style={[styles.bellBtn, { backgroundColor: T.inputBg }]} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
           <Ionicons name="notifications-outline" size={20} color={T.text} />
           {hasUnread && <View style={styles.bellDot} />}
         </TouchableOpacity>
-      ),
-    });
-  }, [navigation, T, hasUnread, locationLabel]);
-
-  return (
-    <View style={[styles.container, { backgroundColor: T.bg }]}>
-      <StatusBar barStyle={T.statusBar} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
@@ -303,12 +301,13 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </ScrollView>
 
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  homeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   greeting: { fontSize: 11.5, fontWeight: '500', marginBottom: 2 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { fontSize: 17, fontWeight: '800' },

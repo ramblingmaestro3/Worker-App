@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import { resetToSplash } from '@/navigation/navigationRef';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/lib/stores/auth-store';
@@ -37,15 +38,16 @@ export default function SettingsScreen({ navigation }: NativeStackScreenProps<Ro
   const roleLabel = isWorker ? (workerGateStatus === 'verified' ? 'Verified Pro' : 'Worker') : 'Client';
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: 'Settings' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const LANGUAGES = ['English', 'Twi', 'Ga', 'Ewe', 'Hausa'];
   const iconColor = T.icon;
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <ScreenContent>

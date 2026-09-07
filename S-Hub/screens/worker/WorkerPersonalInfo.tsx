@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import { getMyProfile, updateProfile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, updateWorkerProfile } from '@/lib/api/workerProfiles';
 import type { RootStackParamList } from '@/navigation/types';
@@ -54,11 +55,7 @@ export default function WorkerPersonalInfoScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Personal Information',
-      headerStyle: { backgroundColor: COLORS.primary },
-      headerTintColor: '#fff',
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   useEffect(() => {
@@ -98,15 +95,19 @@ export default function WorkerPersonalInfoScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={[]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top']}>
+        <ScreenHeader title="Personal Information" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={[]}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top']}>
+      <StatusBar barStyle={T.statusBar} />
+      <ScreenHeader title="Personal Information" onBack={() => navigation.goBack()} />
 
       <View style={s.pageInner}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>

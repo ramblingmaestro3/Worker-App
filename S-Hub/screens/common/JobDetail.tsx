@@ -5,6 +5,7 @@ import { useCallback, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import Card from '@/components/ui/Card';
@@ -79,7 +80,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [cancelling, setCancelling] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: 'Job Details' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const load = useCallback(async (cancelledRef?: { current: boolean }) => {
@@ -166,15 +167,19 @@ export default function JobDetailScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['bottom']}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+        <ScreenHeader title="Job Details" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </SafeAreaView>
     );
   }
 
   if (notFound || !context || !myId) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+        <ScreenHeader title="Job Details" onBack={() => navigation.goBack()} />
         <EmptyState
           icon="cloud-offline-outline"
           title="Couldn't load this job"
@@ -199,8 +204,9 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const cancelled = context.status === 'cancelled';
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader title="Job Details" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>

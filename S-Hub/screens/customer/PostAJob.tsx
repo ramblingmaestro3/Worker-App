@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '@/lib/Alert';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
@@ -51,9 +52,7 @@ export default function PostAJobScreen({ route, navigation }: Props) {
   const [posting, setPosting] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => <Text style={[styles.logo, { color: COLORS.primary }]}>AdwumaGo</Text>,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   // Generate the next 7 days for the date selector
@@ -179,8 +178,16 @@ export default function PostAJobScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: T.bg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <View style={styles.pageHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={T.text} />
+        </TouchableOpacity>
+        <Text style={[styles.logo, { color: COLORS.primary }]}>AdwumaGo</Text>
+        <View style={{ width: 22 }} />
+      </View>
 
       {/* Content capped and centered the same way as SignUp.tsx / SignIn.tsx */}
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -390,12 +397,13 @@ export default function PostAJobScreen({ route, navigation }: Props) {
       </View>
 
       <BottomNav role="customer" />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   logo: { fontSize: 20, fontWeight: '900' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 200, alignItems: 'center' },
   content: { width: '100%', maxWidth: s(544), gap: 20 },

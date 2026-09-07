@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WorkerProfile'>;
@@ -61,7 +62,7 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
     const { id, fromBooking } = route.params;
 
     useLayoutEffect(() => {
-        navigation.setOptions({ headerTitle: 'Worker Profile' });
+        navigation.setOptions({ headerShown: false });
     }, [navigation]);
 
     const [vm, setVm] = useState<ViewModel | null>(null);
@@ -118,15 +119,19 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
 
     if (loading) {
         return (
-            <SafeAreaView style={[s.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['bottom']}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+            <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+                <ScreenHeader title="Worker Profile" onBack={() => navigation.goBack()} />
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
             </SafeAreaView>
         );
     }
 
     if (!vm || loadError) {
         return (
-            <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+            <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+                <ScreenHeader title="Worker Profile" onBack={() => navigation.goBack()} />
                 <EmptyState
                     icon={loadError ? 'cloud-offline-outline' : 'person-remove-outline'}
                     title={loadError ? "Couldn't load this profile" : 'Worker not found'}
@@ -176,8 +181,9 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
     ];
 
     return (
-        <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+        <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
             <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
+            <ScreenHeader title="Worker Profile" onBack={() => navigation.goBack()} />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollOuter}>
                 <ScreenContent style={s.scroll}>

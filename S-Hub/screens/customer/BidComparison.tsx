@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '@/lib/Alert';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
@@ -34,11 +35,18 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
   const [withdrawing, setWithdrawing] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => <Text style={[styles.logo, { color: COLORS.primary }]}>AdwumaGo</Text>,
-      headerRight: () => <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />,
-    });
-  }, [navigation, T]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  const pageHeader = (
+    <View style={styles.pageHeader}>
+      <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7}>
+        <Ionicons name="arrow-back" size={22} color={T.text} />
+      </TouchableOpacity>
+      <Text style={[styles.logo, { color: COLORS.primary }]}>AdwumaGo</Text>
+      <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />
+    </View>
+  );
 
   const refetchBids = useCallback(async () => {
     if (!requestId) return;
@@ -175,15 +183,20 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
+        {pageHeader}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!requestId || !request) {
     return (
-      <View style={[styles.container, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
+        {pageHeader}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Ionicons
           name={loadError ? 'cloud-offline-outline' : 'document-text-outline'}
           size={40}
@@ -203,13 +216,15 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Go Back</Text>
         </TouchableOpacity>
-      </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: T.bg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+      {pageHeader}
 
       <ScrollView contentContainerStyle={styles.scrollOuter}>
         <ScreenContent style={styles.scrollContent}>
@@ -359,12 +374,13 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
       </ScrollView>
 
       <BottomNav role="customer" active="jobs" />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   logo: { fontSize: 22, fontWeight: '900' },
   avatarSmall: { width: 40, height: 40, borderRadius: 20 },
   scrollOuter: { alignItems: 'center' },
