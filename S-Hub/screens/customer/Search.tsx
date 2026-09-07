@@ -129,7 +129,10 @@ export default function SearchScreen({ route, navigation }: Props) {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [sortMode, setSortMode] = useState<SortMode>('none');
   const [filterVisible, setFilterVisible] = useState(false);
-  const [radiusKm, setRadiusKm] = useState(15);
+  // null = no distance filter -- "See All" from Home should show every
+  // verified worker, not just whoever happens to be near the last-picked
+  // radius. A radius only kicks in once the user picks one in Filter & Sort.
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
   const [minRating, setMinRating] = useState<number | null>(null);
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
@@ -419,7 +422,7 @@ export default function SearchScreen({ route, navigation }: Props) {
               <View style={styles.modalRow}>
                 <Text style={[styles.modalLabel, { color: T.text }]}>Distance Radius</Text>
                 <View style={[styles.radiusPill, { backgroundColor: T.inputBg }]}>
-                  <Text style={[styles.radiusPillText, { color: T.text }]}>{radiusKm} km</Text>
+                  <Text style={[styles.radiusPillText, { color: T.text }]}>{radiusKm != null ? `${radiusKm} km` : 'Any distance'}</Text>
                 </View>
               </View>
               <View style={styles.radiusChipsRow}>
@@ -431,7 +434,7 @@ export default function SearchScreen({ route, navigation }: Props) {
                       { borderColor: T.border },
                       radiusKm === km && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
                     ]}
-                    onPress={() => setRadiusKm(km)}
+                    onPress={() => setRadiusKm(radiusKm === km ? null : km)}
                   >
                     <Text style={[styles.radiusChipText, { color: T.text }, radiusKm === km && { color: '#fff' }]}>{km}km</Text>
                   </TouchableOpacity>
