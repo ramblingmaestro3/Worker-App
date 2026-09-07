@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -48,10 +49,7 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
   const isEmail = identifier.includes('@');
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   useEffect(() => {
@@ -175,12 +173,15 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: T.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} />
 
+      <Text style={styles.logo}>AdwumaGo</Text>
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={[styles.card, { backgroundColor: T.card, borderColor: T.border }]}>
           {/* ── STEP 1 ── */}
@@ -425,13 +426,15 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
           )}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  logo: { fontSize: ms(22), fontWeight: '900', color: COLORS.primary },
+  flex: { flex: 1 },
+  logo: { fontSize: ms(22), fontWeight: '900', color: COLORS.primary, paddingHorizontal: s(20), paddingTop: vs(16), paddingBottom: vs(4) },
   scrollContent: { paddingHorizontal: s(20), paddingBottom: vs(40), alignItems: 'center' },
   card: { width: '100%', maxWidth: s(544), borderWidth: s(1), borderRadius: s(24), padding: s(24) },
   stepHeader: { marginBottom: vs(24) },

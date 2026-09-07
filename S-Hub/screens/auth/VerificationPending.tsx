@@ -30,13 +30,8 @@ export default function VerificationPendingScreen({ navigation }: NativeStackScr
   const STEPS = buildSteps(reviewing);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerLeft: () => null,
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-      headerRight: () => <Ionicons name="notifications-outline" size={wms(22)} color={T.text} />,
-    });
-  }, [navigation, T.text]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +69,11 @@ export default function VerificationPendingScreen({ navigation }: NativeStackScr
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]}>
       <StatusBar barStyle={T.statusBar} />
+
+      <View style={styles.topBar}>
+        <Text style={styles.logo}>AdwumaGo</Text>
+        <Ionicons name="notifications-outline" size={wms(22)} color={T.text} />
+      </View>
 
       <View style={styles.content}>
         <View style={[styles.iconWrap, { backgroundColor: T.card, borderColor: T.border }]}>
@@ -141,6 +141,17 @@ export default function VerificationPendingScreen({ navigation }: NativeStackScr
 const styles = StyleSheet.create({
   container: { flex: 1 },
   logo: { fontSize: wms(22), fontWeight: '900', color: COLORS.primary },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: ws(544),
+    alignSelf: 'center',
+    paddingHorizontal: ws(24),
+    paddingTop: wvs(16),
+    paddingBottom: wvs(4),
+  },
   content: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center', alignItems: 'center', paddingHorizontal: ws(24), paddingTop: wvs(16) },
   iconWrap: {
     width: ws(96),

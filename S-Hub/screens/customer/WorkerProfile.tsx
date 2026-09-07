@@ -11,7 +11,6 @@ import { useCallback, useLayoutEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     ActivityIndicator,
-    Alert,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -19,6 +18,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
 

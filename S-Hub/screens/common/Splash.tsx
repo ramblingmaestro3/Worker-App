@@ -15,12 +15,7 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
   const status = useAuthStore((store) => store.status);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerShadowVisible: false,
-      headerStyle: { backgroundColor: COLORS.background },
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   useEffect(() => {
@@ -49,7 +44,11 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
 
-      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+        <ScreenContent style={styles.logoWrap}>
+          <Text style={styles.logo}>AdwumaGo</Text>
+        </ScreenContent>
+
         <Animated.View style={[styles.bodyWrap, { opacity: fadeAnim }]}>
           <ScreenContent style={styles.bodyInner}>
             <View style={styles.tag}>
@@ -101,6 +100,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   safeArea: { flex: 1 },
 
+  logoWrap: { paddingHorizontal: s(24), paddingTop: vs(16) },
   logo: { fontSize: ms(20), fontWeight: '900', color: COLORS.primary },
 
   bodyWrap: { flex: 1, justifyContent: 'center' },

@@ -6,9 +6,8 @@ import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { countMyCompletedBookingsAsClient } from '@/lib/api/bookings';
 import { countMyServiceRequests } from '@/lib/api/serviceRequests';
 import { listSavedLocations } from '@/lib/api/savedLocations';
-import { signOut } from '@/lib/auth';
+import SignOutButton from '@/components/SignOutButton';
 import { useAuthStore } from '@/lib/stores/auth-store';
-import { resetToSignIn } from '@/navigation/navigationRef';
 import type { CustomerTabParamList, RootStackParamList } from '@/navigation/types';
 import { s, vs, ms } from '@/lib/scaling';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,7 +18,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   ScrollView,
   Share,
@@ -30,6 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Props = CompositeScreenProps<
@@ -326,22 +325,7 @@ export default function ProfileScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('Terms')}
             />
             <View style={[styles.divider, { backgroundColor: T.divider }]} />
-            <MenuItem T={T}
-              icon={<Ionicons name="log-out-outline" size={iconSize} color={COLORS.danger} />}
-              label="Sign Out"
-              danger
-              onPress={() =>
-                Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Sign Out', style: 'destructive', onPress: async () => {
-                      await signOut();
-                      resetToSignIn();
-                    },
-                  },
-                ])
-              }
-            />
+            <SignOutButton />
           </View>
 
           {/* App version */}

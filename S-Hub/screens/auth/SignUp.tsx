@@ -28,6 +28,7 @@ import {
   passwordStrengthError,
   formatGhanaPhone,
 } from '@/lib/auth';
+import { s, vs, ms } from '@/lib/scaling';
 import type { RootStackParamList } from '@/navigation/types';
 
 const PRIMARY = COLORS.primary;
@@ -48,7 +49,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
   const T = useThemeColors();
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: 'Sign Up' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   /** Validates all fields, setting per-field inline errors. Returns whether the form is valid. */
@@ -143,8 +144,12 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
+
+      <ScreenContent style={styles.logoWrap}>
+        <Text style={styles.logo}>AdwumaGo</Text>
+      </ScreenContent>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -163,7 +168,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                 accessibilityState={{ selected: role === 'client' }}
                 accessibilityLabel="Register to find workers"
               >
-                <Ionicons name="search" size={22} color={role === 'client' ? PRIMARY : T.subText} style={styles.roleIcon} />
+                <Ionicons name="search" size={ms(22)} color={role === 'client' ? PRIMARY : T.subText} style={styles.roleIcon} />
                 <Text style={[styles.roleLabel, { color: T.text }]}>Find Workers</Text>
                 <Text style={[styles.roleSub, { color: T.subText }]}>I need a service</Text>
               </TouchableOpacity>
@@ -174,7 +179,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                 accessibilityState={{ selected: role === 'worker' }}
                 accessibilityLabel="Register to offer services"
               >
-                <Ionicons name="briefcase" size={22} color={role === 'worker' ? PRIMARY : T.subText} style={styles.roleIcon} />
+                <Ionicons name="briefcase" size={ms(22)} color={role === 'worker' ? PRIMARY : T.subText} style={styles.roleIcon} />
                 <Text style={[styles.roleLabel, { color: T.text }]}>Offer Services</Text>
                 <Text style={[styles.roleSub, { color: T.subText }]}>I am a worker</Text>
               </TouchableOpacity>
@@ -217,7 +222,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                     accessibilityRole="button"
                     accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    <Ionicons name={showPassword ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
+                    <Ionicons name={showPassword ? 'eye' : 'eye-off-outline'} size={ms(18)} color={T.subText} />
                   </TouchableOpacity>
                 }
               />
@@ -260,7 +265,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                   <ActivityIndicator size="small" color={T.text} />
                 ) : (
                   <>
-                    <AntDesign name="google" size={18} color="#EA4335" />
+                    <AntDesign name="google" size={ms(18)} color="#EA4335" />
                     <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Google</Text>
                   </>
                 )}
@@ -277,7 +282,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
                   <ActivityIndicator size="small" color={T.text} />
                 ) : (
                   <>
-                    <Ionicons name="logo-apple" size={20} color={T.text} />
+                    <Ionicons name="logo-apple" size={ms(20)} color={T.text} />
                     <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Apple</Text>
                   </>
                 )}
@@ -303,59 +308,62 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
 }
 
 const styles = StyleSheet.create({
+  logoWrap: { paddingHorizontal: s(24), paddingTop: vs(16) },
+  logo: { fontSize: ms(20), fontWeight: '900', color: PRIMARY },
+
   container: {
-    paddingHorizontal: 24,
-    paddingTop: 4,
-    paddingBottom: 40,
+    paddingHorizontal: s(24),
+    paddingTop: vs(4),
+    paddingBottom: vs(40),
   },
 
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: s(24),
+    paddingTop: vs(12),
+    paddingBottom: vs(4),
   },
-  subheading: { fontSize: 14 },
+  subheading: { fontSize: ms(14) },
 
-  roleRow: { flexDirection: 'row', gap: 12, marginTop: 4, marginBottom: 24 },
+  roleRow: { flexDirection: 'row', gap: s(12), marginTop: vs(4), marginBottom: vs(24) },
   roleCard: {
     flex: 1, borderWidth: 1.5,
-    borderRadius: RADIUS.lg, padding: 14, alignItems: 'center',
+    borderRadius: RADIUS.lg, padding: s(14), alignItems: 'center',
   },
   roleCardActive: { borderColor: PRIMARY, backgroundColor: PRIMARY + '0D' },
-  roleIcon: { marginBottom: 6 },
-  roleLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text },
-  roleSub: { fontSize: 11, color: MUTED, marginTop: 2 },
+  roleIcon: { marginBottom: vs(6) },
+  roleLabel: { fontSize: ms(13), fontWeight: '700', color: COLORS.text },
+  roleSub: { fontSize: ms(11), color: MUTED, marginTop: vs(2) },
 
-  inputBox: { marginBottom: 20 },
+  inputBox: { marginBottom: vs(20) },
 
-  btnWrap: { marginBottom: 16 },
+  btnWrap: { marginBottom: vs(16) },
 
   errorText: {
-    fontSize: 13, color: COLORS.danger,
-    textAlign: 'center', marginBottom: 16,
+    fontSize: ms(13), color: COLORS.danger,
+    textAlign: 'center', marginBottom: vs(16),
   },
 
   termsText: {
-    fontSize: 12, color: MUTED,
-    textAlign: 'center', marginBottom: 20, lineHeight: 18,
+    fontSize: ms(12), color: MUTED,
+    textAlign: 'center', marginBottom: vs(20), lineHeight: ms(18),
   },
 
   dividerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20,
+    flexDirection: 'row', alignItems: 'center', gap: s(10), marginBottom: vs(20),
   },
   dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontSize: 12, fontWeight: '500' },
+  dividerText: { fontSize: ms(12), fontWeight: '500' },
 
-  socialRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  socialRow: { flexDirection: 'row', gap: s(12), marginBottom: vs(24) },
   socialBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, borderWidth: 1.5, borderRadius: RADIUS.md, paddingVertical: 13,
+    gap: s(8), borderWidth: 1.5, borderRadius: RADIUS.md, paddingVertical: vs(13),
   },
-  socialBtnText: { fontSize: 14, fontWeight: '600' },
+  socialBtnText: { fontSize: ms(14), fontWeight: '600' },
 
   loginRow: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
   },
-  loginText: { fontSize: 14, color: MUTED },
-  loginLink: { fontSize: 14, color: PRIMARY, fontWeight: '700' },
+  loginText: { fontSize: ms(14), color: MUTED },
+  loginLink: { fontSize: ms(14), color: PRIMARY, fontWeight: '700' },
 });

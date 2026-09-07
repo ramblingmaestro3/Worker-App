@@ -1,12 +1,27 @@
 // Supabase Edge Function: ai-analyze
 //
-// Analyzes a customer-submitted problem photo with Google Gemini vision and
-// returns an identified problem + ranked worker-skill recommendations. Ported
-// from the legacy Flask service (Workerapp-Backend/app/services/ai_service.py).
+// Analyzes a customer-submitted problem photo with a vision LLM via
+// OpenRouter and returns an identified problem + ranked worker-skill
+// recommendations. Ported from the legacy Flask service
+// (Workerapp-Backend/app/services/ai_service.py); originally called Gemini
+// directly, switched to OpenRouter 2026-09 to avoid Google Cloud's
+// project-level billing/prepayment-credits setup in favor of OpenRouter's
+// single-key prepaid-credit model, and to have a real free-tier option.
 //
 // Deploy:   supabase functions deploy ai-analyze
-// Secret:   supabase secrets set GEMINI_API_KEY=...   (free key: https://aistudio.google.com/apikey)
-// Optional: supabase secrets set GEMINI_MODEL=gemini-2.5-flash
+// Secret:   supabase secrets set OPENROUTER_API_KEY=...   (key: https://openrouter.ai/keys)
+// Optional: supabase secrets set OPENROUTER_MODEL=minimax/minimax-m3:free
+//
+// Default model is a free, vision-capable model confirmed live (2026-09) to
+// support `response_format: json_object`. Google's free vision models
+// (gemma-4-*:free) route through the shared "Google AI Studio" free pool,
+// which 429s constantly when called from cloud/serverless IPs like Supabase
+// Edge Functions -- confirmed live by testing the exact same request from a
+// residential IP (succeeds) vs. this function (429). minimax/minimax-m3:free
+// runs on a different backend (GMICloud) and doesn't share that bottleneck.
+// Re-check https://openrouter.ai/models?modalities=image if this drifts,
+// since OpenRouter's free-tier lineup and each provider's rate limits change
+// over time.
 //
 // verify_jwt is disabled (config.toml) so the CORS preflight isn't rejected by
 // the gateway; this function verifies the caller's token itself below.
@@ -153,9 +168,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Could not verify your session' }, 401);
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  const apiKey = Deno.env.get('OPENROUTER_API_KEY');
   if (!apiKey) return json({ error: 'AI is not configured', code: 'not_configured' }, 503);
-  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.5-flash';
+  const model = Deno.env.get('OPENROUTER_MODEL') || 'minimax/minimax-m3:free';
 
   let imageBase64: string, mimeType: string, description: string | undefined;
   try {
@@ -171,30 +186,35 @@ Deno.serve(async (req: Request) => {
 
   let providerRes: Response;
   try {
-    providerRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: buildPrompt(description) },
-              { inline_data: { mime_type: mimeType, data: imageBase64 } },
-            ],
-          }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-        }),
+    providerRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://adwumago.app',
+        'X-Title': 'AdwumaGo',
       },
-    );
+      body: JSON.stringify({
+        model,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: buildPrompt(description) },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        }],
+        response_format: { type: 'json_object' },
+        temperature: 0.2,
+      }),
+    });
   } catch (err) {
-    console.error('gemini fetch failed', err);
+    console.error('openrouter fetch failed', err);
     return json({ error: 'Could not reach the AI service' }, 502);
   }
 
   if (!providerRes.ok) {
     const detail = await providerRes.text().catch(() => '');
-    console.error('gemini error', providerRes.status, detail);
+    console.error('openrouter error', providerRes.status, detail);
     if (providerRes.status === 401 || providerRes.status === 403) {
       return json({ error: 'AI service is misconfigured', code: 'not_configured' }, 503);
     }
@@ -205,8 +225,7 @@ Deno.serve(async (req: Request) => {
   let text = '';
   try {
     const data = await providerRes.json();
-    const parts = data?.candidates?.[0]?.content?.parts ?? [];
-    text = parts.map((p: any) => p?.text ?? '').join('').trim();
+    text = String(data?.choices?.[0]?.message?.content ?? '').trim();
   } catch {
     return json({ error: 'AI response could not be read' }, 502);
   }

@@ -19,6 +19,7 @@ import ScreenContent from '@/components/ScreenContent';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { signInWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
+import { s, vs, ms } from '@/lib/scaling';
 import type { RootStackParamList } from '@/navigation/types';
 
 export default function LoginScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'SignIn'>) {
@@ -32,7 +33,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
   const T = useThemeColors();
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: 'Sign In' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const handleLogin = async () => {
@@ -67,8 +68,12 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
+
+      <ScreenContent style={styles.logoWrap}>
+        <Text style={styles.logo}>AdwumaGo</Text>
+      </ScreenContent>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -104,7 +109,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
 
             <View style={styles.inputWrap}>
               <Input
-                icon={<FontAwesome5 name="envelope" size={15} color={T.subText} />}
+                icon={<FontAwesome5 name="envelope" size={ms(15)} color={T.subText} />}
                 placeholder="Email or Phone Number"
                 value={credential}
                 onChangeText={setCredential}
@@ -116,7 +121,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
 
             <View style={styles.inputWrap}>
               <Input
-                icon={<FontAwesome5 name="lock" size={15} color={T.subText} />}
+                icon={<FontAwesome5 name="lock" size={ms(15)} color={T.subText} />}
                 placeholder="Password"
                 value={password}
                 onChangeText={setPassword}
@@ -130,7 +135,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
                     accessibilityRole="button"
                     accessibilityLabel={showPass ? 'Hide password' : 'Show password'}
                   >
-                    <Ionicons name={showPass ? 'eye' : 'eye-off-outline'} size={18} color={T.subText} />
+                    <Ionicons name={showPass ? 'eye' : 'eye-off-outline'} size={ms(18)} color={T.subText} />
                   </TouchableOpacity>
                 }
               />
@@ -177,7 +182,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
                   <ActivityIndicator size="small" color={T.text} />
                 ) : (
                   <>
-                    <AntDesign name="google" size={18} color="#EA4335" />
+                    <AntDesign name="google" size={ms(18)} color="#EA4335" />
                     <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Google</Text>
                   </>
                 )}
@@ -194,7 +199,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
                   <ActivityIndicator size="small" color={T.text} />
                 ) : (
                   <>
-                    <Ionicons name="logo-apple" size={20} color={T.text} />
+                    <Ionicons name="logo-apple" size={ms(20)} color={T.text} />
                     <Text style={[styles.socialBtnText, { color: T.text }]}>Continue with Apple</Text>
                   </>
                 )}
@@ -222,33 +227,36 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
 }
 
 const styles = StyleSheet.create({
+  logoWrap: { paddingHorizontal: s(24), paddingTop: vs(16) },
+  logo: { fontSize: ms(20), fontWeight: '900', color: COLORS.primary },
+
   container: {
-    paddingHorizontal: 24,
-    paddingTop: 4,
-    paddingBottom: 40,
+    paddingHorizontal: s(24),
+    paddingTop: vs(4),
+    paddingBottom: vs(40),
   },
 
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: s(24),
+    paddingTop: vs(12),
+    paddingBottom: vs(4),
   },
 
   subheading: {
-    fontSize: 14,
+    fontSize: ms(14),
   },
 
   /* Toggle */
   toggleWrap: {
     flexDirection: 'row',
     borderRadius: RADIUS.full,
-    padding: 4,
-    marginTop: 4,
-    marginBottom: 28,
+    padding: s(4),
+    marginTop: vs(4),
+    marginBottom: vs(28),
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: vs(10),
     borderRadius: RADIUS.full,
     alignItems: 'center',
   },
@@ -256,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: ms(14),
     fontWeight: '600',
     color: COLORS.muted,
   },
@@ -267,39 +275,39 @@ const styles = StyleSheet.create({
 
   /* Inputs */
   inputWrap: {
-    marginBottom: 14,
+    marginBottom: vs(14),
   },
 
   /* Forgot */
   forgotRow: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
-    marginTop: 4,
+    marginBottom: vs(24),
+    marginTop: vs(4),
   },
   forgotText: {
-    fontSize: 13,
+    fontSize: ms(13),
     color: COLORS.primary,
     fontWeight: '600',
   },
 
   errorText: {
-    fontSize: 13,
+    fontSize: ms(13),
     color: COLORS.danger,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: vs(16),
   },
 
   /* Login button */
   loginBtnWrap: {
-    marginBottom: 24,
+    marginBottom: vs(24),
   },
 
   /* Divider */
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 20,
+    gap: s(10),
+    marginBottom: vs(20),
   },
   dividerLine: {
     flex: 1,
@@ -307,7 +315,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   dividerText: {
-    fontSize: 12,
+    fontSize: ms(12),
     color: COLORS.muted,
     fontWeight: '500',
   },
@@ -315,23 +323,23 @@ const styles = StyleSheet.create({
   /* Social */
   socialRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
+    gap: s(12),
+    marginBottom: vs(32),
   },
   socialBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: s(8),
     borderWidth: 1.5,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    paddingVertical: 13,
+    paddingVertical: vs(13),
     backgroundColor: COLORS.card,
   },
   socialBtnText: {
-    fontSize: 14,
+    fontSize: ms(14),
     fontWeight: '600',
     color: COLORS.text,
   },
@@ -341,7 +349,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   registerText: {
-    fontSize: 13,
+    fontSize: ms(13),
     color: COLORS.muted,
   },
   registerLink: {

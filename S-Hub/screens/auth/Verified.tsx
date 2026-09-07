@@ -14,11 +14,7 @@ export default function VerifiedScreen({ navigation }: NativeStackScreenProps<Ro
   const T = useThemeColors();
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerLeft: () => null,
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const handleGoToDashboard = () => {
@@ -29,6 +25,8 @@ export default function VerifiedScreen({ navigation }: NativeStackScreenProps<Ro
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]}>
       <StatusBar barStyle={T.statusBar} />
+
+      <Text style={styles.logo}>AdwumaGo</Text>
 
       <View style={styles.content}>
         <View style={[styles.badgeWrap, { backgroundColor: COLORS.primaryLight }]}>
@@ -66,7 +64,7 @@ export default function VerifiedScreen({ navigation }: NativeStackScreenProps<Ro
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  logo: { fontSize: wms(22), fontWeight: '900', color: COLORS.primary },
+  logo: { fontSize: wms(22), fontWeight: '900', color: COLORS.primary, paddingHorizontal: ws(24), paddingTop: wvs(16), paddingBottom: wvs(4) },
   content: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center', alignItems: 'center', paddingHorizontal: ws(24), paddingTop: wvs(24) },
   badgeWrap: {
     width: ws(120),

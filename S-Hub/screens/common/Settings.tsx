@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,11 +13,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { resetToSignIn } from '@/navigation/navigationRef';
+import { resetToSplash } from '@/navigation/navigationRef';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { deleteMyAccount } from '@/lib/api/profiles';
+import SignOutButton from '@/components/SignOutButton';
 
 export default function SettingsScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Settings'>) {
   const { isDark, toggleDark } = useAppTheme();
@@ -159,17 +160,14 @@ export default function SettingsScreen({ navigation }: NativeStackScreenProps<Ro
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={s.logoutButton}
-            activeOpacity={0.85}
-            onPress={() => Alert.alert('Log Out?', 'You will need to sign in again to access your jobs.', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Log Out', style: 'destructive', onPress: () => resetToSignIn() },
-            ])}
-          >
-            <Ionicons name="log-out-outline" size={18} color={COLORS.danger} />
-            <Text style={s.logoutButtonText}>Log Out</Text>
-          </TouchableOpacity>
+          <View style={{ marginBottom: 20 }}>
+            <SignOutButton
+              variant="button"
+              label="Log Out"
+              confirmTitle="Log Out?"
+              confirmMessage="You will need to sign in again to access your jobs."
+            />
+          </View>
 
           <View style={s.dangerZone}>
             <View style={s.dangerZoneHeader}>
@@ -197,7 +195,7 @@ export default function SettingsScreen({ navigation }: NativeStackScreenProps<Ro
                       Alert.alert('Could Not Delete Account', result.error ?? 'Something went wrong. Please try again.');
                       return;
                     }
-                    resetToSignIn();
+                    resetToSplash();
                   },
                 },
               ])}
@@ -234,12 +232,6 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 13, marginRight: 6 },
   rowSub: { fontSize: 11, marginTop: 2 },
   version: { textAlign: 'center', fontSize: 12, marginTop: 4 },
-  logoutButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 52, borderRadius: RADIUS.md, backgroundColor: COLORS.dangerLight,
-    marginBottom: 20,
-  },
-  logoutButtonText: { fontSize: 15, fontWeight: '700', color: COLORS.danger },
   dangerZone: {
     borderWidth: 1, borderColor: COLORS.danger, borderRadius: RADIUS.lg, padding: 16, marginBottom: 24, gap: 10,
   },

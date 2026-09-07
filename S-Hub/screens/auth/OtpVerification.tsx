@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { routeSignedInUserByRole } from '@/lib/auth';
@@ -37,10 +38,7 @@ export default function OtpVerificationScreen({ route, navigation }: NativeStack
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   useEffect(() => {
@@ -136,12 +134,15 @@ export default function OtpVerificationScreen({ route, navigation }: NativeStack
   const formattedTime = `(00:${timeLeft < 10 ? `0${timeLeft}` : timeLeft})`;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: T.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} />
 
+      <Text style={styles.logo}>AdwumaGo</Text>
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           <Text style={[styles.heroTitle, { color: T.text }]}>Verify Your Account</Text>
@@ -207,13 +208,15 @@ export default function OtpVerificationScreen({ route, navigation }: NativeStack
           </Text>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  logo: { fontSize: ms(22), fontWeight: '900', color: COLORS.primary },
+  flex: { flex: 1 },
+  logo: { fontSize: ms(22), fontWeight: '900', color: COLORS.primary, paddingHorizontal: s(20), paddingTop: vs(16), paddingBottom: vs(4) },
   scrollContent: { paddingHorizontal: s(20), paddingBottom: vs(40), gap: vs(20), alignItems: 'center' },
   hero: { width: '100%', maxWidth: s(544), marginBottom: vs(4), alignItems: 'center' },
   heroTitle: { fontSize: ms(26), fontWeight: '800', marginBottom: vs(6) },

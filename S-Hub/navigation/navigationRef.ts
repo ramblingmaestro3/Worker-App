@@ -43,6 +43,14 @@ export function resetToSignIn() {
   resetTo('SignIn');
 }
 
+/** Used after a deliberate sign-out — lands back on the marketing welcome
+ * screen (Get Started / Sign in) rather than dropping straight into the
+ * sign-in form. Not used for session-expiry (App.tsx's watcher goes
+ * straight to SignIn instead, since that's urgent re-auth, not a choice). */
+export function resetToSplash() {
+  resetTo('Splash');
+}
+
 export function resetToBecomeWorker() {
   resetTo('BecomeWorker');
 }

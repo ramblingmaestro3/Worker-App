@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
@@ -151,19 +152,8 @@ export default function OnboardingScreen({ navigation }: NativeStackScreenProps<
   const handleGetStarted = () => navigation.replace('SignUp');
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerShadowVisible: false,
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-      headerLeft: () => null,
-      headerRight: () => (
-        <TouchableOpacity onPress={handleSkip} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip onboarding">
-          <Text style={[styles.skipText, { color: T.subText }]}>Skip</Text>
-        </TouchableOpacity>
-      ),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, T.subText]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const onContentLayout = (e: LayoutChangeEvent) => {
     const { width } = e.nativeEvent.layout;
@@ -198,8 +188,15 @@ export default function OnboardingScreen({ navigation }: NativeStackScreenProps<
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: T.bg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <View style={styles.topBar}>
+        <Text style={styles.logo}>AdwumaGo</Text>
+        <TouchableOpacity onPress={handleSkip} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip onboarding">
+          <Text style={[styles.skipText, { color: T.subText }]}>Skip</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Everything below the header lives in a single capped-width, centered container —
           same treatment as sign-up.tsx / sign-in.tsx */}
@@ -258,7 +255,7 @@ export default function OnboardingScreen({ navigation }: NativeStackScreenProps<
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -266,6 +263,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   logo: { fontSize: 20, fontWeight: '900', color: COLORS.primary },
   skipText: { fontSize: 14, fontWeight: '600' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
 
   content: { flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
   list: { flexGrow: 0 },

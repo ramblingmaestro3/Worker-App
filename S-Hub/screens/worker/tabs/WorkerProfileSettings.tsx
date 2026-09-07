@@ -6,7 +6,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -23,9 +22,9 @@ import { ws, wvs, wms } from '@/lib/scaling';
 import { getMyProfile, Profile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, WorkerProfile } from '@/lib/api/workerProfiles';
 import { countMyCompletedBookings } from '@/lib/api/bookings';
-import { signOut } from '@/lib/auth';
+import SignOutButton from '@/components/SignOutButton';
 import { setActiveSide } from '@/lib/activeSide';
-import { resetToCustomerHome, resetToSignIn } from '@/navigation/navigationRef';
+import { resetToCustomerHome } from '@/navigation/navigationRef';
 import type { RootStackParamList, WorkerTabParamList } from '@/navigation/types';
 
 function initialsOf(name: string): string {
@@ -276,23 +275,7 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
             }}
           />
           <View style={[styles.divider, { backgroundColor: T.divider }]} />
-          <MenuItem
-            T={T}
-            icon={<Ionicons name="log-out-outline" size={wms(17)} color={COLORS.danger} />}
-            label="Sign Out"
-            danger
-            onPress={() =>
-              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Sign Out', style: 'destructive', onPress: async () => {
-                    await signOut();
-                    resetToSignIn();
-                  },
-                },
-              ])
-            }
-          />
+          <SignOutButton />
         </View>
 
         <Text style={[styles.version, { color: T.subText }]}>

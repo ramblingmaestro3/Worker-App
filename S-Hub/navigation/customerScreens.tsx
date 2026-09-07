@@ -1,4 +1,3 @@
-import type { ComponentType } from 'react';
 import BidComparison from '@/screens/customer/BidComparison';
 import Chat from '@/screens/customer/Chat';
 import FindingWorker from '@/screens/customer/FindingWorker';
@@ -10,6 +9,7 @@ import Promotions from '@/screens/customer/Promotions';
 import SavedLocations from '@/screens/customer/SavedLocations';
 import Search from '@/screens/customer/Search';
 import WorkerProfile from '@/screens/customer/WorkerProfile';
+import type { ComponentType } from 'react';
 import type { RootStackParamList } from './types';
 
 export const customerScreens: { name: keyof RootStackParamList; component: ComponentType<any> }[] = [
