@@ -252,30 +252,26 @@ export default function ChatScreen({ route, navigation }: Props) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => (
-        <View>
-          <Text style={[s.headerName, { color: T.text }]} numberOfLines={1}>{otherParty?.full_name ?? 'Unknown'}</Text>
-          {context && <Text style={[s.headerStatus, { color: T.subText }]}>{context.status.replace('_', ' ')}</Text>}
-        </View>
-      ),
-      headerLeft: (props: any) => (
-        <View style={s.headerLeftRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={22} color={T.text} />
-          </TouchableOpacity>
-          <View style={[s.headerAvatar, { backgroundColor: otherColor + '20' }]}>
-            <Text style={[s.headerInitials, { color: otherColor }]}>{initialsOf(otherParty?.full_name ?? '?')}</Text>
-          </View>
-        </View>
-      ),
-      headerRight: () => (
-        <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={() => setMenuVisible(true)}>
-          <Ionicons name="ellipsis-vertical" size={20} color={T.subText} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, T, otherParty, context]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  const chatHeader = (
+    <View style={[s.chatHeader, { backgroundColor: T.header, borderBottomColor: T.border }]}>
+      <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7}>
+        <Ionicons name="arrow-back" size={22} color={T.text} />
+      </TouchableOpacity>
+      <View style={[s.headerAvatar, { backgroundColor: otherColor + '20' }]}>
+        <Text style={[s.headerInitials, { color: otherColor }]}>{initialsOf(otherParty?.full_name ?? '?')}</Text>
+      </View>
+      <View style={s.headerTextGroup}>
+        <Text style={[s.headerName, { color: T.text }]} numberOfLines={1}>{otherParty?.full_name ?? 'Unknown'}</Text>
+        {context && <Text style={[s.headerStatus, { color: T.subText }]}>{context.status.replace('_', ' ')}</Text>}
+      </View>
+      <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={() => setMenuVisible(true)}>
+        <Ionicons name="ellipsis-vertical" size={20} color={T.subText} />
+      </TouchableOpacity>
+    </View>
+  );
 
   const load = useCallback(async (cancelledRef: { current: boolean }): Promise<string | null> => {
     setLoading(true);
@@ -353,15 +349,19 @@ export default function ChatScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['bottom']}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+        {chatHeader}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </SafeAreaView>
     );
   }
 
   if (notFound || !context || !myId) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+        {chatHeader}
         <EmptyState
           icon="cloud-offline-outline"
           title="Couldn't load this conversation"
@@ -378,8 +378,9 @@ export default function ChatScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      {chatHeader}
 
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={s.menuBackdrop} onPress={() => setMenuVisible(false)}>
@@ -534,7 +535,8 @@ export default function ChatScreen({ route, navigation }: Props) {
 const s = StyleSheet.create({
   safe: { flex: 1 },
 
-  headerLeftRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 4 },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+  headerTextGroup: { flex: 1 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   headerInitials: { fontSize: 13, fontWeight: '800' },
   headerName: { fontSize: 15, fontWeight: '700' },

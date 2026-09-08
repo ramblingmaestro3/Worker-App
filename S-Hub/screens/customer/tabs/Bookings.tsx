@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -52,11 +53,8 @@ export default function BookingsScreen({ navigation }: Props) {
   const [error, setError] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => <Text style={[styles.logo, { color: COLORS.primary }]}>AdwumaGo</Text>,
-      headerRight: () => <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />,
-    });
-  }, [navigation, T]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const load = useCallback(async (cancelledRef?: { current: boolean }) => {
     setLoading(true);
@@ -96,8 +94,13 @@ export default function BookingsScreen({ navigation }: Props) {
   }, [entries, filter]);
 
   return (
-    <View style={[styles.container, { backgroundColor: T.bg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <View style={styles.pageHeader}>
+        <Text style={[styles.logo, { color: COLORS.primary }]}>AdwumaGo</Text>
+        <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />
+      </View>
 
       {/* Content capped and centered the same way as sign-up.tsx / sign-in.tsx */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -253,12 +256,13 @@ export default function BookingsScreen({ navigation }: Props) {
         </View>
       </ScrollView>
 
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   logo: { fontSize: 20, fontWeight: '900' },
   avatarSmall: { width: 40, height: 40, borderRadius: 20 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120, alignItems: 'center' },

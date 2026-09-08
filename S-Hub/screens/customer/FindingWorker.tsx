@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 import { listBidsForRequest, BidWithWorker } from '@/lib/api/workerBids';
 import { subscribeToRequestBids, unsubscribe } from '@/lib/api/realtime';
@@ -160,29 +161,8 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
   const wasEmpty = useRef(true);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => (
-        <View style={s.headerInfo}>
-          <Text style={[s.headerTitle, { color: T.text }]}>Finding Workers</Text>
-          {!!(service || jobTitle) && (
-            <Text style={[s.headerSub, { color: T.subText }]} numberOfLines={1}>
-              {[service, jobTitle].filter(Boolean).join(' · ')}
-            </Text>
-          )}
-        </View>
-      ),
-      headerRight: () => (
-        <TouchableOpacity
-          style={s.myJobsBtn}
-          onPress={() => navigation.navigate('CustomerTabs', { screen: 'bookings' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="briefcase-outline" size={16} color={COLORS.primary} />
-          <Text style={s.myJobsBtnText}>My Jobs</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, T, service, jobTitle]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -238,8 +218,24 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+
+      <ScreenHeader
+        title="Finding Workers"
+        subtitle={service || jobTitle ? [service, jobTitle].filter(Boolean).join(' · ') : undefined}
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity
+            style={s.myJobsBtn}
+            onPress={() => navigation.navigate('CustomerTabs', { screen: 'bookings' })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="briefcase-outline" size={16} color={COLORS.primary} />
+            <Text style={s.myJobsBtnText}>My Jobs</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <View style={s.postedBannerOuter}>
         <ScreenContent style={s.postedBanner}>
@@ -292,9 +288,6 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
 const s = StyleSheet.create({
   safe: { flex: 1 },
 
-  headerInfo: {},
-  headerTitle: { fontSize: 16, fontWeight: '700' },
-  headerSub: { fontSize: 11, marginTop: 1 },
   myJobsBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.primary },
   myJobsBtnText: { fontSize: 12, color: COLORS.primary, fontWeight: '700' },
 

@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import {
   analyzeProblem,
   countWorkersBySkill,
@@ -268,12 +269,8 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
   const [qualityWarning, setQualityWarning] = useState<string | null>(null);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerTitle: 'How can we help?',
-      headerStyle: { backgroundColor: T.header },
-    });
-  }, [navigation, T]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -393,8 +390,9 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
   const isSoftConfidence = !!result?.problem && result.problem.confidence < SOFT_CONFIDENCE_THRESHOLD;
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader title="How can we help?" onBack={() => navigation.goBack()} />
 
       {phase === 'upload' && (
         <Text style={[s.headerSub, { color: T.subText }]}>Take a photo of the problem and our AI will help you identify it and find the right professional.</Text>

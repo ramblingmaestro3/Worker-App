@@ -24,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
@@ -146,7 +147,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   const [reloadKey, setReloadKey] = useState(0);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerTitle: 'Search Workers' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const load = useCallback(async (cancelledRef?: { current: boolean }) => {
@@ -242,8 +243,10 @@ export default function SearchScreen({ route, navigation }: Props) {
   const mapCenter = myLoc ?? FALLBACK_CENTER;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: T.card }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.card }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.card} />
+
+      <ScreenHeader title="Search Workers" onBack={() => navigation.goBack()} />
 
       {/* ── SEARCH BAR ── */}
       <View style={styles.searchWrapOuter}>

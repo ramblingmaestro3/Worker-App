@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 
 const SECTIONS = [
@@ -43,12 +44,13 @@ export default function TermsScreen({ navigation }: NativeStackScreenProps<RootS
   const T = useThemeColors();
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: 'Terms & Privacy' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader title="Terms & Privacy" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <ScreenContent>

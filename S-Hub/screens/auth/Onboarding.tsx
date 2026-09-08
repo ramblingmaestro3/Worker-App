@@ -180,9 +180,11 @@ export default function OnboardingScreen({ navigation }: NativeStackScreenProps<
     const Proof = PROOF_BY_KEY[item.key];
     return (
       <View style={[styles.slide, { width: contentWidth }]}>
-        <Proof T={T} />
         <Text style={[styles.title, { color: T.text }]}>{item.title}</Text>
         <Text style={[styles.body, { color: T.subText }]}>{item.body}</Text>
+        <View style={styles.proofWrap}>
+          <Proof T={T} />
+        </View>
       </View>
     );
   };
@@ -277,10 +279,12 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
   list: { flexGrow: 0 },
-  slide: { paddingHorizontal: 20, paddingTop: 8 },
+  slide: { paddingHorizontal: 20, paddingTop: 16 },
 
-  title: { fontSize: 24, fontWeight: '800', lineHeight: 30, marginTop: 24, marginBottom: 10, maxWidth: 340 },
+  title: { fontSize: 24, fontWeight: '800', lineHeight: 30, marginBottom: 10, maxWidth: 340 },
   body: { fontSize: 15, lineHeight: 22, maxWidth: 360 },
+  // Copy explains the step; the proof card sits well below it as supporting evidence.
+  proofWrap: { marginTop: 48 },
 
   bestTag: { fontSize: 11, fontWeight: '700', color: COLORS.accent, marginRight: 10 },
 

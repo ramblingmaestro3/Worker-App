@@ -39,11 +39,18 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => <Text style={styles.logo}>AdwumaGo</Text>,
-      headerRight: () => <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />,
-    });
-  }, [navigation, T]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  const pageHeader = (
+    <View style={styles.pageHeader}>
+      <TouchableOpacity onPress={handleBack} hitSlop={8} activeOpacity={0.7}>
+        <Ionicons name="arrow-back" size={22} color={T.text} />
+      </TouchableOpacity>
+      <Text style={styles.logo}>AdwumaGo</Text>
+      <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />
+    </View>
+  );
 
   useEffect(() => {
     (async () => {
@@ -104,15 +111,20 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={[]}>
-        <ActivityIndicator color={COLORS.primary} size="large" />
+      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
+        {pageHeader}
+        <View style={styles.centered}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+        </View>
       </SafeAreaView>
     );
   }
 
   if (!request) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: T.bg }]} edges={[]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
+        {pageHeader}
+        <View style={styles.centered}>
         <Ionicons
           name={loadError ? 'cloud-offline-outline' : 'alert-circle-outline'}
           size={wms(40)}
@@ -130,6 +142,7 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
         <TouchableOpacity style={styles.backLinkBtn} onPress={handleBack}>
           <Text style={styles.backLinkText}>Back to Dashboard</Text>
         </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -137,8 +150,9 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
   if (submitted || existingBid) {
     const bid = submitted ? null : existingBid;
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={[]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
         <StatusBar barStyle={T.statusBar} />
+        {pageHeader}
         <View style={[styles.container, styles.centered, { paddingHorizontal: ws(32) }]}>
           <View style={[styles.successIconWrap, { backgroundColor: COLORS.primaryLight }]}>
             <Ionicons name="paper-plane" size={wms(40)} color={COLORS.primary} />
@@ -157,8 +171,9 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={[]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+      {pageHeader}
 
       <View style={styles.pageInner}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -322,7 +337,8 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  centered: { alignItems: 'center', justifyContent: 'center', gap: wvs(10) },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: ws(16), paddingTop: wvs(12), paddingBottom: wvs(4) },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: wvs(10) },
   pageInner: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center' },
   logo: { fontSize: wms(20), fontWeight: '900', color: COLORS.primary },
   avatarSmall: { width: ws(36), height: ws(36), borderRadius: ws(18) },

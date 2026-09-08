@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
@@ -142,28 +143,8 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      headerStyle: { backgroundColor: T.header },
-      headerLeft: () => (
-        <TouchableOpacity style={s.backBtn} onPress={handleBack} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={wms(22)} color={T.text} />
-        </TouchableOpacity>
-      ),
-      headerTitle: () => (
-        <View style={s.headerCenter}>
-          <Text style={[s.headerTitle, { color: T.text }]}>Become a Worker</Text>
-          <Text style={[s.headerSub, { color: T.subText }]}>Step {step} of {TOTAL_STEPS}</Text>
-        </View>
-      ),
-      headerRight: () => (
-        <View style={[s.stepBadge, { backgroundColor: COLORS.primaryLight }]}>
-          <Text style={s.stepBadgeText}>{step}/{TOTAL_STEPS}</Text>
-        </View>
-      ),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, step, T.text, T.subText, T.header]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const toggleSkill = (id: string) =>
     setSkills(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
@@ -280,8 +261,18 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
   ];
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader
+        title="Become a Worker"
+        subtitle={`Step ${step} of ${TOTAL_STEPS}`}
+        onBack={handleBack}
+        right={
+          <View style={[s.stepBadge, { backgroundColor: COLORS.primaryLight }]}>
+            <Text style={s.stepBadgeText}>{step}/{TOTAL_STEPS}</Text>
+          </View>
+        }
+      />
 
       <View style={s.pageInner}>
       {/* ── STEP BAR ── */}
@@ -639,10 +630,6 @@ const s = StyleSheet.create({
   pageInner: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center' },
 
   /* Header */
-  backBtn: { width: ws(38), height: ws(38), alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: wms(16), fontWeight: '700' },
-  headerSub: { fontSize: wms(11), marginTop: wvs(1) },
   stepBadge: { borderRadius: ws(12), paddingHorizontal: ws(10), paddingVertical: wvs(4) },
   stepBadgeText: { fontSize: wms(12), fontWeight: '700', color: COLORS.primary },
 

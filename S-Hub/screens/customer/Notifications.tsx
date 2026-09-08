@@ -29,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
@@ -79,22 +80,8 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => (
-        <View style={s.headerCenter}>
-          <Text style={[s.title, { color: T.text }]}>Notifications</Text>
-          {unreadCount > 0 && (
-            <View style={s.badge}><Text style={s.badgeText}>{unreadCount}</Text></View>
-          )}
-        </View>
-      ),
-      headerRight: () => (
-        <TouchableOpacity onPress={markAllRead} activeOpacity={0.7} disabled={unreadCount === 0}>
-          <Text style={[s.markAllText, unreadCount === 0 && { opacity: 0.3 }]}>Mark all read</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, T, unreadCount]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -145,8 +132,19 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        titleRight={unreadCount > 0 ? <View style={s.badge}><Text style={s.badgeText}>{unreadCount}</Text></View> : null}
+        right={
+          <TouchableOpacity onPress={markAllRead} activeOpacity={0.7} disabled={unreadCount === 0}>
+            <Text style={[s.markAllText, unreadCount === 0 && { opacity: 0.3 }]}>Mark all read</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <View style={[s.filterOuter, { backgroundColor: T.header, borderColor: T.border }]}>
         <ScreenContent>
@@ -260,8 +258,6 @@ export default function NotificationsScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 17, fontWeight: '700' },
   badge: { backgroundColor: COLORS.danger, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   badgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
   markAllText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },

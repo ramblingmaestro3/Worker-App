@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProfileEdit'>;
 
@@ -97,28 +98,32 @@ export default function ProfileEditScreen({ navigation }: Props) {
   };
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Edit Profile',
-      headerRight: () => (
-        <TouchableOpacity onPress={save} disabled={saving}>
-          {saving ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Text style={s.saveText}>Save</Text>}
-        </TouchableOpacity>
-      ),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, saving, name, email, phone, originalEmail]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   if (loading) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center' }]} edges={['bottom']}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+        <ScreenHeader title="Edit Profile" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader
+        title="Edit Profile"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity onPress={save} disabled={saving}>
+            {saving ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Text style={s.saveText}>Save</Text>}
+          </TouchableOpacity>
+        }
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>

@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import HighlightedText from '@/components/ui/HighlightedText';
 import SwipeableRow from '@/components/ui/SwipeableRow';
@@ -61,22 +62,8 @@ export default function WorkerMessagesScreen({ navigation }: Props) {
   const togglePin = usePinnedConversationsStore((s) => s.togglePin);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Messages',
-      headerRight: () => (
-        <TouchableOpacity
-          style={[styles.iconBtn, { backgroundColor: T.inputBg }]}
-          activeOpacity={0.8}
-          onPress={() => {
-            setShowSearch((v) => !v);
-            setSearch('');
-          }}
-        >
-          <Ionicons name={showSearch ? 'close' : 'search-outline'} size={wms(17)} color={T.text} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, T, showSearch]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const load = useCallback(async (cancelledRef?: { current: boolean }) => {
     setLoading(true);
@@ -188,8 +175,24 @@ export default function WorkerMessagesScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={[]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
+
+      <ScreenHeader
+        title="Messages"
+        right={
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: T.inputBg }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              setShowSearch((v) => !v);
+              setSearch('');
+            }}
+          >
+            <Ionicons name={showSearch ? 'close' : 'search-outline'} size={wms(17)} color={T.text} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.pageInner}>
         {showSearch && (

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 
 const FAQS = [
@@ -31,12 +32,13 @@ export default function SupportScreen({ navigation }: NativeStackScreenProps<Roo
   const T = useThemeColors();
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: true, headerTitle: 'Help & Support' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader title="Help & Support" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <ScreenContent>

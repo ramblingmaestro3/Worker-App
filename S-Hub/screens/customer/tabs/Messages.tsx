@@ -25,6 +25,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<CustomerTabParamList, 'messages'>,
@@ -61,22 +62,8 @@ export default function MessagesScreen({ navigation }: Props) {
   const togglePin = usePinnedConversationsStore((s) => s.togglePin);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Messages',
-      headerRight: () => (
-        <TouchableOpacity
-          style={styles.iconBtn}
-          activeOpacity={0.8}
-          onPress={() => {
-            setShowSearch((v) => !v);
-            if (showSearch) setSearch('');
-          }}
-        >
-          <Ionicons name={showSearch ? 'close' : 'search-outline'} size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, showSearch]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const load = useCallback(async (cancelledRef?: { current: boolean }) => {
     setLoading(true);
@@ -186,8 +173,24 @@ export default function MessagesScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+
+      <ScreenHeader
+        title="Messages"
+        right={
+          <TouchableOpacity
+            style={styles.iconBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              setShowSearch((v) => !v);
+              if (showSearch) setSearch('');
+            }}
+          >
+            <Ionicons name={showSearch ? 'close' : 'search-outline'} size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+        }
+      />
 
       {showSearch && (
         <View style={styles.searchWrapOuter}>

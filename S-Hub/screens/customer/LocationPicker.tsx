@@ -29,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LocationPicker'>;
@@ -63,7 +64,7 @@ export default function LocationPickerScreen({ route, navigation }: Props) {
   const [searchError, setSearchError] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerTitle: 'Select Location' });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const resolveAddress = (latitude: number, longitude: number) => {
@@ -189,8 +190,9 @@ export default function LocationPickerScreen({ route, navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={[s_.safe, { backgroundColor: T.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[s_.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
       <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+      <ScreenHeader title="Select Location" onBack={() => navigation.goBack()} />
 
       <View style={s_.mapArea}>
         <View style={[s_.mapCard, { borderColor: T.border, backgroundColor: T.inputBg }]}>
