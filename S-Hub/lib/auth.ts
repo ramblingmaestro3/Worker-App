@@ -91,6 +91,13 @@ export async function signInWithOAuthProvider(
       options: {
         redirectTo,
         skipBrowserRedirect: true,
+
+
+        queryParams: provider === 'google'
+          ? {
+              prompt: 'select_account',
+            }
+          : undefined,
       },
     });
 
