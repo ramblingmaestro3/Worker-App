@@ -62,3 +62,19 @@ export async function uploadJobPhoto(uri: string): Promise<{ success: boolean; p
   const result = await uploadUriToBucket(uri, 'job-photos', path);
   return { success: result.success, publicUrl: result.publicUrl, error: result.error };
 }
+
+/**
+ * Uploads a profile photo to the public `job-photos` bucket (the app's only
+ * public bucket — reused rather than adding a new one) and returns its public
+ * URL. Each upload gets a fresh timestamped path so the URL changes and any
+ * cached copy is bypassed on next load. Store the URL in profiles.avatar_url.
+ */
+export async function uploadAvatar(uri: string): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return { success: false, error: 'Not signed in.' };
+  }
+  const path = `${auth.user.id}/avatar-${Date.now()}.jpg`;
+  const result = await uploadUriToBucket(uri, 'job-photos', path);
+  return { success: result.success, publicUrl: result.publicUrl, error: result.error };
+}

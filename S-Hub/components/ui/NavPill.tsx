@@ -7,6 +7,8 @@ export type PillTab = {
   key: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
   iconActive: React.ComponentProps<typeof Ionicons>['name'];
+  /** Shows a small red dot on the icon — e.g. unread messages on the chat tab. */
+  badge?: boolean;
 };
 
 type Props = {
@@ -33,6 +35,7 @@ function TabButton({
     <TouchableOpacity style={styles.tabBtn} activeOpacity={0.7} onPress={onPress}>
       <View style={[styles.iconChip, active && { backgroundColor: COLORS.primary }]}>
         <Ionicons name={active ? tab.iconActive : tab.icon} size={20} color={active ? '#fff' : T.subText} />
+        {tab.badge && <View style={[styles.badgeDot, { borderColor: T.navBg }]} />}
       </View>
     </TouchableOpacity>
   );
@@ -52,7 +55,7 @@ export default function NavPill({ tabs, activeKey, onPress, maxWidth, centerFab 
 
         {centerFab && (
           <TouchableOpacity
-            style={[styles.centerBtn, { borderColor: T.bg }]}
+            style={[styles.centerBtn, { borderColor: T.navBg }]}
             activeOpacity={0.85}
             onPress={centerFab.onPress}
           >
@@ -85,6 +88,11 @@ const styles = StyleSheet.create({
   iconChip: {
     width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
+  },
+  badgeDot: {
+    position: 'absolute', top: 6, right: 6,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: COLORS.danger, borderWidth: 1.5,
   },
   centerBtn: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primary,

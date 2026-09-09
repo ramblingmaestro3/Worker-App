@@ -130,12 +130,28 @@ export async function countMyServiceRequests(): Promise<{ success: boolean; data
   return { success: true, data: count ?? 0 };
 }
 
-/** Cancels an open request — only works while still `seeking_bids` (enforced by RLS). */
+/**
+ * Withdraws an open request — flips it to `cancelled`. Only the owning client
+ * can do this and only while it's still `seeking_bids` (both enforced by RLS);
+ * a DB trigger then declines any bids still on it. `.select()` is required so a
+ * row blocked by RLS comes back empty instead of a silent success.
+ */
 export async function cancelServiceRequest(id: string): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.from('service_requests').update({ status: 'cancelled' }).eq('id', id);
+  const { data, error } = await supabase
+    .from('service_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', id)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return {
+      success: false,
+      error: "This request can't be withdrawn — it may already have a worker assigned.",
+    };
   }
 
   return { success: true };

@@ -1,6 +1,7 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import ProfilePhotoPicker from '@/components/ProfilePhotoPicker';
 import { getMyProfile, updateProfile } from '@/lib/api/profiles';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { supabase } from '@/lib/supabase';
@@ -26,10 +27,6 @@ import ScreenHeader from '@/components/ScreenHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProfileEdit'>;
 
-function initialsOf(name: string): string {
-  return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
-}
-
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ProfileEditScreen({ navigation }: Props) {
@@ -37,6 +34,7 @@ export default function ProfileEditScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [originalEmail, setOriginalEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [emailVerified, setEmailVerified] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,6 +49,7 @@ export default function ProfileEditScreen({ navigation }: Props) {
         setEmail(result.data.email ?? '');
         setOriginalEmail(result.data.email ?? '');
         setPhone(result.data.phone ?? '');
+        setAvatarUrl(result.data.avatar_url ?? null);
       }
       setEmailVerified(!!useAuthStore.getState().user?.email_confirmed_at);
       setLoading(false);
@@ -130,13 +129,7 @@ export default function ProfileEditScreen({ navigation }: Props) {
         <ScreenContent>
 
           <View style={[s.avatarSection, { backgroundColor: T.card }]}>
-            <View style={s.avatar}>
-              <Text style={s.avatarInitials}>{initialsOf(name)}</Text>
-            </View>
-            <TouchableOpacity style={s.changePhotoBtn} activeOpacity={0.8} onPress={() => Alert.alert('Coming Soon', 'Profile photo upload is coming soon.')}>
-              <Ionicons name="camera-outline" size={16} color={COLORS.primary} />
-              <Text style={s.changePhotoText}>Change Photo</Text>
-            </TouchableOpacity>
+            <ProfilePhotoPicker name={name} avatarUrl={avatarUrl} onChange={setAvatarUrl} />
           </View>
 
           <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
@@ -215,10 +208,6 @@ const s = StyleSheet.create({
   errorText: { fontSize: 12, color: COLORS.danger, marginHorizontal: 16, marginTop: -4, marginBottom: 12, fontWeight: '600' },
   scroll: { paddingBottom: 40 },
   avatarSection: { alignItems: 'center', paddingVertical: 28, marginBottom: 10 },
-  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: COLORS.primary + '20', alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: COLORS.primary + '50', marginBottom: 12 },
-  avatarInitials: { fontSize: 32, fontWeight: '800', color: COLORS.primary },
-  changePhotoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.primary },
-  changePhotoText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
   card: { borderTopWidth: 1, borderBottomWidth: 1, marginBottom: 14 },
   divider: { height: 1, marginLeft: 58 },
   verifyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.primaryLight, marginHorizontal: 16, borderRadius: 12, padding: 12, marginBottom: 20 },

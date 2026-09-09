@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -169,7 +170,11 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
         {/* ── Hero ── */}
         <View style={styles.heroRow}>
           <View style={[styles.avatar, { backgroundColor: COLORS.primary + '18' }]}>
-            <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+            ) : (
+              <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
+            )}
           </View>
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
@@ -297,8 +302,9 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: ws(12), marginBottom: wvs(16) },
   avatar: {
     width: ws(54), height: ws(54), borderRadius: ws(27),
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
+  avatarImg: { width: '100%', height: '100%' },
   avatarInitials: { fontSize: wms(18), fontWeight: '800', color: COLORS.primary },
   heroInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: ws(6), marginBottom: wvs(2) },

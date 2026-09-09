@@ -1,12 +1,13 @@
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import EmptyState from '@/components/ui/EmptyState';
-import { getBookingWithContext, BookingChatContext } from '@/lib/api/bookings';
+import { getBookingWithContext, getBookingContactPhone, BookingChatContext } from '@/lib/api/bookings';
 import { blockUser, unblockUser, isBlockedWith } from '@/lib/api/blocking';
 import { submitReport } from '@/lib/api/reports';
 import { listMessages, sendMessage, markMessagesRead, Message } from '@/lib/api/messages';
 import { subscribeToBookingMessages, unsubscribe } from '@/lib/api/realtime';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { useUnreadStore } from '@/lib/stores/unread-store';
 import type { RootStackParamList } from '@/navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -14,8 +15,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -30,6 +33,14 @@ import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
+
+// React Navigation renders every screen inside a centred column capped at this
+// width (navigation/RootNavigator.tsx APP_MAX_WIDTH). A <Modal> portals to the
+// raw window root, *outside* that column, so absolutely-positioned modal content
+// drifts to the window edge on wide web/tablet windows unless it re-applies the
+// cap. The kebab menu sidesteps this entirely by anchoring to the button's
+// measured position instead.
+const APP_MAX_WIDTH = 540;
 
 const CATEGORY_ICON: Record<string, string> = {
   plumbing: 'water-outline',
@@ -96,7 +107,7 @@ function UnreadDivider({ T }: { T: any }) {
   return (
     <View style={ud.wrap}>
       <View style={[ud.line, { backgroundColor: T.border }]} />
-      <View style={[ud.pill, { backgroundColor: T.bg, borderColor: T.border }]}>
+      <View style={[ud.pill, { backgroundColor: T.card, borderColor: T.border }]}>
         <Text style={[ud.text, { color: COLORS.primary }]}>New messages</Text>
       </View>
       <View style={[ud.line, { backgroundColor: T.border }]} />
@@ -173,10 +184,16 @@ export default function ChatScreen({ route, navigation }: Props) {
   const [input, setInput] = useState('');
   const [showQuick, setShowQuick] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
+  // Screen-coordinate anchor for the kebab dropdown, measured off the button
+  // when it's tapped. Null until the first open (falls back to the header-corner
+  // offsets in s.menuCard).
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
+  const menuBtnRef = useRef<View>(null);
   const [blocked, setBlocked] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
+  const [calling, setCalling] = useState(false);
   const listRef = useRef<FlatList>(null);
   const firstUnreadIdRef = useRef<string | null>(null);
 
@@ -184,9 +201,46 @@ export default function ChatScreen({ route, navigation }: Props) {
   const otherParty = context ? (isClientViewer ? context.worker : context.client) : null;
   const otherColor = COLORS.accent;
 
+  const openMenu = () => {
+    const node = menuBtnRef.current;
+    if (!node) {
+      setMenuVisible(true);
+      return;
+    }
+    node.measureInWindow((x, y, w, h) => {
+      const winW = Dimensions.get('window').width;
+      // Right-align the menu's edge to the button's edge, drop it just below.
+      setMenuAnchor({ top: y + h + 6, right: Math.max(8, winW - (x + w)) });
+      setMenuVisible(true);
+    });
+  };
+
   const handleViewProfile = () => {
     setMenuVisible(false);
     if (context) navigation.navigate('WorkerProfile', { id: context.worker_id, fromBooking: true });
+  };
+
+  const handleCall = async () => {
+    if (calling || !bookingId) return;
+    setCalling(true);
+    const result = await getBookingContactPhone(bookingId);
+    setCalling(false);
+    if (!result.success) {
+      Alert.alert('Could Not Get Number', result.error ?? 'Please try again.');
+      return;
+    }
+    const phone = (result.data ?? '').replace(/[^\d+]/g, '');
+    if (!phone) {
+      Alert.alert('No Phone Number', "There's no phone number on file for this person.");
+      return;
+    }
+    const url = `tel:${phone}`;
+    const canOpen = await Linking.canOpenURL(url).catch(() => false);
+    if (!canOpen) {
+      Alert.alert('Cannot Call', "This device can't place phone calls.");
+      return;
+    }
+    Linking.openURL(url);
   };
 
   const handleJobBannerPress = () => {
@@ -267,9 +321,18 @@ export default function ChatScreen({ route, navigation }: Props) {
         <Text style={[s.headerName, { color: T.text }]} numberOfLines={1}>{otherParty?.full_name ?? 'Unknown'}</Text>
         {context && <Text style={[s.headerStatus, { color: T.subText }]}>{context.status.replace('_', ' ')}</Text>}
       </View>
-      <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={() => setMenuVisible(true)}>
-        <Ionicons name="ellipsis-vertical" size={20} color={T.subText} />
+      <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={handleCall} disabled={calling}>
+        {calling ? (
+          <ActivityIndicator size="small" color={COLORS.primary} />
+        ) : (
+          <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+        )}
       </TouchableOpacity>
+      <View ref={menuBtnRef} collapsable={false}>
+        <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={openMenu}>
+          <Ionicons name="ellipsis-vertical" size={20} color={T.subText} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -300,7 +363,7 @@ export default function ChatScreen({ route, navigation }: Props) {
     setContext(bookingResult.data);
     setMessages(fetchedMessages);
     setLoading(false);
-    markMessagesRead(bookingId);
+    markMessagesRead(bookingId).then(() => useUnreadStore.getState().refreshMessages());
 
     const otherId = myId === bookingResult.data.client_id ? bookingResult.data.worker_id : bookingResult.data.client_id;
     isBlockedWith(otherId).then((result) => {
@@ -319,7 +382,7 @@ export default function ChatScreen({ route, navigation }: Props) {
         if (cancelledRef.current || !bookingId || otherId === null) return;
         channel = subscribeToBookingMessages(bookingId, (message) => {
           setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
-          markMessagesRead(bookingId);
+          markMessagesRead(bookingId).then(() => useUnreadStore.getState().refreshMessages());
         });
       });
 
@@ -384,7 +447,13 @@ export default function ChatScreen({ route, navigation }: Props) {
 
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={s.menuBackdrop} onPress={() => setMenuVisible(false)}>
-          <View style={[s.menuCard, { backgroundColor: T.card, borderColor: T.border }]}>
+          <View
+            style={[
+              s.menuCard,
+              menuAnchor && { top: menuAnchor.top, right: menuAnchor.right },
+              { backgroundColor: T.card, borderColor: T.border },
+            ]}
+          >
             {isClientViewer && (
               <>
                 <TouchableOpacity style={s.menuItem} activeOpacity={0.7} onPress={handleViewProfile}>
@@ -409,34 +478,36 @@ export default function ChatScreen({ route, navigation }: Props) {
 
       <Modal visible={reportVisible} transparent animationType="fade" onRequestClose={() => setReportVisible(false)}>
         <Pressable style={s.menuBackdrop} onPress={() => setReportVisible(false)}>
-          <Pressable style={[s.reportCard, { backgroundColor: T.card, borderColor: T.border }]} onPress={(e) => e.stopPropagation()}>
-            <Text style={[s.reportTitle, { color: T.text }]}>Report {otherParty?.full_name ?? 'this user'}</Text>
-            <Text style={[s.reportSub, { color: T.subText }]}>Tell us what happened — our team will review it.</Text>
-            <TextInput
-              style={[s.reportInput, { borderColor: T.border, backgroundColor: T.inputBg, color: T.text }]}
-              placeholder="What's the issue?"
-              placeholderTextColor={T.subText}
-              value={reportReason}
-              onChangeText={setReportReason}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              autoFocus
-            />
-            <View style={s.reportActions}>
-              <TouchableOpacity style={s.reportCancelBtn} onPress={() => setReportVisible(false)} activeOpacity={0.7}>
-                <Text style={[s.reportCancelText, { color: T.subText }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.reportSubmitBtn, { backgroundColor: COLORS.danger }, !reportReason.trim() && { opacity: 0.5 }]}
-                onPress={submitReportHandler}
-                disabled={!reportReason.trim() || submittingReport}
-                activeOpacity={0.85}
-              >
-                {submittingReport ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.reportSubmitText}>Submit Report</Text>}
-              </TouchableOpacity>
-            </View>
-          </Pressable>
+          <View style={s.modalColumn} pointerEvents="box-none">
+            <Pressable style={[s.reportCard, { backgroundColor: T.card, borderColor: T.border }]} onPress={(e) => e.stopPropagation()}>
+              <Text style={[s.reportTitle, { color: T.text }]}>Report {otherParty?.full_name ?? 'this user'}</Text>
+              <Text style={[s.reportSub, { color: T.subText }]}>Tell us what happened — our team will review it.</Text>
+              <TextInput
+                style={[s.reportInput, { borderColor: T.border, backgroundColor: T.inputBg, color: T.text }]}
+                placeholder="What's the issue?"
+                placeholderTextColor={T.subText}
+                value={reportReason}
+                onChangeText={setReportReason}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                autoFocus
+              />
+              <View style={s.reportActions}>
+                <TouchableOpacity style={s.reportCancelBtn} onPress={() => setReportVisible(false)} activeOpacity={0.7}>
+                  <Text style={[s.reportCancelText, { color: T.subText }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.reportSubmitBtn, { backgroundColor: COLORS.danger }, !reportReason.trim() && { opacity: 0.5 }]}
+                  onPress={submitReportHandler}
+                  disabled={!reportReason.trim() || submittingReport}
+                  activeOpacity={0.85}
+                >
+                  {submittingReport ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.reportSubmitText}>Submit Report</Text>}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </View>
         </Pressable>
       </Modal>
 
@@ -544,6 +615,9 @@ const s = StyleSheet.create({
   headerActionBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 
   menuBackdrop: { flex: 1 },
+  // Re-caps <Modal> content to the same centred column every screen sits in, so
+  // dialogs don't stretch to the window edge on wide web/tablet windows.
+  modalColumn: { flex: 1, width: '100%', maxWidth: APP_MAX_WIDTH, alignSelf: 'center' },
   menuCard: { position: 'absolute', top: 58, right: 12, minWidth: 190, borderRadius: 14, borderWidth: 1, paddingVertical: 4, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
   menuItemText: { fontSize: 14, fontWeight: '600' },

@@ -39,10 +39,13 @@ export async function advanceBookingStatus(
     patch[timestampColumn] = new Date().toISOString();
   }
 
-  const { error } = await supabase.from('bookings').update(patch).eq('id', bookingId);
+  const { data, error } = await supabase.from('bookings').update(patch).eq('id', bookingId).select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { success: false, error: 'This booking could not be updated — you may not be assigned to it anymore.' };
   }
 
   return { success: true };
@@ -174,6 +177,10 @@ export type ConversationView = {
   request_id: string;
   client: ConversationParticipant;
   worker: ConversationParticipant;
+  /** The participant who ISN'T the signed-in user — the one to show in the list.
+   * Resolved by identity, not by which screen you're on, so it stays correct
+   * for an account that acts as both a client and a worker. */
+  other: ConversationParticipant;
   request_category: string | null;
   last_message: { id: string; message_text: string; sender_id: string; is_read: boolean; created_at: string } | null;
 };
@@ -184,6 +191,7 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
   if (!auth.user) {
     return { success: false, error: 'Not signed in.' };
   }
+  const uid = auth.user.id;
 
   const { data, error } = await supabase
     .from('bookings')
@@ -194,7 +202,7 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
        request:service_requests!bookings_request_id_fkey(category),
        messages(id,message_text,sender_id,is_read,created_at)`
     )
-    .or(`client_id.eq.${auth.user.id},worker_id.eq.${auth.user.id}`)
+    .or(`client_id.eq.${uid},worker_id.eq.${uid}`)
     .order('created_at', { referencedTable: 'messages', ascending: false })
     .limit(1, { referencedTable: 'messages' });
 
@@ -202,15 +210,20 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
     return { success: false, error: error.message };
   }
 
-  const rows: ConversationView[] = (data ?? []).map((b: any) => ({
-    booking_id: b.id,
-    booking_status: b.status,
-    request_id: b.request_id,
-    client: b.client,
-    worker: b.worker,
-    request_category: b.request?.category ?? null,
-    last_message: b.messages?.[0] ?? null,
-  }));
+  const rows: ConversationView[] = (data ?? [])
+    // A booking whose client and worker are the same person is degenerate
+    // (a self-conversation) — never surface it as a chat.
+    .filter((b: any) => b.client_id !== b.worker_id)
+    .map((b: any) => ({
+      booking_id: b.id,
+      booking_status: b.status,
+      request_id: b.request_id,
+      client: b.client,
+      worker: b.worker,
+      other: b.client_id === uid ? b.worker : b.client,
+      request_category: b.request?.category ?? null,
+      last_message: b.messages?.[0] ?? null,
+    }));
 
   // PostgREST can't order a parent row by a nested one-to-many aggregate, so
   // sort by latest-activity client-side instead — cheap at this scale (a
@@ -251,6 +264,20 @@ export async function getBookingWithContext(
   }
 
   return { success: true, data: data as unknown as BookingChatContext };
+}
+
+/**
+ * The other party's phone number for a booking the caller is part of, for
+ * tap-to-call. Returns `null` (not an error) when there's no number on file.
+ */
+export async function getBookingContactPhone(
+  bookingId: string
+): Promise<{ success: boolean; data?: string | null; error?: string }> {
+  const { data, error } = await supabase.rpc('get_booking_contact_phone', { p_booking_id: bookingId });
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  return { success: true, data: (data as string | null) ?? null };
 }
 
 /** Worker streams their live position while en route — see Phase 5 for the watchPositionAsync wiring. */

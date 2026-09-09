@@ -144,9 +144,9 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
   const handleWithdraw = () => {
     Alert.alert(
       'Withdraw this request?',
-      'Any pending bids will no longer be able to be accepted. This cannot be undone.',
+      'Your job post is taken down and any bids on it are declined. This cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Keep it', style: 'cancel' },
         {
           text: 'Withdraw',
           style: 'destructive',
@@ -159,7 +159,9 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
               Alert.alert('Could Not Withdraw', result.error ?? 'Something went wrong. Please try again.');
               return;
             }
-            navigation.navigate('CustomerTabs', { screen: 'bookings' });
+            Alert.alert('Request Withdrawn', 'Your job post has been taken down.', [
+              { text: 'OK', onPress: () => navigation.navigate('CustomerTabs', { screen: 'bookings' }) },
+            ]);
           },
         },
       ]
@@ -245,8 +247,20 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
             </View>
           )}
           {request.status === 'seeking_bids' && (
-            <TouchableOpacity onPress={handleWithdraw} disabled={withdrawing} style={styles.withdrawRow}>
-              <Text style={[styles.withdrawText, { color: COLORS.danger }]}>
+            <TouchableOpacity
+              onPress={handleWithdraw}
+              disabled={withdrawing}
+              style={[styles.withdrawBtn, withdrawing && { opacity: 0.5 }]}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Withdraw this request"
+            >
+              {withdrawing ? (
+                <ActivityIndicator size="small" color={COLORS.danger} />
+              ) : (
+                <Ionicons name="close-circle-outline" size={16} color={COLORS.danger} />
+              )}
+              <Text style={styles.withdrawBtnText}>
                 {withdrawing ? 'Withdrawing…' : 'Withdraw this request'}
               </Text>
             </TouchableOpacity>
@@ -295,7 +309,7 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
                       {bid.worker && (
                         <View style={styles.ratingRow}>
                           <Ionicons name="star" size={16} color={COLORS.star} />
-                          <Text style={styles.ratingText}>
+                          <Text style={[styles.ratingText, { color: T.text }]}>
                             {bid.worker.rating_avg.toFixed(1)} ({bid.worker.rating_count} reviews)
                           </Text>
                         </View>
@@ -392,8 +406,19 @@ const styles = StyleSheet.create({
   requestDesc: { fontSize: 14, marginTop: 2 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   locationText: { fontSize: 14 },
-  withdrawRow: { marginTop: 10 },
-  withdrawText: { fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+  withdrawBtn: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.danger,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  withdrawBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.danger },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '700' },
   emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 19, paddingHorizontal: 20 },

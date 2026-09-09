@@ -91,6 +91,47 @@ export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: 
   };
 }
 
+/**
+ * Verified workers whose skills include a given job category slug
+ * (`worker_profiles.skills` @> ['plumbing']). Backs the skill-matched worker
+ * list a client sees right after posting a job. Workers onboarded via
+ * BecomeWorker store category slugs here; a worker who only ever set free-text
+ * skills via WorkerSkills won't match (known gap).
+ */
+export async function listVerifiedWorkersForCategory(
+  category: string
+): Promise<{ success: boolean; data?: VerifiedWorkerSummary[]; error?: string }> {
+  const { data, error } = await supabase
+    .from('worker_profiles')
+    .select(
+      'id, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
+    )
+    .eq('verification_status', 'verified')
+    .contains('skills', [category]);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return {
+    success: true,
+    data: (data ?? []).map((w: any) => ({
+      id: w.id,
+      full_name: w.profile?.full_name || 'Worker',
+      avatar_url: w.profile?.avatar_url ?? null,
+      skills: w.skills ?? [],
+      hourly_rate: w.hourly_rate,
+      per_job_rate: w.per_job_rate,
+      rating_avg: w.rating_avg,
+      rating_count: w.rating_count,
+      latitude: w.latitude,
+      longitude: w.longitude,
+      availability: Array.isArray(w.availability) ? w.availability : [],
+      is_online: w.is_online ?? true,
+    })),
+  };
+}
+
 export type CreateWorkerProfileInput = {
   skills: string[];
   bio?: string;

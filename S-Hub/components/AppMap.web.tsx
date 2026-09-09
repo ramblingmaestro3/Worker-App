@@ -157,6 +157,9 @@ export default function AppMap({
         ...(style as any),
       },
     },
+    // createElement(..., { ref }) is valid React; the react-hooks/refs rule
+    // (eslint-config-expo 57+) only recognises the JSX `ref={}` position.
+    // eslint-disable-next-line react-hooks/refs
     createElement('div', {
       key: 'map',
       ref: mapElRef,

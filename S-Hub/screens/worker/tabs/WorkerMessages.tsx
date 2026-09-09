@@ -24,6 +24,7 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { listMyConversations, ConversationView } from '@/lib/api/bookings';
 import { usePinnedConversationsStore } from '@/lib/stores/pinned-conversations-store';
+import { useUnreadStore } from '@/lib/stores/unread-store';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { RootStackParamList, WorkerTabParamList } from '@/navigation/types';
 
@@ -76,6 +77,7 @@ export default function WorkerMessagesScreen({ navigation }: Props) {
       setError(true);
     }
     setLoading(false);
+    useUnreadStore.getState().refreshMessages();
   }, []);
 
   useFocusEffect(
@@ -91,7 +93,7 @@ export default function WorkerMessagesScreen({ navigation }: Props) {
       conversations.filter((c) =>
         search.trim() === ''
           ? true
-          : c.client.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          : c.other.full_name.toLowerCase().includes(search.toLowerCase()) ||
             (c.request_category ?? '').toLowerCase().includes(search.toLowerCase()) ||
             (c.last_message?.message_text ?? '').toLowerCase().includes(search.toLowerCase())
       ),
@@ -129,7 +131,7 @@ export default function WorkerMessagesScreen({ navigation }: Props) {
         >
           <View style={styles.avatarWrap}>
             <View style={[styles.avatar, { backgroundColor: COLORS.accent + '18' }]}>
-              <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.client.full_name)}</Text>
+              <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.other.full_name)}</Text>
             </View>
             {pinnedRow && (
               <View style={[styles.pinBadge, { borderColor: T.card }]}>
@@ -141,7 +143,7 @@ export default function WorkerMessagesScreen({ navigation }: Props) {
           <View style={styles.content}>
             <View style={styles.topRow}>
               <HighlightedText
-                text={convo.client.full_name}
+                text={convo.other.full_name}
                 query={search}
                 style={[styles.name, { color: T.text }, unread && styles.nameUnread]}
                 numberOfLines={1}

@@ -27,7 +27,9 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme() ?? 'light';
+  // RN 0.86's ColorSchemeName widened to include 'unspecified' (Android) — treat
+  // anything that isn't an explicit 'dark' as light, matching the light-first default.
+  const systemScheme: 'light' | 'dark' = useSystemColorScheme() === 'dark' ? 'dark' : 'light';
   // Default to 'light' — AdwumaGo's brand theme is light-first (green & white); only change when user explicitly toggles
   const [preference, setPreferenceState] = useState<ColorScheme>('light');
   const [isLoaded, setIsLoaded] = useState(false);
@@ -77,7 +79,11 @@ export function useAppTheme() {
 export function useThemeColors() {
   const { isDark } = useAppTheme();
   return {
-    bg:          isDark ? '#120C09' : '#F5F5F0',
+    // Transparent so the app-wide tiled tool wallpaper (components/AppBackground,
+    // mounted once under the navigator) shows through every screen's empty
+    // areas. `bgSolid` is the real fill for the few spots that need one.
+    bg:          'transparent',
+    bgSolid:     isDark ? '#120C09' : '#F5F5F0',
     card:        isDark ? '#1C130D' : '#FFFFFF',
     header:      isDark ? '#1C130D' : '#FFFFFF',
     text:        isDark ? '#F5F1EA' : '#1A1A1A',

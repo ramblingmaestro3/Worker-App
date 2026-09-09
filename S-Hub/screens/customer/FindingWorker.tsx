@@ -19,7 +19,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '@/components/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
 import { listBidsForRequest, BidWithWorker } from '@/lib/api/workerBids';
+import { getServiceRequest } from '@/lib/api/serviceRequests';
+import { listVerifiedWorkersForCategory, VerifiedWorkerSummary } from '@/lib/api/workerProfiles';
 import { subscribeToRequestBids, unsubscribe } from '@/lib/api/realtime';
+import { distanceKm } from '@/lib/geo';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindingWorker'>;
 
@@ -95,6 +98,70 @@ const sv = StyleSheet.create({
   sub: { fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 10, paddingHorizontal: 30 },
 });
 
+/* ─── Shown when no worker matches the job's category (yet) ─── */
+function NoMatchView({
+  service,
+  T,
+  onBrowse,
+  onPostAnother,
+}: {
+  service: string;
+  T: any;
+  onBrowse: () => void;
+  onPostAnother: () => void;
+}) {
+  const tips = [
+    'Raise your budget — a better offer gets more workers to take the job on.',
+    'Add detail to the description so workers can see it’s a good fit.',
+    `Try the "Handyman / Other" category — many workers cover general ${service.toLowerCase()} tasks.`,
+  ];
+  return (
+    <View style={nm.wrap}>
+      <View style={nm.iconCircle}>
+        <Ionicons name="search-outline" size={30} color={COLORS.primary} />
+      </View>
+      <Text style={[nm.title, { color: T.text }]}>No {service.toLowerCase()} workers matched yet</Text>
+      <Text style={[nm.body, { color: T.subText }]}>
+        Your job is still live — any worker browsing open jobs can bid on it, and we&apos;ll notify you
+        the moment someone does.
+      </Text>
+
+      <View style={[nm.tipCard, { backgroundColor: T.card, borderColor: T.border }]}>
+        <Text style={[nm.tipHeading, { color: T.text }]}>Get more workers to see it</Text>
+        {tips.map((tip) => (
+          <View key={tip} style={nm.tipRow}>
+            <Ionicons name="bulb-outline" size={15} color={COLORS.primary} style={{ marginTop: 1 }} />
+            <Text style={[nm.tipText, { color: T.subText }]}>{tip}</Text>
+          </View>
+        ))}
+      </View>
+
+      <TouchableOpacity style={nm.primaryBtn} activeOpacity={0.85} onPress={onBrowse}>
+        <Ionicons name="people-outline" size={16} color="#fff" />
+        <Text style={nm.primaryBtnText}>Browse all verified workers</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={nm.linkBtn} activeOpacity={0.7} onPress={onPostAnother}>
+        <Text style={nm.linkText}>Post a different job</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const nm = StyleSheet.create({
+  wrap: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 30, paddingBottom: 20 },
+  iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  title: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
+  body: { fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 18 },
+  tipCard: { width: '100%', borderRadius: 16, borderWidth: 1, padding: 16, gap: 10, marginBottom: 18 },
+  tipHeading: { fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  tipRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  tipText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, alignSelf: 'stretch' },
+  primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  linkBtn: { paddingVertical: 14 },
+  linkText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+});
+
 /* ─── Real bid preview card ─── */
 function BidPreviewCard({ bid, T, onPress }: { bid: BidWithWorker; T: any; onPress: () => void }) {
   const initials = (bid.worker?.full_name ?? 'Worker')
@@ -156,6 +223,10 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
   const T = useThemeColors();
 
   const [bids, setBids] = useState<BidWithWorker[]>([]);
+  const [matched, setMatched] = useState<VerifiedWorkerSummary[]>([]);
+  const [jobCoords, setJobCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [matchedLoaded, setMatchedLoaded] = useState(false);
+  const [elapsed, setElapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const wasEmpty = useRef(true);
@@ -172,10 +243,16 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
       }
       let cancelled = false;
       let channel: ReturnType<typeof subscribeToRequestBids> | null = null;
+      // Hold the "no matches" advice back for a few seconds so it doesn't flash
+      // the instant the client lands here straight from posting the job.
+      const elapsedTimer = setTimeout(() => !cancelled && setElapsed(true), 6000);
 
       (async () => {
         setLoading(true);
-        const result = await listBidsForRequest(requestId);
+        const [result, reqResult] = await Promise.all([
+          listBidsForRequest(requestId),
+          getServiceRequest(requestId),
+        ]);
         if (cancelled) return;
         const initial = result.success ? result.data ?? [] : [];
         setBids(initial);
@@ -184,6 +261,19 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
           wasEmpty.current = false;
           fadeAnim.setValue(1);
         }
+
+        const req = reqResult.success ? reqResult.data : undefined;
+        if (req?.latitude != null && req?.longitude != null) {
+          setJobCoords({ lat: req.latitude, lng: req.longitude });
+        }
+
+        // Skill-matched verified workers for this job's category — gives the
+        // client someone to look at before bids arrive.
+        if (req?.category) {
+          const r = await listVerifiedWorkersForCategory(req.category);
+          if (!cancelled && r.success) setMatched(r.data ?? []);
+        }
+        if (!cancelled) setMatchedLoaded(true);
 
         channel = subscribeToRequestBids(requestId, () => {
           listBidsForRequest(requestId).then((r) => {
@@ -195,6 +285,7 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
 
       return () => {
         cancelled = true;
+        clearTimeout(elapsedTimer);
         if (channel) unsubscribe(channel);
       };
     }, [requestId, fadeAnim])
@@ -212,6 +303,21 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
     .filter((b) => b.status === 'pending' || b.status === 'countered')
     .sort((a, b) => effectivePrice(a) - effectivePrice(b))
     .slice(0, 3);
+
+  // Skill-matched workers, each annotated with distance from the job and
+  // sorted nearest-first (workers with no coords sink to the bottom).
+  const matchedNearby = matched
+    .map((w) => ({
+      w,
+      dist:
+        jobCoords && w.latitude != null && w.longitude != null
+          ? distanceKm(jobCoords.lat, jobCoords.lng, w.latitude, w.longitude)
+          : null,
+    }))
+    .sort((a, b) => (a.dist ?? Infinity) - (b.dist ?? Infinity));
+
+  // No bids, no skill-matched verified workers, and we've waited a beat.
+  const showNoMatch = !found && matchedLoaded && matched.length === 0 && elapsed;
 
   const goToBids = () => {
     if (requestId) navigation.navigate('BidComparison', { requestId });
@@ -246,7 +352,16 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollOuter}>
         <ScreenContent style={s.scroll}>
-          {!loading && !found && <SearchingView service={service} />}
+          {!found && !showNoMatch && matched.length === 0 && <SearchingView service={service} />}
+
+          {showNoMatch && (
+            <NoMatchView
+              service={service}
+              T={T}
+              onBrowse={() => navigation.navigate('Search', {})}
+              onPostAnother={() => navigation.navigate('PostAJob', {})}
+            />
+          )}
 
           {found && (
             <Animated.View style={{ opacity: fadeAnim }}>
@@ -279,6 +394,49 @@ export default function FindingWorkerScreen({ route, navigation }: Props) {
               </View>
             </Animated.View>
           )}
+
+          {matchedNearby.length > 0 && (
+            <View style={mws.section}>
+              <Text style={[mws.heading, { color: T.text }]}>
+                {matchedNearby.length} verified {service.toLowerCase()} {matchedNearby.length === 1 ? 'worker' : 'workers'} nearby
+              </Text>
+              <Text style={[mws.sub, { color: T.subText }]}>
+                Matched to your job, closest first. They&apos;ll be notified — you can also view a profile now.
+              </Text>
+              {matchedNearby.slice(0, 6).map(({ w, dist }) => (
+                <TouchableOpacity
+                  key={w.id}
+                  style={[mws.row, { backgroundColor: T.card, borderColor: T.border }]}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('WorkerProfile', { id: w.id })}
+                >
+                  <View style={mws.avatar}>
+                    <Text style={mws.avatarText}>
+                      {(w.full_name || 'W').split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[mws.name, { color: T.text }]} numberOfLines={1}>{w.full_name}</Text>
+                    <View style={mws.metaRow}>
+                      <Ionicons name="star" size={12} color="#F59E0B" />
+                      <Text style={[mws.meta, { color: T.subText }]}>
+                        {w.rating_avg.toFixed(1)} ({w.rating_count})
+                      </Text>
+                      {w.hourly_rate != null && (
+                        <Text style={[mws.meta, { color: T.subText }]}>· GH₵ {w.hourly_rate}/hr</Text>
+                      )}
+                      {dist != null && (
+                        <Text style={[mws.meta, { color: COLORS.primary }]}>
+                          · {dist < 1 ? '<1' : dist.toFixed(1)} km away
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={T.subText} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScreenContent>
       </ScrollView>
     </SafeAreaView>
@@ -309,4 +467,16 @@ const s = StyleSheet.create({
 
   tipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 12, padding: 14, marginHorizontal: 16, marginTop: 16 },
   tipText: { flex: 1, fontSize: 12, color: COLORS.primary, lineHeight: 18, fontWeight: '500' },
+});
+
+const mws = StyleSheet.create({
+  section: { paddingHorizontal: 16, marginTop: 20 },
+  heading: { fontSize: 15, fontWeight: '800' },
+  sub: { fontSize: 12, lineHeight: 17, marginTop: 3, marginBottom: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 10 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontWeight: '800', color: COLORS.primary },
+  name: { fontSize: 14, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3, flexWrap: 'wrap' },
+  meta: { fontSize: 11.5, fontWeight: '600' },
 });

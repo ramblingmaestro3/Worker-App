@@ -11,13 +11,23 @@ import { Notification } from './notifications';
  * useEffect cleanup alone isn't enough to stop a background screen from
  * still listening.
  */
+
+// supabase.channel(topic) returns the EXISTING channel when the topic string
+// already matches a live one — and adding a postgres_changes binding to an
+// already-subscribed channel throws. Two places can legitimately watch the
+// same table+filter at once (e.g. the app-wide unread poller in App.tsx and a
+// screen's own hook), so every call gets its own uniquely-named channel; the
+// real server-side scoping lives in the `filter` passed to `.on()`, not the name.
+let channelSeq = 0;
+
 export function subscribeToTable<T>(
   table: string,
   filter: string,
   onChange: (row: T) => void
 ): RealtimeChannel {
+  channelSeq += 1;
   return supabase
-    .channel(`${table}:${filter}`)
+    .channel(`${table}:${filter}:${channelSeq}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table, filter },
@@ -40,4 +50,9 @@ export function subscribeToRequestBids(requestId: string, onChange: (bid: Worker
 
 export function subscribeToMyNotifications(userId: string, onChange: (notification: Notification) => void): RealtimeChannel {
   return subscribeToTable<Notification>('notifications', `user_id=eq.${userId}`, onChange);
+}
+
+/** Fires whenever a single booking row changes — e.g. the worker advances its status. */
+export function subscribeToBooking(bookingId: string, onChange: () => void): RealtimeChannel {
+  return subscribeToTable<unknown>('bookings', `id=eq.${bookingId}`, onChange);
 }

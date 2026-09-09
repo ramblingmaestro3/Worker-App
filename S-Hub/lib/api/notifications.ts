@@ -1,6 +1,15 @@
 import { supabase } from '../supabase';
 
-export type NotificationType = 'bid_countered' | 'bid_accepted' | 'bid_declined' | 'new_message';
+export type NotificationType =
+  | 'bid_countered'
+  | 'bid_accepted'
+  | 'bid_declined'
+  | 'new_message'
+  | 'booking_en_route'
+  | 'booking_arrived'
+  | 'booking_in_progress'
+  | 'booking_completed'
+  | 'booking_cancelled';
 
 export type Notification = {
   id: string;

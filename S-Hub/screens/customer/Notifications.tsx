@@ -52,11 +52,18 @@ function timeAgo(iso: string): string {
 }
 
 const TYPE_META: Record<NotificationType, { icon: string; bg: string; color: string }> = {
-  bid_accepted: { icon: 'briefcase-outline', bg: COLORS.primary + '18', color: COLORS.primary },
+  bid_accepted: { icon: 'briefcase-outline', bg: COLORS.primaryLight, color: COLORS.primary },
   bid_declined: { icon: 'briefcase-outline', bg: COLORS.dangerLight, color: COLORS.danger },
-  bid_countered: { icon: 'pricetag-outline', bg: COLORS.primary + '18', color: COLORS.primary },
+  bid_countered: { icon: 'pricetag-outline', bg: COLORS.primaryLight, color: COLORS.primary },
   new_message: { icon: 'chatbubble-ellipses-outline', bg: '#E3F2FD', color: '#1565C0' },
+  booking_en_route: { icon: 'car-outline', bg: '#E3F2FD', color: '#1565C0' },
+  booking_arrived: { icon: 'location-outline', bg: '#E3F2FD', color: '#1565C0' },
+  booking_in_progress: { icon: 'construct-outline', bg: COLORS.primaryLight, color: COLORS.primary },
+  booking_completed: { icon: 'checkmark-circle-outline', bg: COLORS.primaryLight, color: COLORS.primary },
+  booking_cancelled: { icon: 'close-circle-outline', bg: COLORS.dangerLight, color: COLORS.danger },
 };
+
+const DEFAULT_META = { icon: 'notifications-outline', bg: COLORS.primaryLight, color: COLORS.primary };
 
 const FILTERS: { key: FilterCategory; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -121,6 +128,15 @@ export default function NotificationsScreen({ navigation }: Props) {
   const markRead = (id: string) => {
     setNotifs((ns) => ns.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
     markNotificationRead(id);
+  };
+  const openNotif = (notif: Notification) => {
+    markRead(notif.id);
+    const bookingId = notif.data?.booking_id ? String(notif.data.booking_id) : null;
+    if (notif.type === 'new_message' && bookingId) {
+      navigation.navigate('Chat', { bookingId });
+    } else if (bookingId) {
+      navigation.navigate('JobDetail', { bookingId });
+    }
   };
   const dismiss = (id: string) => {
     setNotifs((ns) => ns.filter((n) => n.id !== id));
@@ -198,7 +214,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             const unread = visible.filter((n) => !n.is_read);
             const read = visible.filter((n) => n.is_read);
             const renderNotif = (notif: Notification, bordered: boolean) => {
-              const meta = TYPE_META[notif.type];
+              const meta = TYPE_META[notif.type] ?? DEFAULT_META;
               return (
                 <TouchableOpacity
                   key={notif.id}
@@ -208,7 +224,7 @@ export default function NotificationsScreen({ navigation }: Props) {
                       ? { backgroundColor: T.card, borderWidth: 1, borderColor: T.border, borderRadius: 14, marginBottom: 10 }
                       : { backgroundColor: COLORS.primary + '08', borderRadius: 14, marginBottom: 10 },
                   ]}
-                  onPress={() => markRead(notif.id)}
+                  onPress={() => openNotif(notif)}
                   activeOpacity={0.78}
                 >
                   {!notif.is_read && <View style={s.unreadDot} />}

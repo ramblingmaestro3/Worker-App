@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
@@ -33,8 +33,10 @@ const VARIANT_COLOR: Record<ToastVariant, string> = {
  */
 export default function Toast({ toast, bottomOffset = wvs(100) }: { toast: ToastState; bottomOffset?: number }) {
   const T = useThemeColors();
-  const translateY = useRef(new Animated.Value(80)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  // Lazy useState (not useRef().current) keeps these stable without reading a
+  // ref during render — the react-hooks/refs rule in eslint-config-expo 57+.
+  const [translateY] = useState(() => new Animated.Value(80));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (!toast) return;

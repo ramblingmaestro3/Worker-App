@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "shub",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -25,6 +24,10 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
       [
         "expo-splash-screen",
         {

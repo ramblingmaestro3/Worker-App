@@ -73,7 +73,10 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
   const [myBids, setMyBids] = useState<Map<string, WorkerBid>>(new Map());
   const [respondingBidId, setRespondingBidId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
-  const workerCoords = useRef<{ latitude: number; longitude: number } | null>(null);
+  // State, not a ref: it's written once from the async profile load and read
+  // during render to compute per-request distances, so its landing must trigger
+  // a re-render (and reading a ref in render is a react-hooks/refs error).
+  const [workerCoords, setWorkerCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const toastKey = useRef(0);
   const hasUnread = useHasUnreadNotifications();
 
@@ -126,10 +129,10 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
           setRatingCount(workerProfileResult.data.rating_count);
           setOnline(workerProfileResult.data.is_online);
           if (workerProfileResult.data.latitude != null && workerProfileResult.data.longitude != null) {
-            workerCoords.current = {
+            setWorkerCoords({
               latitude: workerProfileResult.data.latitude,
               longitude: workerProfileResult.data.longitude,
-            };
+            });
           }
         }
         if (jobsDoneResult.success) setJobsDone(jobsDoneResult.data ?? 0);
@@ -217,8 +220,8 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
   const enrichedRequests = requests
     .map((req) => {
       const dist =
-        workerCoords.current && req.latitude != null && req.longitude != null
-          ? distanceKm(workerCoords.current.latitude, workerCoords.current.longitude, req.latitude, req.longitude)
+        workerCoords && req.latitude != null && req.longitude != null
+          ? distanceKm(workerCoords.latitude, workerCoords.longitude, req.latitude, req.longitude)
           : null;
       return { req, dist, bid: myBids.get(req.id) };
     })
@@ -326,7 +329,12 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
               const hasActiveBid = bid && (bid.status === 'pending' || bid.status === 'countered');
 
               return (
-                <Card key={req.id} style={styles.reqCard}>
+                <TouchableOpacity
+                  key={req.id}
+                  activeOpacity={0.9}
+                  onPress={() => navigation.navigate('JobPosting', { requestId: req.id })}
+                >
+                <Card style={styles.reqCard}>
                   <View style={styles.reqTop}>
                     <Text style={[styles.reqTitle, { color: T.text }]} numberOfLines={1}>
                       {req.category.charAt(0).toUpperCase() + req.category.slice(1)}
@@ -389,6 +397,7 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
                     </View>
                   )}
                 </Card>
+                </TouchableOpacity>
               );
             })}
           </View>

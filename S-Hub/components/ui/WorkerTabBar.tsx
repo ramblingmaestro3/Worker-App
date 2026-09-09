@@ -1,6 +1,7 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { s } from '@/lib/scaling';
 import { useNavStore, type WorkerTabKey } from '@/lib/stores/nav-store';
+import { useUnreadStore } from '@/lib/stores/unread-store';
 import NavPill, { type PillTab } from './NavPill';
 
 const TAB_META: Record<WorkerTabKey, Omit<PillTab, 'key'>> = {
@@ -13,10 +14,12 @@ const TAB_META: Record<WorkerTabKey, Omit<PillTab, 'key'>> = {
 /** tabBar for app/(worker)/(tabs)/_layout.tsx — same NavPill visual as CustomerTabBar, no center FAB. */
 export default function WorkerTabBar({ state, navigation }: BottomTabBarProps) {
   const setLastWorkerTab = useNavStore((store) => store.setLastWorkerTab);
+  const hasUnreadMessages = useUnreadStore((store) => store.messageCount > 0);
 
   const tabs: PillTab[] = state.routes.map((route) => ({
     key: route.name,
     ...TAB_META[route.name as WorkerTabKey],
+    badge: route.name === 'worker-messages' && hasUnreadMessages,
   }));
   const activeKey = state.routes[state.index].name;
 

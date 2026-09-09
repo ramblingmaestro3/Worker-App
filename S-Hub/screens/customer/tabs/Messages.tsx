@@ -6,6 +6,7 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ConversationView, listMyConversations } from '@/lib/api/bookings';
 import { usePinnedConversationsStore } from '@/lib/stores/pinned-conversations-store';
+import { useUnreadStore } from '@/lib/stores/unread-store';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { CustomerTabParamList, RootStackParamList } from '@/navigation/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -76,6 +77,9 @@ export default function MessagesScreen({ navigation }: Props) {
       setError(true);
     }
     setLoading(false);
+    // Returning here from a chat means messages were just marked read — keep
+    // the Messages-tab red dot in sync.
+    useUnreadStore.getState().refreshMessages();
   }, []);
 
   useFocusEffect(
@@ -90,7 +94,7 @@ export default function MessagesScreen({ navigation }: Props) {
     () =>
       conversations.filter((c) =>
         search.trim() === '' ? true :
-          c.worker.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.other.full_name.toLowerCase().includes(search.toLowerCase()) ||
           (c.request_category ?? '').toLowerCase().includes(search.toLowerCase()) ||
           (c.last_message?.message_text ?? '').toLowerCase().includes(search.toLowerCase())
       ),
@@ -128,7 +132,7 @@ export default function MessagesScreen({ navigation }: Props) {
         >
           <View style={styles.avatarWrap}>
             <View style={[styles.avatar, { backgroundColor: COLORS.accent + '20' }]}>
-              <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.worker.full_name)}</Text>
+              <Text style={[styles.initials, { color: COLORS.accent }]}>{initialsOf(convo.other.full_name)}</Text>
             </View>
             {pinnedRow && (
               <View style={[styles.pinBadge, { borderColor: T.card }]}>
@@ -139,7 +143,7 @@ export default function MessagesScreen({ navigation }: Props) {
           <View style={styles.content}>
             <View style={styles.topRow}>
               <HighlightedText
-                text={convo.worker.full_name}
+                text={convo.other.full_name}
                 query={search}
                 style={[styles.name, { color: T.text }, unread && styles.nameUnread]}
                 numberOfLines={1}

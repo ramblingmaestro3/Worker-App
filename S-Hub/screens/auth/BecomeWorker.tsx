@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -183,6 +184,18 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
     return true;
   };
 
+  /** Best-effort device coordinates so clients can find this worker by distance. Never blocks submission. */
+  const captureCoords = async (): Promise<{ latitude: number; longitude: number } | null> => {
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (!perm.granted) return null;
+      const pos = await Location.getCurrentPositionAsync({});
+      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    } catch {
+      return null;
+    }
+  };
+
   const handleSubmitVerification = async () => {
     if (!idImageUri) return;
     setSubmitting(true);
@@ -193,6 +206,8 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
       Alert.alert('Submission Failed', roleResult.error ?? 'Could not update your account role.');
       return;
     }
+
+    const coords = await captureCoords();
 
     const profileResult = await createWorkerProfile({
       skills,
@@ -205,6 +220,8 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
       availability: AVAILABILITY_DAYS.map((day) => ({ day, on: days.includes(day) })),
       preferred_times: times,
       address: location || undefined,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
     });
     if (!profileResult.success) {
       setSubmitting(false);

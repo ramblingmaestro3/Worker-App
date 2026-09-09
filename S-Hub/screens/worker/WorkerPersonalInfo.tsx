@@ -18,6 +18,7 @@ import {
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '@/components/ScreenHeader';
+import ProfilePhotoPicker from '@/components/ProfilePhotoPicker';
 import { getMyProfile, updateProfile } from '@/lib/api/profiles';
 import { getMyWorkerProfile, updateWorkerProfile } from '@/lib/api/workerProfiles';
 import type { RootStackParamList } from '@/navigation/types';
@@ -51,6 +52,7 @@ export default function WorkerPersonalInfoScreen({ navigation }: Props) {
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [languages, setLanguages] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -64,6 +66,7 @@ export default function WorkerPersonalInfoScreen({ navigation }: Props) {
       if (profileResult.success && profileResult.data) {
         setName(profileResult.data.full_name ?? '');
         setPhone(profileResult.data.phone ?? '');
+        setAvatarUrl(profileResult.data.avatar_url ?? null);
       }
       if (workerResult.success && workerResult.data) {
         setLocation(workerResult.data.address ?? '');
@@ -111,6 +114,9 @@ export default function WorkerPersonalInfoScreen({ navigation }: Props) {
 
       <View style={s.pageInner}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <View style={s.photoWrap}>
+          <ProfilePhotoPicker name={name} avatarUrl={avatarUrl} onChange={setAvatarUrl} />
+        </View>
         <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
           <Field icon="person-outline" label="Full name" value={name} onChangeText={setName} T={T} />
           <View style={[s.fieldDivider, { backgroundColor: T.divider }]} />
@@ -146,6 +152,7 @@ const s = StyleSheet.create({
   pageInner: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center' },
 
   scroll: { padding: ws(16) },
+  photoWrap: { alignItems: 'center', paddingVertical: wvs(12), marginBottom: wvs(8) },
   card: { borderRadius: ws(16), borderWidth: ws(1), padding: ws(16) },
   fieldDivider: { height: wvs(1), marginVertical: wvs(16) },
 

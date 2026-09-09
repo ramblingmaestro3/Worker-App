@@ -28,6 +28,9 @@ import {
   AIAnalysisResult,
   AIWorkerRecommendation,
 } from '@/lib/api/ai';
+import { listVerifiedWorkersForCategory, VerifiedWorkerSummary } from '@/lib/api/workerProfiles';
+import { distanceKm } from '@/lib/geo';
+import { useMyLocation } from '@/lib/useMyLocation';
 import { setAiJobDraft } from '@/lib/aiJobDraftBridge';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -266,7 +269,9 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
+  const [nearbyWorkers, setNearbyWorkers] = useState<{ w: VerifiedWorkerSummary; dist: number | null }[]>([]);
   const [qualityWarning, setQualityWarning] = useState<string | null>(null);
+  const { location: myLoc } = useMyLocation();
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -345,6 +350,24 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
         countWorkersBySkill(topCategory)
           .then(setNearbyCount)
           .catch(() => setNearbyCount(null));
+
+        // Real, nearby verified workers for the identified trade.
+        listVerifiedWorkersForCategory(topCategory)
+          .then((r) => {
+            if (!r.success) return;
+            const ranked = (r.data ?? [])
+              .map((w) => ({
+                w,
+                dist:
+                  myLoc && w.latitude != null && w.longitude != null
+                    ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
+                    : null,
+              }))
+              .sort((a, b) => (a.dist ?? Infinity) - (b.dist ?? Infinity))
+              .slice(0, 4);
+            setNearbyWorkers(ranked);
+          })
+          .catch(() => setNearbyWorkers([]));
       }
     } catch (error: any) {
       if (error instanceof AIUnavailableError) {
@@ -360,6 +383,7 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
     setImage(null);
     setResult(null);
     setNearbyCount(null);
+    setNearbyWorkers([]);
     setQualityWarning(null);
     setPhase('upload');
   };
@@ -529,6 +553,45 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
                 />
               ))}
 
+              {nearbyWorkers.length > 0 && (
+                <View style={s.nearbyBlock}>
+                  <Text style={[s.sectionTitle, { color: T.text }]}>
+                    {(result.recommendations[0]?.label || 'Verified')} workers near you
+                  </Text>
+                  <Text style={[s.sectionSub, { color: T.subText }]}>
+                    Verified {(result.recommendations[0]?.label || '').toLowerCase()} professionals, closest first — tap to view a profile.
+                  </Text>
+                  {nearbyWorkers.map(({ w, dist }) => (
+                    <TouchableOpacity
+                      key={w.id}
+                      style={[nwc.row, { backgroundColor: T.card, borderColor: T.border }]}
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate('WorkerProfile', { id: w.id })}
+                    >
+                      <View style={nwc.avatar}>
+                        <Text style={nwc.avatarText}>
+                          {(w.full_name || 'W').split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[nwc.name, { color: T.text }]} numberOfLines={1}>{w.full_name}</Text>
+                        <View style={nwc.metaRow}>
+                          <Ionicons name="star" size={12} color="#F59E0B" />
+                          <Text style={[nwc.meta, { color: T.subText }]}>{w.rating_avg.toFixed(1)} ({w.rating_count})</Text>
+                          {w.hourly_rate != null && (
+                            <Text style={[nwc.meta, { color: T.subText }]}>· GH₵ {w.hourly_rate}/hr</Text>
+                          )}
+                          {dist != null && (
+                            <Text style={[nwc.meta, { color: COLORS.primary }]}>· {dist < 1 ? '<1' : dist.toFixed(1)} km</Text>
+                          )}
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={T.subText} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               <Text style={[s.disclaimer, { color: T.subText }]}>
                 AI-generated suggestion. A qualified professional should inspect the problem before work begins.
               </Text>
@@ -648,4 +711,15 @@ const s = StyleSheet.create({
   findBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   viewOthersBtn: { alignItems: 'center', paddingVertical: 10 },
   viewOthersText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
+
+  nearbyBlock: { marginTop: 6, marginBottom: 4 },
+});
+
+const nwc = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 10 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontWeight: '800', color: COLORS.primary },
+  name: { fontSize: 14, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3, flexWrap: 'wrap' },
+  meta: { fontSize: 11.5, fontWeight: '600' },
 });

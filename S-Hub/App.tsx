@@ -2,15 +2,18 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { ThemeProvider, useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
 import OfflineBanner from '@/components/OfflineBanner';
+import { useNotificationRouting } from '@/hooks/use-notification-routing';
 import { routeSignedInUserByRole, signOutIntent } from '@/lib/auth';
+import { subscribeToMyNotifications, unsubscribe } from '@/lib/api/realtime';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 import { useAuthStore } from '@/lib/stores/auth-store';
+import { useUnreadStore } from '@/lib/stores/unread-store';
 import { supabase } from '@/lib/supabase';
 import { navigateToResetPassword, navigationRef, resetToSignIn } from '@/navigation/navigationRef';
 import RootNavigator from '@/navigation/RootNavigator';
@@ -64,8 +67,28 @@ function AppNavigator() {
   const T = useThemeColors();
   const status = useAuthStore((s) => s.status);
   useAuthDeepLinks();
+  useNotificationRouting(status === 'signed-in');
 
   useEffect(() => useAuthStore.getState().init(), []);
+
+  // Keep the Messages-tab unread red dot live app-wide: refresh the count on
+  // sign-in, and again whenever a notification row lands for this user (every
+  // new message writes one — see notify_new_message), so the dot appears even
+  // when the user isn't on the Messages screen. The Chat screen refreshes it
+  // back down after marking a thread read.
+  useEffect(() => {
+    if (status !== 'signed-in') {
+      useUnreadStore.getState().reset();
+      return;
+    }
+    useUnreadStore.getState().refreshMessages();
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) return;
+    const channel = subscribeToMyNotifications(userId, () => {
+      useUnreadStore.getState().refreshMessages();
+    });
+    return () => unsubscribe(channel);
+  }, [status]);
 
   // Global session-expiry handler: if the user was signed in and the store
   // flips to signed-out WITHOUT signOutIntent having been set (i.e. nobody
@@ -110,21 +133,26 @@ function AppNavigator() {
   }, [checkEntryScreenRedirect]);
 
   const base = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
-  // Paint the area outside the centred column with the app's own background so
-  // the letterboxing on wide screens reads as intentional, not a nav artefact.
+  // Transparent so RootNavigator's per-screen wallpaper layer (screenLayout)
+  // is what's visible; the app-root View below fills the wide-screen letterbox
+  // margins with a plain solid.
   const navTheme = {
     ...base,
-    colors: { ...base.colors, background: T.bg },
+    colors: { ...base.colors, background: 'transparent' },
   };
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme} onStateChange={checkEntryScreenRedirect}>
-      <RootNavigator />
-      <OfflineBanner />
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-    </NavigationContainer>
+    <View style={[styles.appRoot, { backgroundColor: T.bgSolid }]}>
+      <NavigationContainer ref={navigationRef} theme={navTheme} onStateChange={checkEntryScreenRedirect}>
+        <RootNavigator />
+        <OfflineBanner />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      </NavigationContainer>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({ appRoot: { flex: 1 } });
 
 export default function App() {
   return (

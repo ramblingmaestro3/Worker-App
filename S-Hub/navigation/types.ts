@@ -52,6 +52,7 @@ export type RootStackParamList = {
 
   // Worker
   WorkerTabs: NavigatorScreenParams<WorkerTabParamList>;
+  JobPosting: { requestId: string };
   SubmitBid: { requestId?: string };
   WorkerAvailability: undefined;
   WorkerNotifications: undefined;

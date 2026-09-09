@@ -1,5 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentType } from 'react';
+import { StyleSheet, View } from 'react-native';
+import AppBackground from '@/components/AppBackground';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import CustomerTabs from './CustomerTabs';
 import WorkerTabs from './WorkerTabs';
 import { authScreens } from './authScreens';
@@ -25,9 +28,21 @@ const flatScreens: { name: keyof RootStackParamList; component: ComponentType<an
 ];
 
 export default function RootNavigator() {
+  const T = useThemeColors();
+
   return (
     <Stack.Navigator
       initialRouteName="Splash"
+      // Wrap every screen in its own opaque wallpaper layer. Screens paint a
+      // transparent T.bg so this shows through their empty areas — but because
+      // each screen carries its own opaque copy, a pushed screen fully covers
+      // the one under it during and after the transition (no bleed-through).
+      screenLayout={({ children }) => (
+        <View style={[styles.screen, { backgroundColor: T.bgSolid }]}>
+          <AppBackground />
+          {children}
+        </View>
+      )}
       screenOptions={{
         contentStyle: { flex: 1, width: '100%', maxWidth: APP_MAX_WIDTH, alignSelf: 'center' },
       }}
@@ -40,3 +55,5 @@ export default function RootNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({ screen: { flex: 1 } });

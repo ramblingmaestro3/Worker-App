@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { COLORS } from '@/constants/theme';
@@ -11,11 +12,11 @@ type Props = {
 
 /** Wraps a conversation row with a swipe-left reveal for the pin/unpin action. */
 export default function SwipeableRow({ children, pinned, onTogglePin }: Props) {
-  let swipeableRef: Swipeable | null = null;
+  const swipeableRef = useRef<Swipeable | null>(null);
 
   return (
     <Swipeable
-      ref={(ref) => { swipeableRef = ref; }}
+      ref={swipeableRef}
       overshootRight={false}
       rightThreshold={40}
       renderRightActions={() => (
@@ -24,7 +25,7 @@ export default function SwipeableRow({ children, pinned, onTogglePin }: Props) {
           activeOpacity={0.85}
           onPress={() => {
             onTogglePin();
-            swipeableRef?.close();
+            swipeableRef.current?.close();
           }}
           accessibilityRole="button"
           accessibilityLabel={pinned ? 'Unpin conversation' : 'Pin conversation'}

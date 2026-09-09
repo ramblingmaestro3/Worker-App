@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', lineHeight: 30, marginBottom: 10, maxWidth: 340 },
   body: { fontSize: 15, lineHeight: 22, maxWidth: 360 },
   // Copy explains the step; the proof card sits well below it as supporting evidence.
-  proofWrap: { marginTop: 48 },
+  proofWrap: { marginTop: 67 },
 
   bestTag: { fontSize: 11, fontWeight: '700', color: COLORS.accent, marginRight: 10 },
 

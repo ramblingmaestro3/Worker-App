@@ -18,6 +18,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Linking,
   ScrollView,
   Share,
@@ -180,7 +181,11 @@ export default function ProfileScreen({ navigation }: Props) {
           {/* ── HERO — mirrors WorkerProfileSettings.tsx's heroRow ── */}
           <View style={styles.heroRow}>
             <View style={[styles.avatar, { backgroundColor: COLORS.primary + '18' }]}>
-              <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
+              )}
             </View>
             <View style={styles.heroInfo}>
               <View style={styles.nameRow}>
@@ -347,8 +352,9 @@ const styles = StyleSheet.create({
   },
   avatar: {
     width: s(54), height: s(54), borderRadius: s(27),
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
+  avatarImg: { width: '100%', height: '100%' },
   avatarInitials: { fontSize: ms(18), fontWeight: '800', color: COLORS.primary },
   heroInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: s(6), marginBottom: vs(2) },

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -10,7 +10,8 @@ import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
-import { getBookingWithContext, advanceBookingStatus, cancelBooking, BookingChatContext, BookingStatus } from '@/lib/api/bookings';
+import { getBookingWithContext, getBookingContactPhone, advanceBookingStatus, cancelBooking, BookingChatContext, BookingStatus } from '@/lib/api/bookings';
+import { subscribeToBooking, unsubscribe } from '@/lib/api/realtime';
 import { getMyReviewForBooking, submitReview, Review } from '@/lib/api/reviews';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { s, vs, ms } from '@/lib/scaling';
@@ -32,6 +33,13 @@ const TIMELINE_STEPS: { key: 'accepted_at' | 'en_route_at' | 'arrived_at' | 'com
   { key: 'arrived_at', label: 'Worker arrived' },
   { key: 'completed_at', label: 'Completed' },
 ];
+
+/** Prominent client-facing banner for the "live" phases of a booking. */
+const LIVE_STATUS: Partial<Record<BookingStatus, { icon: string; title: string; body: (name: string) => string }>> = {
+  en_route: { icon: 'car', title: 'Your worker is on the way', body: (n) => `${n} is heading to your location now.` },
+  arrived: { icon: 'location', title: 'Your worker has arrived', body: (n) => `${n} is at your location.` },
+  in_progress: { icon: 'construct', title: 'Work is underway', body: () => 'Your job is currently in progress.' },
+};
 
 /** The worker's next forward step from each status, and the button label that advances it. */
 const NEXT_STEP: Partial<Record<BookingStatus, { status: BookingStatus; label: string }>> = {
@@ -78,13 +86,37 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [calling, setCalling] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const load = useCallback(async (cancelledRef?: { current: boolean }) => {
-    setLoading(true);
+  const handleCall = async () => {
+    if (calling) return;
+    setCalling(true);
+    const result = await getBookingContactPhone(bookingId);
+    setCalling(false);
+    if (!result.success) {
+      Alert.alert('Could Not Get Number', result.error ?? 'Please try again.');
+      return;
+    }
+    const phone = (result.data ?? '').replace(/[^\d+]/g, '');
+    if (!phone) {
+      Alert.alert('No Phone Number', "There's no phone number on file for this person.");
+      return;
+    }
+    const url = `tel:${phone}`;
+    const canOpen = await Linking.canOpenURL(url).catch(() => false);
+    if (!canOpen) {
+      Alert.alert('Cannot Call', "This device can't place phone calls.");
+      return;
+    }
+    Linking.openURL(url);
+  };
+
+  const load = useCallback(async (cancelledRef?: { current: boolean }, silent = false) => {
+    if (!silent) setLoading(true);
     setNotFound(false);
     const [bookingResult, reviewResult] = await Promise.all([
       getBookingWithContext(bookingId),
@@ -92,7 +124,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     ]);
     if (cancelledRef?.current) return;
     if (!bookingResult.success || !bookingResult.data) {
-      setNotFound(true);
+      if (!silent) setNotFound(true);
       setLoading(false);
       return;
     }
@@ -105,8 +137,14 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     useCallback(() => {
       const cancelledRef = { current: false };
       load(cancelledRef);
-      return () => { cancelledRef.current = true; };
-    }, [load])
+      // Live-refresh so the client sees "on the way" / "arrived" the moment
+      // the worker advances the booking, without leaving and re-opening.
+      const channel = subscribeToBooking(bookingId, () => load(cancelledRef, true));
+      return () => {
+        cancelledRef.current = true;
+        unsubscribe(channel);
+      };
+    }, [load, bookingId])
   );
 
   const handleSubmitReview = async (revieweeId: string) => {
@@ -228,6 +266,18 @@ export default function JobDetailScreen({ route, navigation }: Props) {
             </View>
           </Card>
 
+          {isClientViewer && LIVE_STATUS[context.status] && (
+            <View style={[styles.liveBanner, { backgroundColor: COLORS.primary + '14', borderColor: COLORS.primary }]}>
+              <Ionicons name={LIVE_STATUS[context.status]!.icon as any} size={ms(22)} color={COLORS.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.liveBannerTitle, { color: COLORS.primary }]}>{LIVE_STATUS[context.status]!.title}</Text>
+                <Text style={[styles.liveBannerBody, { color: T.subText }]}>
+                  {LIVE_STATUS[context.status]!.body(otherParty?.full_name ?? 'Your worker')}
+                </Text>
+              </View>
+            </View>
+          )}
+
           <Card style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={ms(18)} color={T.subText} />
@@ -267,6 +317,20 @@ export default function JobDetailScreen({ route, navigation }: Props) {
               <Text style={[styles.partyName, { color: T.text }]} numberOfLines={1}>{otherParty?.full_name ?? 'Unknown'}</Text>
               <Text style={[styles.partyRole, { color: T.subText }]}>{isClientViewer ? 'Worker' : 'Client'}</Text>
             </View>
+            <TouchableOpacity
+              style={[styles.callBtn, { borderColor: COLORS.primary }]}
+              activeOpacity={0.85}
+              onPress={handleCall}
+              disabled={calling}
+              accessibilityRole="button"
+              accessibilityLabel={`Call ${otherParty?.full_name ?? 'this person'}`}
+            >
+              {calling ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Ionicons name="call-outline" size={ms(16)} color={COLORS.primary} />
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.messageBtn, { backgroundColor: COLORS.primary }]}
               activeOpacity={0.85}
@@ -427,6 +491,10 @@ const styles = StyleSheet.create({
   partyName: { fontSize: ms(15), fontWeight: '700' },
   partyRole: { fontSize: ms(12), marginTop: vs(1) },
   messageBtn: { width: s(38), height: s(38), borderRadius: s(19), alignItems: 'center', justifyContent: 'center' },
+  callBtn: { width: s(38), height: s(38), borderRadius: s(19), borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  liveBanner: { flexDirection: 'row', alignItems: 'center', gap: s(12), borderWidth: 1.5, borderRadius: RADIUS.lg, padding: s(14), marginTop: vs(12) },
+  liveBannerTitle: { fontSize: ms(14.5), fontWeight: '800', marginBottom: vs(2) },
+  liveBannerBody: { fontSize: ms(12.5), lineHeight: ms(17) },
 
   viewProfileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: s(4), paddingVertical: vs(10) },
   viewProfileText: { fontSize: ms(13), fontWeight: '700' },

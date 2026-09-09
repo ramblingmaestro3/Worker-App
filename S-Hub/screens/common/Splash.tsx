@@ -5,6 +5,7 @@ import { AccessibilityInfo, Animated, StatusBar, StyleSheet, Text, TouchableOpac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenContent from '@/components/ScreenContent';
 import { COLORS, RADIUS } from '@/constants/theme';
+import { useThemeColors } from '@/contexts/ThemeContext';
 import { routeSignedInUserByRole } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
 import { useAuthStore } from '@/lib/stores/auth-store';
@@ -13,6 +14,7 @@ import type { RootStackParamList } from '@/navigation/types';
 export default function SplashScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Splash'>) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const status = useAuthStore((store) => store.status);
+  const T = useThemeColors();
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -42,7 +44,7 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={T.statusBar} />
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <ScreenContent style={styles.logoWrap}>
@@ -51,14 +53,14 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
 
         <Animated.View style={[styles.bodyWrap, { opacity: fadeAnim }]}>
           <ScreenContent style={styles.bodyInner}>
-            <View style={styles.tag}>
+            <View style={[styles.tag, { borderColor: T.border }]}>
               <Ionicons name="shield-checkmark" size={ms(13)} color={COLORS.accent} />
-              <Text style={styles.tagText}>Verified professionals only</Text>
+              <Text style={[styles.tagText, { color: T.text }]}>Verified professionals only</Text>
             </View>
 
-            <Text style={styles.headline}>Verified. Rated. Reliable.</Text>
+            <Text style={[styles.headline, { color: T.text }]}>Verified. Rated. Reliable.</Text>
 
-            <Text style={styles.subcopy}>
+            <Text style={[styles.subcopy, { color: T.subText }]}>
               Skilled, background-checked professionals — ready to work, right in your
               neighborhood.
             </Text>
@@ -85,7 +87,7 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
               accessibilityRole="button"
               accessibilityLabel="Sign in to an existing account"
             >
-              <Text style={styles.signInText}>
+              <Text style={[styles.signInText, { color: T.subText }]}>
                 Already using AdwumaGo? <Text style={styles.signInLink}>Sign in</Text>
               </Text>
             </TouchableOpacity>
@@ -97,7 +99,7 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+  root: { flex: 1 },
   safeArea: { flex: 1 },
 
   logoWrap: { paddingHorizontal: s(24), paddingTop: vs(16) },
