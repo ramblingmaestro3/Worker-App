@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
 import CustomerTabBar from '@/components/ui/CustomerTabBar';
+import WallpaperLayout from '@/components/WallpaperLayout';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { useNavHydrated, useNavStore } from '@/lib/stores/nav-store';
 import Home from '@/screens/customer/tabs/Home';
@@ -25,7 +26,13 @@ export default function CustomerTabs() {
   }
 
   return (
-    <Tab.Navigator initialRouteName={lastCustomerTab} tabBar={(props) => <CustomerTabBar {...props} />}>
+    <Tab.Navigator
+      initialRouteName={lastCustomerTab}
+      tabBar={(props) => <CustomerTabBar {...props} />}
+      // Each tab scene carries its own opaque wallpaper so an inactive tab
+      // can't bleed through the active one (they're transparent otherwise).
+      screenLayout={({ children }) => <WallpaperLayout>{children}</WallpaperLayout>}
+    >
       <Tab.Screen name="home" component={Home} />
       <Tab.Screen name="bookings" component={Bookings} />
       <Tab.Screen name="messages" component={Messages} />

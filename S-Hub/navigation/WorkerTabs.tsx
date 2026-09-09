@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
 import WorkerTabBar from '@/components/ui/WorkerTabBar';
+import WallpaperLayout from '@/components/WallpaperLayout';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { useNavHydrated, useNavStore } from '@/lib/stores/nav-store';
 import WorkerDashboard from '@/screens/worker/tabs/WorkerDashboard';
@@ -25,7 +26,11 @@ export default function WorkerTabs() {
   }
 
   return (
-    <Tab.Navigator initialRouteName={lastWorkerTab} tabBar={(props) => <WorkerTabBar {...props} />}>
+    <Tab.Navigator
+      initialRouteName={lastWorkerTab}
+      tabBar={(props) => <WorkerTabBar {...props} />}
+      screenLayout={({ children }) => <WallpaperLayout>{children}</WallpaperLayout>}
+    >
       <Tab.Screen name="worker-dashboard" component={WorkerDashboard} />
       <Tab.Screen name="worker-jobs" component={WorkerJobs} />
       <Tab.Screen name="worker-messages" component={WorkerMessages} />
