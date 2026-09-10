@@ -1,3 +1,9 @@
+/**
+ * Shown right after posting. Live bid feed (subscribeToRequestBids) plus a
+ * skill-matched list of nearby verified workers (listVerifiedWorkersForCategory,
+ * sorted by distance from the job). After ~6s with no match, shows a "widen your
+ * search" advice state.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

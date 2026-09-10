@@ -1,3 +1,4 @@
+/** Bottom-tab navigator for a signed-in client: home / bookings / messages / profile. Custom pill tab bar; each tab scene gets its own wallpaper layer. */
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
 import CustomerTabBar from '@/components/ui/CustomerTabBar';

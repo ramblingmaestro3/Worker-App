@@ -1,3 +1,7 @@
+/**
+ * Draggable-pin map used inside LocationPicker to choose a precise point. Web
+ * variant in InteractiveMapPicker.web.tsx.
+ */
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

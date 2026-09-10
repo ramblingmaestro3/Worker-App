@@ -1,3 +1,5 @@
+/** Circular avatar + Change/Add Photo control. Picks from the library, uploads
+ * to storage, and persists the URL via `onSave` (defaults to profiles.avatar_url). */
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
@@ -6,6 +8,7 @@ import { Alert } from '@/lib/Alert';
 import { COLORS } from '@/constants/theme';
 import { updateProfile } from '@/lib/api/profiles';
 import { uploadAvatar } from '@/lib/api/storage';
+import { ensureMediaLibraryPermission } from '@/lib/mediaPermissions';
 
 function initialsOf(name: string): string {
   return name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
@@ -22,22 +25,21 @@ export default function ProfilePhotoPicker({
   name,
   avatarUrl,
   onChange,
+  onSave = (url: string) => updateProfile({ avatar_url: url }),
   size = 88,
 }: {
   name: string;
   avatarUrl: string | null;
   onChange: (url: string) => void;
+  /** Persists the uploaded URL. Defaults to writing `profiles.avatar_url`. */
+  onSave?: (url: string) => Promise<{ success: boolean; error?: string }>;
   size?: number;
 }) {
   const [busy, setBusy] = useState(false);
 
   const pick = async () => {
     if (busy) return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to change your profile picture.');
-      return;
-    }
+    if (!(await ensureMediaLibraryPermission())) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -53,7 +55,7 @@ export default function ProfilePhotoPicker({
       Alert.alert('Upload Failed', uploaded.error ?? 'Could not upload your photo. Please try again.');
       return;
     }
-    const saved = await updateProfile({ avatar_url: uploaded.publicUrl });
+    const saved = await onSave(uploaded.publicUrl);
     setBusy(false);
     if (!saved.success) {
       Alert.alert('Could Not Save', saved.error ?? 'Your photo uploaded but could not be saved. Please try again.');

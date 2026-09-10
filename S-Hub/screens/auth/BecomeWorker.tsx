@@ -1,3 +1,9 @@
+/**
+ * The 4-step worker application: skills -> personal info -> availability & rate ->
+ * ID upload. On submit: becomeWorker() (role->worker), createWorkerProfile()
+ * (+ device GPS), upload ID/selfie to the private id-documents bucket,
+ * submitVerification(), then -> VerificationPending.
+ */
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,7 +27,10 @@ import ScreenHeader from '@/components/ScreenHeader';
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
+import { SERVICE_CATEGORIES } from '@/constants/categories';
 import { becomeWorker } from '@/lib/api/profiles';
+import { ensureLocationPermission } from '@/lib/locationPermission';
+import { normalizeRegion } from '@/lib/geocoding';
 import { createWorkerProfile, PREFERRED_TIME_OPTIONS, PreferredTime } from '@/lib/api/workerProfiles';
 import { submitVerification } from '@/lib/api/verification';
 import { uploadIdDocument, uploadSelfie } from '@/lib/api/storage';
@@ -30,20 +39,14 @@ import type { RootStackParamList } from '@/navigation/types';
 /* ─── Constants ─── */
 const TOTAL_STEPS = 4;
 
-const SKILL_CATEGORIES = [
-  { id: 'plumbing', label: 'Plumbing', icon: '🔧', color: COLORS.accent },
-  { id: 'electrical', label: 'Electrical', icon: '⚡', color: '#F59E0B' },
-  { id: 'carpentry', label: 'Carpentry', icon: '🪚', color: '#92400E' },
-  { id: 'painting', label: 'Painting', icon: '🖌️', color: '#3B82F6' },
-  { id: 'cleaning', label: 'Cleaning', icon: '🧹', color: '#8B5CF6' },
-  { id: 'masonry', label: 'Masonry', icon: '🧱', color: '#DC2626' },
-  { id: 'welding', label: 'Welding', icon: '🔩', color: '#64748B' },
-  { id: 'ac', label: 'AC & Cooling', icon: '❄️', color: '#0891B2' },
-  { id: 'tiling', label: 'Tiling', icon: '🏗️', color: '#D97706' },
-  { id: 'roofing', label: 'Roofing', icon: '🏚️', color: '#BE185D' },
-  { id: 'security', label: 'Security/CCTV', icon: '📷', color: '#374151' },
-  { id: 'other', label: 'Other', icon: '⋯', color: '#6B7280' },
-];
+// One shared list — see constants/categories.ts. Worker skills must use the same
+// slugs clients post jobs with, or matching (service_requests.category ∈ skills) breaks.
+const SKILL_CATEGORIES = SERVICE_CATEGORIES.map((c) => ({
+  id: c.key,
+  label: c.label,
+  icon: c.emoji,
+  color: c.color,
+}));
 
 const EXPERIENCE_OPTIONS = ['Less than 1 year', '1–2 years', '3–5 years', '6–10 years', '10+ years'];
 const AVAILABILITY_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -119,6 +122,8 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
+  const [capturedCoords, setCapturedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locating, setLocating] = useState(false);
   const [bio, setBio] = useState('');
   const [experience, setExperience] = useState('');
 
@@ -160,7 +165,7 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.length) {
@@ -187,12 +192,41 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
   /** Best-effort device coordinates so clients can find this worker by distance. Never blocks submission. */
   const captureCoords = async (): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      if (!perm.granted) return null;
+      // silent: this runs during submit — the explicit "Use current location"
+      // button below is where the worker gets a real permission prompt.
+      if (!(await ensureLocationPermission({ silent: true }))) return null;
       const pos = await Location.getCurrentPositionAsync({});
       return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
     } catch {
       return null;
+    }
+  };
+
+  /** Explicit "Use current location" — prompts for permission (or points the
+   * worker at Settings if it's off) and fills the address field from GPS. */
+  const handleUseMyLocation = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      if (!(await ensureLocationPermission())) return;
+      const pos = await Location.getCurrentPositionAsync({});
+      const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      setCapturedCoords(coords);
+      try {
+        const [place] = await Location.reverseGeocodeAsync(coords);
+        if (place) {
+          const label = [place.city || place.subregion || place.district, normalizeRegion(place.region)]
+            .filter(Boolean)
+            .join(', ');
+          if (label) setLocation(label);
+        }
+      } catch {
+        // Reverse geocode failed (offline / no key) — we still have the coords.
+      }
+    } catch {
+      Alert.alert('Could Not Get Location', "We couldn't read your position. Check that location services are on and try again.");
+    } finally {
+      setLocating(false);
     }
   };
 
@@ -207,10 +241,13 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
       return;
     }
 
-    const coords = await captureCoords();
+    const coords = capturedCoords ?? (await captureCoords());
 
     const profileResult = await createWorkerProfile({
       skills,
+      // The name entered here is the worker-facing one shown to clients — kept
+      // separate from profiles.full_name (the personal / client-side identity).
+      display_name: `${firstName.trim()} ${lastName.trim()}`.trim() || undefined,
       bio: bio || undefined,
       years_experience: experience ? EXPERIENCE_OPTIONS.indexOf(experience) : undefined,
       hourly_rate: ratePerHour ? Number(ratePerHour) : undefined,
@@ -396,7 +433,25 @@ export default function WorkerSetupScreen({ navigation }: NativeStackScreenProps
                   value={location}
                   onChangeText={setLocation}
                 />
+                <TouchableOpacity
+                  onPress={handleUseMyLocation}
+                  disabled={locating}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Use my current location"
+                >
+                  {locating ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <Ionicons name="navigate-circle-outline" size={wms(22)} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
               </View>
+              {!!capturedCoords && (
+                <Text style={[s.locationHint, { color: COLORS.primary }]}>
+                  <Ionicons name="checkmark-circle" size={wms(12)} color={COLORS.primary} /> GPS location saved
+                </Text>
+              )}
 
               <FieldLabel label="Years of Experience" required color={T.text} />
               <View style={s.optionRow}>
@@ -677,6 +732,7 @@ const s = StyleSheet.create({
   phoneInput: { flex: 1, paddingHorizontal: ws(12), fontSize: wms(14) },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: ws(10), borderWidth: ws(1), borderRadius: ws(12), paddingHorizontal: ws(14), paddingVertical: wvs(12), marginBottom: wvs(14) },
   locationInput: { flex: 1, fontSize: wms(14) },
+  locationHint: { fontSize: wms(11.5), fontWeight: '600', marginTop: wvs(-8), marginBottom: wvs(8) },
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ws(8), marginBottom: wvs(16) },
   optionChip: { borderWidth: ws(1.5), borderRadius: ws(20), paddingHorizontal: ws(14), paddingVertical: wvs(8) },
   optionChipText: { fontSize: wms(12), fontWeight: '600' },

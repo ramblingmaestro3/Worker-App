@@ -1,9 +1,14 @@
+/**
+ * "You're verified!" success screen shown once finalize_verification succeeds.
+ * Leads the new worker into the worker side of the app.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { Wordmark } from '@/components/Logo';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { setActiveSide } from '@/lib/activeSide';
 import { ws, wvs, wms } from '@/lib/scaling';
@@ -26,7 +31,9 @@ export default function VerifiedScreen({ navigation }: NativeStackScreenProps<Ro
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]}>
       <StatusBar barStyle={T.statusBar} />
 
-      <Text style={styles.logo}>AdwumaGo</Text>
+      <View style={{ paddingHorizontal: ws(24), paddingTop: wvs(16), paddingBottom: wvs(4) }}>
+        <Wordmark size={wms(20)} />
+      </View>
 
       <View style={styles.content}>
         <View style={[styles.badgeWrap, { backgroundColor: COLORS.primaryLight }]}>

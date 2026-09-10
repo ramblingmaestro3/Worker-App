@@ -1,3 +1,8 @@
+/**
+ * Account creation (name, email/phone, password, client|worker role). With email
+ * confirmation off (the default), signUp returns a session and the user goes
+ * straight in; with it on, routes to OtpVerification.
+ */
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useState } from 'react';
@@ -16,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import { Wordmark } from '@/components/Logo';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import {
@@ -148,7 +154,7 @@ export default function SignUpScreen({ navigation }: NativeStackScreenProps<Root
       <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
 
       <ScreenContent style={styles.logoWrap}>
-        <Text style={styles.logo}>AdwumaGo</Text>
+        <Wordmark size={ms(20)} />
       </ScreenContent>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

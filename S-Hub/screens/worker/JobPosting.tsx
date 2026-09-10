@@ -1,3 +1,8 @@
+/**
+ * A worker's read-only view of one open service_request (from the dashboard
+ * feed). Shows the job details and the worker's own bid status if any; CTA ->
+ * SubmitBid.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,38 +27,12 @@ import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
 import { listMyBids, WorkerBid } from '@/lib/api/workerBids';
+import { openInMaps, hasMappableLocation } from '@/lib/openInMaps';
+import { categoryIcon, categoryLabel } from '@/constants/categories';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JobPosting'>;
 type ThemeColors = ReturnType<typeof useThemeColors>;
-
-// Same slugs PostAJob.tsx posts with; unknown categories fall back to a briefcase.
-const CATEGORY_ICON: Record<string, string> = {
-  plumbing: 'water-outline',
-  electrical: 'flash-outline',
-  carpentry: 'hammer-outline',
-  painting: 'color-palette-outline',
-  cleaning: 'sparkles-outline',
-  masonry: 'cube-outline',
-  welding: 'flame-outline',
-  ac: 'snow-outline',
-  tiling: 'grid-outline',
-  roofing: 'home-outline',
-  security: 'videocam-outline',
-  mechanic: 'car-outline',
-  gardening: 'leaf-outline',
-  appliances: 'build-outline',
-  moving: 'car-sport-outline',
-  beauty: 'cut-outline',
-};
-
-function titleCase(raw: string): string {
-  return raw
-    .split(/[\s_-]+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -200,14 +179,22 @@ export default function JobPostingScreen({ route, navigation }: Props) {
     );
   }
 
-  const category = titleCase(request.category);
-  const icon = CATEGORY_ICON[request.category] ?? 'briefcase-outline';
+  const category = categoryLabel(request.category);
+  const icon = categoryIcon(request.category);
   const locationText =
     request.location_string ?? request.location_region ?? 'Location not specified';
   const budgetText =
     request.initial_offer_price != null ? `GH₵ ${request.initial_offer_price}` : 'Open budget';
   const isOpen = request.status === 'seeking_bids';
   const descLong = (request.description?.length ?? 0) > 200;
+
+  const mapsTarget = {
+    latitude: request.latitude,
+    longitude: request.longitude,
+    label: request.location_string ?? request.location_region,
+  };
+  const canOpenMaps = hasMappableLocation(mapsTarget);
+  const openJobLocation = () => openInMaps(mapsTarget);
 
   const goToBid = () => navigation.navigate('SubmitBid', { requestId });
 
@@ -220,12 +207,28 @@ export default function JobPostingScreen({ route, navigation }: Props) {
             <Ionicons name={icon as any} size={wms(30)} color={COLORS.primary} />
           </View>
           <Text style={[styles.heroTitle, { color: T.text }]}>{category}</Text>
-          <View style={styles.heroLocationRow}>
-            <Ionicons name="location-outline" size={wms(14)} color={T.subText} />
-            <Text style={[styles.heroLocation, { color: T.subText }]} numberOfLines={2}>
-              {locationText}
-            </Text>
-          </View>
+          {canOpenMaps ? (
+            <TouchableOpacity
+              style={styles.heroLocationRow}
+              onPress={openJobLocation}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Open job location in maps"
+            >
+              <Ionicons name="location-outline" size={wms(14)} color={COLORS.primary} />
+              <Text style={[styles.heroLocation, styles.heroLocationLink]} numberOfLines={2}>
+                {locationText}
+              </Text>
+              <Ionicons name="open-outline" size={wms(13)} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.heroLocationRow}>
+              <Ionicons name="location-outline" size={wms(14)} color={T.subText} />
+              <Text style={[styles.heroLocation, { color: T.subText }]} numberOfLines={2}>
+                {locationText}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* ── Info grid ── */}
@@ -278,21 +281,43 @@ export default function JobPostingScreen({ route, navigation }: Props) {
         )}
 
         {/* ── Location ── */}
-        {request.latitude != null && request.longitude != null && (
+        {canOpenMaps && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: T.text }]}>Location</Text>
-            <View style={[styles.mapPreview, { borderColor: T.border }]}>
-              <AppMap
-                latitude={request.latitude}
-                longitude={request.longitude}
-                zoom={0.02}
-                markers={[
-                  { latitude: request.latitude, longitude: request.longitude, color: COLORS.primary },
-                ]}
-                zoomEnabled={false}
-                scrollEnabled={false}
-              />
-            </View>
+            {request.latitude != null && request.longitude != null && (
+              <TouchableOpacity
+                style={[styles.mapPreview, { borderColor: T.border }]}
+                onPress={openJobLocation}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel="Open job location in maps"
+              >
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <AppMap
+                    latitude={request.latitude}
+                    longitude={request.longitude}
+                    zoom={0.02}
+                    markers={[
+                      { latitude: request.latitude, longitude: request.longitude, color: COLORS.primary },
+                    ]}
+                    zoomEnabled={false}
+                    scrollEnabled={false}
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.directionsBtn, { borderColor: COLORS.primary }]}
+              onPress={openJobLocation}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="navigate-outline" size={wms(16)} color={COLORS.primary} />
+              <Text style={styles.directionsBtnText}>
+                {request.latitude != null && request.longitude != null
+                  ? 'Get directions'
+                  : 'Open in Maps'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -378,6 +403,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(20),
   },
   heroLocation: { fontSize: wms(13), textAlign: 'center' },
+  heroLocationLink: { color: COLORS.primary, fontWeight: '700' },
 
   /* Info grid */
   grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: ws(10), rowGap: wvs(10) },
@@ -429,6 +455,16 @@ const styles = StyleSheet.create({
 
   /* Map */
   mapPreview: { height: wvs(150), borderRadius: ws(16), borderWidth: 1, overflow: 'hidden' },
+  directionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(8),
+    height: wvs(44),
+    borderRadius: ws(12),
+    borderWidth: 1.5,
+  },
+  directionsBtnText: { fontSize: wms(14), fontWeight: '700', color: COLORS.primary },
 
   /* Footer */
   footer: {

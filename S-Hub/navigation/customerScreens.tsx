@@ -1,3 +1,4 @@
+/** {name, component} list for client-only pushed screens (PostAJob, BidComparison, Chat, WorkerProfile, Search, ...). Spread into RootNavigator. */
 import BidComparison from '@/screens/customer/BidComparison';
 import Chat from '@/screens/customer/Chat';
 import FindingWorker from '@/screens/customer/FindingWorker';

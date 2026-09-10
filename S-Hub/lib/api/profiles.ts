@@ -51,10 +51,22 @@ export async function becomeWorker(): Promise<{ success: boolean; error?: string
     return { success: false, error: 'Not signed in.' };
   }
 
-  const { error } = await supabase.from('profiles').update({ role: 'worker' }).eq('id', auth.user.id);
+  // `.select()` so an update silently blocked by RLS / the role-escalation
+  // guard trigger surfaces as a failure instead of a false success — otherwise
+  // the rest of the become-worker flow proceeds on a role change that never
+  // happened.
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role: 'worker' })
+    .eq('id', auth.user.id)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { success: false, error: "Couldn't upgrade your account to a worker profile. Please try again." };
   }
 
   return { success: true };

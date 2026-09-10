@@ -1,3 +1,9 @@
+/**
+ * The client's notification inbox. Renders rows from the notifications table
+ * (filter: all / jobs / messages), mark-read, dismiss. TYPE_META must mirror the
+ * DB type CHECK constraint; DEFAULT_META is the fallback for an unknown type.
+ * Tapping a row opens the related Chat / JobDetail.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

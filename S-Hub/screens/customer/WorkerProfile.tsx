@@ -1,3 +1,8 @@
+/**
+ * A worker's public profile (rating, skills, reviews, rate). Reached from browse/
+ * search/bids, or from an existing booking (fromBooking=true changes the "message"
+ * button behaviour). Primary CTA: Post a Job.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
@@ -54,7 +59,8 @@ type ViewModel = {
     skills: string[];
     experience: string | null;
     preferredTimes: string[];
-    reviews: { author: string; initials: string; color: string; rating: number; comment: string; date: string }[];
+    reviews: { id: string; author: string; initials: string; color: string; rating: number; comment: string; date: string }[];
+    reviewsFailed: boolean;
 };
 
 export default function WorkerProfileScreen({ route, navigation }: Props) {
@@ -85,6 +91,7 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
         }
         const w = result.data;
         const reviews = (reviewsResult.data ?? []).map((r) => ({
+            id: r.id,
             author: r.reviewer?.full_name || 'AdwumaGo user',
             initials: initialsOf(r.reviewer?.full_name || '?'),
             color: colorForId(r.reviewer_id),
@@ -105,6 +112,7 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
             experience: w.years_experience != null ? `${w.years_experience} yrs` : null,
             preferredTimes: (w.preferred_times ?? []).map(preferredTimeShortLabel),
             reviews,
+            reviewsFailed: !reviewsResult.success,
         });
         setLoading(false);
     }, [id]);
@@ -274,34 +282,46 @@ export default function WorkerProfileScreen({ route, navigation }: Props) {
                 )}
 
                 {/* ══ REVIEWS ══ */}
-                {vm.reviews.length > 0 && (
+                {(vm.reviews.length > 0 || vm.reviewCount > 0) && (
                     <View style={[s.card, { backgroundColor: T.card, borderColor: T.border }]}>
                         <View style={s.reviewsHeaderRow}>
-                            <Text style={[s.cardTitle, { color: T.text, marginBottom: 0 }]}>Reviews ({vm.reviewCount})</Text>
-                            <View style={s.recentRow}>
-                                <Ionicons name="filter-outline" size={wms(13)} color={COLORS.primary} />
-                                <Text style={[s.recentText, { color: COLORS.primary }]}>Recent</Text>
-                            </View>
-                        </View>
-                        {vm.reviews.map((rev, i) => (
-                            <View key={rev.author} style={[s.reviewRow, i > 0 && { borderTopWidth: ws(1), borderColor: T.divider }]}>
-                                <View style={s.reviewTop}>
-                                    <View style={[s.reviewAvatar, { backgroundColor: rev.color + '20' }]}>
-                                        <Text style={[s.reviewInitials, { color: rev.color }]}>{rev.initials}</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[s.reviewAuthor, { color: T.text }]}>{rev.author}</Text>
-                                        <View style={{ flexDirection: 'row' }}>
-                                            {Array.from({ length: 5 }).map((_, idx) => (
-                                                <Ionicons key={idx} name={idx < rev.rating ? 'star' : 'star-outline'} size={wms(11)} color="#F59E0B" />
-                                            ))}
-                                        </View>
-                                    </View>
-                                    <Text style={[s.reviewDate, { color: T.subText }]}>{rev.date}</Text>
+                            <Text style={[s.cardTitle, { color: T.text, marginBottom: 0 }]}>
+                                Reviews{vm.reviewCount > 0 ? ` (${vm.reviewCount})` : ''}
+                            </Text>
+                            {vm.reviews.length > 0 && (
+                                <View style={s.recentRow}>
+                                    <Ionicons name="filter-outline" size={wms(13)} color={COLORS.primary} />
+                                    <Text style={[s.recentText, { color: COLORS.primary }]}>Recent</Text>
                                 </View>
-                                <Text style={[s.reviewComment, { color: T.subText }]}>{rev.comment}</Text>
-                            </View>
-                        ))}
+                            )}
+                        </View>
+                        {vm.reviews.length === 0 ? (
+                            <Text style={[s.reviewComment, { color: T.subText, marginTop: wvs(8) }]}>
+                                {vm.reviewsFailed
+                                    ? "Couldn't load the written reviews just now — pull down to refresh."
+                                    : `${vm.rating.toFixed(1)}-star average from ${vm.reviewCount} rating${vm.reviewCount === 1 ? '' : 's'}. No written comments yet.`}
+                            </Text>
+                        ) : (
+                            vm.reviews.map((rev, i) => (
+                                <View key={rev.id} style={[s.reviewRow, i > 0 && { borderTopWidth: ws(1), borderColor: T.divider }]}>
+                                    <View style={s.reviewTop}>
+                                        <View style={[s.reviewAvatar, { backgroundColor: rev.color + '20' }]}>
+                                            <Text style={[s.reviewInitials, { color: rev.color }]}>{rev.initials}</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[s.reviewAuthor, { color: T.text }]}>{rev.author}</Text>
+                                            <View style={{ flexDirection: 'row' }}>
+                                                {Array.from({ length: 5 }).map((_, idx) => (
+                                                    <Ionicons key={idx} name={idx < rev.rating ? 'star' : 'star-outline'} size={wms(11)} color="#F59E0B" />
+                                                ))}
+                                            </View>
+                                        </View>
+                                        <Text style={[s.reviewDate, { color: T.subText }]}>{rev.date}</Text>
+                                    </View>
+                                    {!!rev.comment && <Text style={[s.reviewComment, { color: T.subText }]}>{rev.comment}</Text>}
+                                </View>
+                            ))
+                        )}
                     </View>
                 )}
 

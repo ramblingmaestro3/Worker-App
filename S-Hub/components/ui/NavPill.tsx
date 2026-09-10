@@ -1,3 +1,4 @@
+/** The shared floating-pill visual behind both tab bars: rounded icon chips, an optional raised centre FAB, and a per-tab red badge dot. */
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '@/constants/theme';

@@ -1,3 +1,4 @@
+/** The single native-stack that holds every screen (auth + common + customer + worker) plus CustomerTabs/WorkerTabs. screenLayout wraps each screen in its own opaque wallpaper layer so pushed screens do not bleed through. */
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentType } from 'react';
 import WallpaperLayout from '@/components/WallpaperLayout';

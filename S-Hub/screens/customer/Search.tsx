@@ -1,3 +1,7 @@
+/**
+ * Full worker browse/search — list or map view, filter by price/rating/
+ * availability/distance. Backed by listVerifiedWorkers (client-side filtered).
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
@@ -9,7 +13,7 @@ import { useMyLocation } from '@/lib/useMyLocation';
 import { distanceKm } from '@/lib/geo';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -174,26 +178,31 @@ export default function SearchScreen({ route, navigation }: Props) {
     }, [load])
   );
 
-  const todayAbbrev = DAY_ABBREVS[new Date().getDay()];
-  const workers: WorkerCard[] = rawWorkers
-    .filter((w) => !blockedIds.has(w.id))
-    .map((w) => ({
-      id: w.id,
-      name: w.full_name,
-      skill: w.skills[0] ?? 'General services',
-      rating: w.rating_avg,
-      reviews: w.rating_count,
-      distanceKm:
-        myLoc && w.latitude != null && w.longitude != null
-          ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
-          : null,
-      latitude: w.latitude,
-      longitude: w.longitude,
-      price: w.hourly_rate ?? w.per_job_rate ?? null,
-      initials: initialsOf(w.full_name),
-      color: colorForId(w.id),
-      available: w.is_online && w.availability.some((d) => d.day === todayAbbrev && d.on),
-    }));
+  // Derived views are memoised: without this the whole list — including a
+  // haversine per worker — recomputes on every keystroke in the search box and
+  // every unrelated state change.
+  const workers: WorkerCard[] = useMemo(() => {
+    const todayAbbrev = DAY_ABBREVS[new Date().getDay()];
+    return rawWorkers
+      .filter((w) => !blockedIds.has(w.id))
+      .map((w) => ({
+        id: w.id,
+        name: w.full_name,
+        skill: w.skills[0] ?? 'General services',
+        rating: w.rating_avg,
+        reviews: w.rating_count,
+        distanceKm:
+          myLoc && w.latitude != null && w.longitude != null
+            ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
+            : null,
+        latitude: w.latitude,
+        longitude: w.longitude,
+        price: w.hourly_rate ?? w.per_job_rate ?? null,
+        initials: initialsOf(w.full_name),
+        color: colorForId(w.id),
+        available: w.is_online && w.availability.some((d) => d.day === todayAbbrev && d.on),
+      }));
+  }, [rawWorkers, blockedIds, myLoc]);
 
   // Chip press handlers
   const handleChipPress = (chip: string) => {
@@ -217,29 +226,30 @@ export default function SearchScreen({ route, navigation }: Props) {
     return false;
   };
 
-  // 1. Filter by search text
-  const searched = workers.filter(w =>
-    search.trim().length === 0
-      ? true
-      : w.name.toLowerCase().includes(search.toLowerCase()) ||
-      w.skill.toLowerCase().includes(search.toLowerCase())
+  // 1. Filter by search text  2. Filter/sort by active chip + modal filters
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const searched = workers.filter(w =>
+      q.length === 0 ? true : w.name.toLowerCase().includes(q) || w.skill.toLowerCase().includes(q)
+    );
+    return [...searched]
+      .filter(w => sortMode === 'available' ? w.available : true)
+      .filter(w => (minRating != null ? w.rating >= minRating : true))
+      .filter(w => (priceMin.trim() ? w.price != null && w.price >= parseFloat(priceMin) : true))
+      .filter(w => (priceMax.trim() ? w.price != null && w.price <= parseFloat(priceMax) : true))
+      .filter(w => (radiusKm != null ? w.distanceKm == null || w.distanceKm <= radiusKm : true))
+      .sort((a, b) => {
+        if (sortMode === 'rating') return b.rating - a.rating;
+        if (sortMode === 'price_desc') return (b.price ?? -Infinity) - (a.price ?? -Infinity);
+        if (sortMode === 'price_asc') return (a.price ?? Infinity) - (b.price ?? Infinity);
+        return 0;
+      });
+  }, [workers, search, sortMode, minRating, priceMin, priceMax, radiusKm]);
+
+  const mapMarkers = useMemo(
+    () => filtered.map(workerToMarker).filter((m): m is AppMapMarker => m !== null),
+    [filtered]
   );
-
-  // 2. Filter/sort by active chip + modal filters
-  const filtered = [...searched]
-    .filter(w => sortMode === 'available' ? w.available : true)
-    .filter(w => (minRating != null ? w.rating >= minRating : true))
-    .filter(w => (priceMin.trim() ? w.price != null && w.price >= parseFloat(priceMin) : true))
-    .filter(w => (priceMax.trim() ? w.price != null && w.price <= parseFloat(priceMax) : true))
-    .filter(w => (radiusKm != null ? w.distanceKm == null || w.distanceKm <= radiusKm : true))
-    .sort((a, b) => {
-      if (sortMode === 'rating') return b.rating - a.rating;
-      if (sortMode === 'price_desc') return (b.price ?? -Infinity) - (a.price ?? -Infinity);
-      if (sortMode === 'price_asc') return (a.price ?? Infinity) - (b.price ?? Infinity);
-      return 0;
-    });
-
-  const mapMarkers = filtered.map(workerToMarker).filter((m): m is AppMapMarker => m !== null);
   const mapCenter = myLoc ?? FALLBACK_CENTER;
 
   return (

@@ -21,6 +21,10 @@ export function preferredTimeShortLabel(value: string): string {
 
 export type WorkerProfile = {
   id: string;
+  /** Worker-facing name override; NULL → use the profiles.full_name fallback. */
+  display_name: string | null;
+  /** Worker-facing avatar override; NULL → use the profiles.avatar_url fallback. */
+  photo_url: string | null;
   skills: string[];
   bio: string | null;
   years_experience: number | null;
@@ -61,7 +65,7 @@ export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: 
   const { data, error } = await supabase
     .from('worker_profiles')
     .select(
-      'id, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
+      'id, display_name, photo_url, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
     )
     .eq('verification_status', 'verified');
 
@@ -73,8 +77,8 @@ export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: 
     success: true,
     data: (data ?? []).map((w: any) => ({
       id: w.id,
-      full_name: w.profile?.full_name || 'Worker',
-      avatar_url: w.profile?.avatar_url ?? null,
+      full_name: w.display_name || w.profile?.full_name || 'Worker',
+      avatar_url: w.photo_url ?? w.profile?.avatar_url ?? null,
       skills: w.skills ?? [],
       hourly_rate: w.hourly_rate,
       per_job_rate: w.per_job_rate,
@@ -104,7 +108,7 @@ export async function listVerifiedWorkersForCategory(
   const { data, error } = await supabase
     .from('worker_profiles')
     .select(
-      'id, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
+      'id, display_name, photo_url, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
     )
     .eq('verification_status', 'verified')
     .contains('skills', [category]);
@@ -117,8 +121,8 @@ export async function listVerifiedWorkersForCategory(
     success: true,
     data: (data ?? []).map((w: any) => ({
       id: w.id,
-      full_name: w.profile?.full_name || 'Worker',
-      avatar_url: w.profile?.avatar_url ?? null,
+      full_name: w.display_name || w.profile?.full_name || 'Worker',
+      avatar_url: w.photo_url ?? w.profile?.avatar_url ?? null,
       skills: w.skills ?? [],
       hourly_rate: w.hourly_rate,
       per_job_rate: w.per_job_rate,
@@ -134,6 +138,8 @@ export async function listVerifiedWorkersForCategory(
 
 export type CreateWorkerProfileInput = {
   skills: string[];
+  display_name?: string;
+  photo_url?: string;
   bio?: string;
   years_experience?: number;
   hourly_rate?: number;
@@ -194,7 +200,13 @@ export async function getWorkerProfile(
   const { profile, ...rest } = data as any;
   return {
     success: true,
-    data: { ...rest, full_name: profile?.full_name ?? '', avatar_url: profile?.avatar_url ?? null },
+    data: {
+      ...rest,
+      // Worker-facing identity: the worker_profiles override wins, else the
+      // personal profiles values.
+      full_name: rest.display_name || profile?.full_name || '',
+      avatar_url: rest.photo_url ?? profile?.avatar_url ?? null,
+    },
   };
 }
 
@@ -226,10 +238,24 @@ export async function updateWorkerProfile(
     return { success: false, error: 'Not signed in.' };
   }
 
-  const { error } = await supabase.from('worker_profiles').update(patch).eq('id', auth.user.id);
+  // .select() so a write that matches no row (RLS denial, or the worker_profiles
+  // row was never created) comes back empty instead of a false success — see
+  // cancelServiceRequest for the same guard.
+  const { data, error } = await supabase
+    .from('worker_profiles')
+    .update(patch)
+    .eq('id', auth.user.id)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return {
+      success: false,
+      error: "Couldn't save — your worker profile isn't set up yet. Finish the become-a-worker steps first.",
+    };
   }
 
   return { success: true };

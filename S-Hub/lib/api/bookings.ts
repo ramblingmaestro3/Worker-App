@@ -117,7 +117,7 @@ export async function listMyBookingsAsClient(): Promise<{
   const { data, error } = await supabase
     .from('bookings')
     .select(
-      '*, worker:profiles!bookings_worker_id_fkey(full_name), request:service_requests!bookings_request_id_fkey(category,description,location_string), bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)'
+      '*, worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url,worker_profiles(display_name,photo_url)), request:service_requests!bookings_request_id_fkey(category,description,location_string), bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)'
     )
     .eq('client_id', auth.user.id)
     .order('created_at', { ascending: false });
@@ -126,7 +126,8 @@ export async function listMyBookingsAsClient(): Promise<{
     return { success: false, error: error.message };
   }
 
-  return { success: true, data: (data ?? []) as unknown as ClientBookingView[] };
+  const rows = (data ?? []).map((b: any) => ({ ...b, worker: resolveWorkerIdentity(b.worker) }));
+  return { success: true, data: rows as unknown as ClientBookingView[] };
 }
 
 /** Counts the signed-in worker's completed bookings — used for the "Jobs Done" stat. */
@@ -171,6 +172,22 @@ export async function countMyCompletedBookingsAsClient(): Promise<{ success: boo
 
 export type ConversationParticipant = { id: string; full_name: string; avatar_url: string | null };
 
+/**
+ * A booking's worker participant, shown to the client, uses the worker-facing
+ * identity: `worker_profiles.display_name` / `photo_url` when set, else the
+ * personal `profiles` values. Pass the embedded `profiles` row (with a nested
+ * `worker_profiles(display_name,photo_url)`).
+ */
+function resolveWorkerIdentity(w: any): ConversationParticipant | null {
+  if (!w) return null;
+  const wp = Array.isArray(w.worker_profiles) ? w.worker_profiles[0] : w.worker_profiles;
+  return {
+    id: w.id,
+    full_name: wp?.display_name || w.full_name || 'Worker',
+    avatar_url: wp?.photo_url ?? w.avatar_url ?? null,
+  };
+}
+
 export type ConversationView = {
   booking_id: string;
   booking_status: BookingStatus;
@@ -198,7 +215,7 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
     .select(
       `id, status, request_id, client_id, worker_id,
        client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
-       worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url),
+       worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url,worker_profiles(display_name,photo_url)),
        request:service_requests!bookings_request_id_fkey(category),
        messages(id,message_text,sender_id,is_read,created_at)`
     )
@@ -214,16 +231,19 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
     // A booking whose client and worker are the same person is degenerate
     // (a self-conversation) — never surface it as a chat.
     .filter((b: any) => b.client_id !== b.worker_id)
-    .map((b: any) => ({
-      booking_id: b.id,
-      booking_status: b.status,
-      request_id: b.request_id,
-      client: b.client,
-      worker: b.worker,
-      other: b.client_id === uid ? b.worker : b.client,
-      request_category: b.request?.category ?? null,
-      last_message: b.messages?.[0] ?? null,
-    }));
+    .map((b: any) => {
+      const worker = resolveWorkerIdentity(b.worker);
+      return {
+        booking_id: b.id,
+        booking_status: b.status,
+        request_id: b.request_id,
+        client: b.client,
+        worker: worker as ConversationParticipant,
+        other: (b.client_id === uid ? worker : b.client) as ConversationParticipant,
+        request_category: b.request?.category ?? null,
+        last_message: b.messages?.[0] ?? null,
+      };
+    });
 
   // PostgREST can't order a parent row by a nested one-to-many aggregate, so
   // sort by latest-activity client-side instead — cheap at this scale (a
@@ -240,7 +260,14 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
 export type BookingChatContext = Booking & {
   client: ConversationParticipant | null;
   worker: ConversationParticipant | null;
-  request: { category: string; description: string | null; location_string: string | null; scheduled_for: string | null } | null;
+  request: {
+    category: string;
+    description: string | null;
+    location_string: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    scheduled_for: string | null;
+  } | null;
   bid: { proposed_price: number; counter_price: number | null } | null;
 };
 
@@ -252,8 +279,8 @@ export async function getBookingWithContext(
     .from('bookings')
     .select(
       `*, client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
-       worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url),
-       request:service_requests!bookings_request_id_fkey(category,description,location_string,scheduled_for),
+       worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url,worker_profiles(display_name,photo_url)),
+       request:service_requests!bookings_request_id_fkey(category,description,location_string,latitude,longitude,scheduled_for),
        bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)`
     )
     .eq('id', bookingId)
@@ -263,7 +290,9 @@ export async function getBookingWithContext(
     return { success: false, error: error.message };
   }
 
-  return { success: true, data: data as unknown as BookingChatContext };
+  const ctx = data as any;
+  ctx.worker = resolveWorkerIdentity(ctx.worker);
+  return { success: true, data: ctx as BookingChatContext };
 }
 
 /**

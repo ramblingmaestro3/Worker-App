@@ -1,18 +1,26 @@
+/**
+ * First screen on a cold start. Marketing welcome (logo, headline, "Get
+ * Started" -> Onboarding, "Sign in" -> SignIn). If a session already exists it
+ * skips straight to the signed-in user's role home via routeSignedInUserByRole.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenContent from '@/components/ScreenContent';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
+import { Wordmark } from '@/components/Logo';
 import { routeSignedInUserByRole } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import type { RootStackParamList } from '@/navigation/types';
 
 export default function SplashScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Splash'>) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Lazy useState, not useRef(...).current — SDK-57 react-hooks flags reading a
+  // ref during render (used in the animated style below).
+  const [fadeAnim] = useState(() => new Animated.Value(0));
   const status = useAuthStore((store) => store.status);
   const T = useThemeColors();
 
@@ -48,7 +56,7 @@ export default function SplashScreen({ navigation }: NativeStackScreenProps<Root
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <ScreenContent style={styles.logoWrap}>
-          <Text style={styles.logo}>AdwumaGo</Text>
+          <Wordmark size={ms(20)} />
         </ScreenContent>
 
         <Animated.View style={[styles.bodyWrap, { opacity: fadeAnim }]}>

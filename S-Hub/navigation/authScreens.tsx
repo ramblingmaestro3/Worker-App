@@ -1,3 +1,4 @@
+/** {name, component} list for the auth flow (Splash, Onboarding, SignIn/Up, OTP, reset, become-worker, verification). Spread into RootNavigator. */
 import type { ComponentType } from 'react';
 import Onboarding from '@/screens/auth/Onboarding';
 import SignIn from '@/screens/auth/SignIn';

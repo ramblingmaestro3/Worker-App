@@ -1,3 +1,8 @@
+/**
+ * Client bookings tab: a combined, filterable list of the client's open
+ * service_requests and their bookings (all / upcoming / completed). Taps open
+ * BidComparison (a request) or JobDetail (a booking).
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';

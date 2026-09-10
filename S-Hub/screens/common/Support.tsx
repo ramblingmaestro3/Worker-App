@@ -1,3 +1,6 @@
+/**
+ * Help & support: contact options (some placeholder) and an FAQ list.
+ */
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

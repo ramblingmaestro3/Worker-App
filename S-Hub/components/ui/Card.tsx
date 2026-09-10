@@ -1,3 +1,4 @@
+/** Rounded surface with the theme card colour, border and a soft shadow. The default container for grouped content. */
 import { StyleSheet, View, ViewProps } from 'react-native';
 import { RADIUS, SHADOWS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';

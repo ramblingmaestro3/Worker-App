@@ -1,3 +1,8 @@
+/**
+ * Review the bids on one request. Per bid: accept (accept_bid RPC -> booking),
+ * counter (counterBid), or decline. Plus "Withdraw this request"
+ * (cancelServiceRequest -> a trigger declines the open bids).
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -6,6 +11,7 @@ import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, 
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { categoryLabel } from '@/constants/categories';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import BottomNav from '@/components/ui/BottomNav';
@@ -235,7 +241,7 @@ export default function BidComparisonScreen({ route, navigation }: Props) {
             <Text style={styles.activePillText}>{request.status === 'seeking_bids' ? 'ACTIVE REQUEST' : request.status.toUpperCase()}</Text>
           </View>
           <Text style={[styles.requestTitle, { color: T.text }]}>
-            {request.category.charAt(0).toUpperCase() + request.category.slice(1)}
+            {categoryLabel(request.category)}
           </Text>
           {!!request.description && (
             <Text style={[styles.requestDesc, { color: T.subText }]}>{request.description}</Text>

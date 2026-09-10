@@ -1,3 +1,7 @@
+/**
+ * Route guard: renders its children only for a verified worker; otherwise routes
+ * to the matching step of the become-worker flow (become / pending / rejected).
+ */
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useThemeColors } from '@/contexts/ThemeContext';

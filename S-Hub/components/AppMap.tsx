@@ -1,3 +1,7 @@
+/**
+ * Native map (react-native-maps) showing worker markers. Web has its own
+ * implementation in AppMap.web.tsx (Google Maps JS).
+ */
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { StyleSheet, Text, View } from 'react-native';
 import { s, ms } from '@/lib/scaling';

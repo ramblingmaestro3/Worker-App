@@ -1,3 +1,4 @@
+/** The app-standard filled/outline button (primary green), with loading and disabled states. */
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';

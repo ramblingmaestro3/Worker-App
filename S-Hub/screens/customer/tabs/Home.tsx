@@ -1,5 +1,10 @@
+/**
+ * Client home tab: location header + bell, search bar, a map of nearby workers,
+ * the AI-assistant entry, category shortcuts, and a distance-sorted "workers near
+ * you" strip (listVerifiedWorkers + lib/geo.distanceKm).
+ */
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -102,39 +107,47 @@ export default function HomeScreen({ navigation }: Props) {
     }, [load])
   );
 
-  const todayAbbrev = DAY_ABBREVS[new Date().getDay()];
-  const nearbyWorkers: NearbyWorker[] = rawWorkers
-    .filter((w) => !blockedIds.has(w.id))
-    .map((w) => ({
-      id: w.id,
-      name: w.full_name,
-      skill: w.skills[0] ?? 'General services',
-      rating: w.rating_avg,
-      initials: initialsOf(w.full_name),
-      color: colorForId(w.id),
-      available: w.is_online && w.availability.some((d) => d.day === todayAbbrev && d.on),
-      distanceKm:
-        myLoc && w.latitude != null && w.longitude != null
-          ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
-          : null,
-      latitude: w.latitude,
-      longitude: w.longitude,
-      price: w.hourly_rate ?? w.per_job_rate ?? null,
-    }))
-    .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
-    .slice(0, 10);
+  // Memoised: without this the full worker map (+ a haversine per worker)
+  // recomputes on every keystroke in the search box and every other re-render.
+  const nearbyWorkers: NearbyWorker[] = useMemo(() => {
+    const todayAbbrev = DAY_ABBREVS[new Date().getDay()];
+    return rawWorkers
+      .filter((w) => !blockedIds.has(w.id))
+      .map((w) => ({
+        id: w.id,
+        name: w.full_name,
+        skill: w.skills[0] ?? 'General services',
+        rating: w.rating_avg,
+        initials: initialsOf(w.full_name),
+        color: colorForId(w.id),
+        available: w.is_online && w.availability.some((d) => d.day === todayAbbrev && d.on),
+        distanceKm:
+          myLoc && w.latitude != null && w.longitude != null
+            ? distanceKm(myLoc.latitude, myLoc.longitude, w.latitude, w.longitude)
+            : null,
+        latitude: w.latitude,
+        longitude: w.longitude,
+        price: w.hourly_rate ?? w.per_job_rate ?? null,
+      }))
+      .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
+      .slice(0, 10);
+  }, [rawWorkers, blockedIds, myLoc]);
 
   const mapCenter = myLoc ?? FALLBACK_CENTER;
-  const mapMarkers: AppMapMarker[] = nearbyWorkers
-    .filter((w) => w.latitude != null && w.longitude != null)
-    .map((w) => ({
-      latitude: w.latitude as number,
-      longitude: w.longitude as number,
-      color: w.color,
-      title: w.name,
-      subtitle: w.skill,
-      price: w.price != null ? `GH₵ ${w.price}` : undefined,
-    }));
+  const mapMarkers: AppMapMarker[] = useMemo(
+    () =>
+      nearbyWorkers
+        .filter((w) => w.latitude != null && w.longitude != null)
+        .map((w) => ({
+          latitude: w.latitude as number,
+          longitude: w.longitude as number,
+          color: w.color,
+          title: w.name,
+          subtitle: w.skill,
+          price: w.price != null ? `GH₵ ${w.price}` : undefined,
+        })),
+    [nearbyWorkers]
+  );
 
   const locationLabel = myLoc?.label ?? (locLoading ? 'Locating…' : 'Set your location');
 

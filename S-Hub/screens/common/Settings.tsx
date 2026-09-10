@@ -1,3 +1,7 @@
+/**
+ * App settings: theme, notification toggles, language/currency (some are
+ * "coming soon" placeholders), account actions.
+ */
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

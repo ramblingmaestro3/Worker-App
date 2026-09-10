@@ -1,3 +1,8 @@
+/**
+ * The shared top bar: back chevron, centred title (optional right-side node),
+ * opaque T.header background. Screens that use it also call
+ * navigation.setOptions({ headerShown: false }).
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';

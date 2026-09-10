@@ -51,7 +51,6 @@ there is no `app/` directory. Start here:
 - `screens/` — every real screen, grouped by `auth/`, `common/`, `customer/`, `worker/`.
 - `lib/` — Supabase client, auth, and one `api/*.ts` module per backend concern (bookings, service requests, bids, profiles, etc).
 - `supabase/migrations/` — the live schema, RLS policies, and triggers. `supabase/functions/` — Edge Functions (AI photo analysis, push notifications, account deletion).
-- `Workerapp-Backend/` — an earlier Flask backend, kept for reference only; not part of the running app.
 
 ## Backend
 

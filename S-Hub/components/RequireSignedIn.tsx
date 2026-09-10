@@ -1,3 +1,7 @@
+/**
+ * Route guard: renders its children only if there's a session, else redirects to
+ * sign-in. Wraps screens that must be authenticated.
+ */
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useThemeColors } from '@/contexts/ThemeContext';

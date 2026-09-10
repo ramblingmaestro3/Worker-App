@@ -1,3 +1,7 @@
+/**
+ * CRUD for the client's saved addresses (Home, Work, …) — listSavedLocations /
+ * createSavedLocation / deleteSavedLocation. Add flow goes through LocationPicker.
+ */
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

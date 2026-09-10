@@ -47,6 +47,13 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "AdwumaGo uses the camera so you can photograph a problem for the AI assistant and upload ID / profile photos.",
+          "photosPermission": "AdwumaGo needs access to your photos so you can attach images to a job, your profile, or verification."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/android-icon-monochrome.png",

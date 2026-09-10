@@ -1,9 +1,15 @@
+/**
+ * "How can we help?" — photograph a problem, analyzeProblem() runs it through the
+ * ai-analyze edge function, and the screen shows the assessment + ranked trade
+ * categories + real nearby verified workers for the top category. "Post This
+ * Job" pre-fills PostAJob via lib/aiJobDraftBridge.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -29,6 +35,8 @@ import {
   AIWorkerRecommendation,
 } from '@/lib/api/ai';
 import { listVerifiedWorkersForCategory, VerifiedWorkerSummary } from '@/lib/api/workerProfiles';
+import { categoryIcon } from '@/constants/categories';
+import { ensureCameraPermission, ensureMediaLibraryPermission } from '@/lib/mediaPermissions';
 import { distanceKm } from '@/lib/geo';
 import { useMyLocation } from '@/lib/useMyLocation';
 import { setAiJobDraft } from '@/lib/aiJobDraftBridge';
@@ -48,22 +56,6 @@ const ANALYSIS_STAGES = [
   'Finding the best professionals...',
   'Almost done...',
 ];
-
-// Keyed by the skill id the ai-analyze function returns.
-const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  plumbing: 'water-outline',
-  electrical: 'flash-outline',
-  carpentry: 'hammer-outline',
-  painting: 'color-palette-outline',
-  cleaning: 'sparkles-outline',
-  masonry: 'cube-outline',
-  welding: 'flame-outline',
-  ac: 'snow-outline',
-  tiling: 'grid-outline',
-  roofing: 'home-outline',
-  security: 'videocam-outline',
-  other: 'construct-outline',
-};
 
 type Phase = 'upload' | 'analyzing' | 'results' | 'no_match' | 'error' | 'not_configured';
 
@@ -93,7 +85,9 @@ async function assetToBase64(asset: ImagePicker.ImagePickerAsset): Promise<strin
 
 /* ─── Pulse ring (matches finding-worker.tsx's PulseRing technique) ─── */
 function PulseRing({ delay, size, color }: { delay: number; size: number; color: string }) {
-  const anim = useRef(new Animated.Value(0)).current;
+  // Lazy useState, not useRef(...).current — the SDK-57 react-hooks rules flag
+  // reading a ref during render (this value is used in the style prop below).
+  const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -172,7 +166,7 @@ function RecommendedWorkerCard({
 }: { rec: AIWorkerRecommendation; best: boolean; nearbyCount?: number | null; T: ThemeColors }) {
   const pct = Math.round(rec.confidence * 100);
   const matchLabel = best ? 'Best Match' : rec.confidence >= 0.5 ? 'Good Match' : 'Possible Match';
-  const icon = CATEGORY_ICONS[rec.category] || 'construct-outline';
+  const icon = categoryIcon(rec.category) as keyof typeof Ionicons.glyphMap;
   const name = rec.label || rec.category;
   return (
     <View
@@ -278,23 +272,23 @@ export default function AIAssistantScreen({ navigation }: NativeStackScreenProps
   }, [navigation]);
 
   const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Camera permission needed', 'Allow camera access so you can photograph the problem.');
-      return;
+    if (!(await ensureCameraPermission())) return;
+    try {
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
+      if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
+    } catch {
+      Alert.alert('Camera unavailable', "This device's camera couldn't be opened. Try choosing a photo from your gallery instead.");
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
-    if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
   };
 
   const chooseFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Photo permission needed', 'Allow access to your photos to select an image of the problem.');
-      return;
+    if (!(await ensureMediaLibraryPermission())) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
+      if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
+    } catch {
+      Alert.alert('Could not open your photos', 'Something went wrong opening the gallery. Please try again.');
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
-    if (!result.canceled && result.assets[0]) setImage(result.assets[0]);
   };
 
   const removePhoto = () => setImage(null);

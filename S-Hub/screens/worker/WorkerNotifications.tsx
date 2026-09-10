@@ -1,3 +1,8 @@
+/**
+ * The worker's notification inbox — same as the customer Notifications screen
+ * (bid updates, new messages, booking cancellations). Row -> Chat / JobDetail /
+ * worker-jobs.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import EmptyState from '@/components/ui/EmptyState';

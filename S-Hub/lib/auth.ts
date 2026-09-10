@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { resetToBecomeWorker, resetToCustomerHome, resetToVerificationPending, resetToWorkerHome } from '@/navigation/navigationRef';
 import { getActiveSide, setActiveSide } from './activeSide';
@@ -8,6 +9,13 @@ import { supabase } from './supabase';
 import { useAuthStore } from './stores/auth-store';
 
 WebBrowser.maybeCompleteAuthSession();
+
+/**
+ * Expo Go (storeClient) can't register the `shub://` scheme, so the OAuth
+ * redirect comes back as `exp://<LAN-IP>` — which Google rejects and Supabase
+ * can't whitelist reliably. Google/Apple sign-in only works in a real build.
+ */
+export const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 
 /**
  * Build a redirect URL for the current platform pointing at the given
@@ -85,6 +93,13 @@ export function passwordStrengthError(password: string): string | null {
 export async function signInWithOAuthProvider(
   provider: 'google' | 'apple'
 ): Promise<{ success: boolean; error?: string }> {
+  if (IS_EXPO_GO && Platform.OS !== 'web') {
+    const label = provider === 'google' ? 'Google' : 'Apple';
+    return {
+      success: false,
+      error: `${label} sign-in needs the installed AdwumaGo app — it can't complete inside Expo Go. Sign in with your email and password here.`,
+    };
+  }
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,

@@ -1,3 +1,8 @@
+/**
+ * Client profile tab: avatar + stats (rating, jobs posted, completed, saved),
+ * and a menu (Profile, Saved Locations, Safety, Post a Job, Promotions, Worker
+ * Profile, Settings, sign out).
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

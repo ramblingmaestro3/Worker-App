@@ -1,3 +1,7 @@
+/**
+ * Multi-step password reset: request a code -> enter code -> set a new password.
+ * Also the landing screen for the "type=recovery" deep link (see App.tsx).
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useState } from 'react';
@@ -15,13 +19,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { Wordmark } from '@/components/Logo';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { buildRedirectUrl } from '@/lib/auth';
+import { signOutIntent } from '@/lib/auth';
 import { s, vs, ms } from '@/lib/scaling';
 import type { RootStackParamList } from '@/navigation/types';
 
-type Step = 1 | 2 | 3 | 'success' | 'check_email';
+type Step = 1 | 2 | 3 | 'success';
 
 const PASSWORD_MSG =
   'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., !, @, #, $).';
@@ -74,20 +79,20 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
     setLoading(true);
     try {
       if (isEmail) {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(identifier.trim(), {
-          redirectTo: buildRedirectUrl('reset-password'),
-        });
+        // OTP-code flow, not a magic link: the reset email carries a 6-digit
+        // {{ .Token }} the user types on the next step. A link round-trip
+        // through the app's custom scheme is unreliable in Expo Go and was
+        // silently dropping users back on the Splash screen.
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(identifier.trim());
         if (resetError) throw resetError;
-        setStep('check_email');
       } else {
-        const phone = formatPhone(identifier.trim());
         const { error: otpError } = await supabase.auth.signInWithOtp({
-          phone,
+          phone: formatPhone(identifier.trim()),
           options: { shouldCreateUser: false },
         });
         if (otpError) throw otpError;
-        setStep(2);
       }
+      setStep(2);
     } catch (err: any) {
       setError(err?.message ?? 'Failed to send reset code. Please try again.');
     } finally {
@@ -98,7 +103,7 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
   const handleResetPassword = async () => {
     setError('');
     if (otp.trim().length < 6) {
-      setError('Enter the 6-digit code sent to your phone.');
+      setError('Enter the 6-digit code we sent you.');
       return;
     }
     if (!isPasswordValid(newPassword)) {
@@ -111,14 +116,18 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
     }
     setLoading(true);
     try {
-      const phone = formatPhone(identifier.trim());
-      // 'recovery' (not 'sms') so the resulting session is recovery-flavored —
-      // this project requires the current password on updateUser() otherwise,
-      // which a forgot-password flow can never satisfy by definition.
-      const { error: verifyError } = await supabase.auth.verifyOtp({ phone, token: otp.trim(), type: 'recovery' as any });
+      // 'recovery' (not 'sms'/'email') so the resulting session is
+      // recovery-flavored — this project requires the current password on
+      // updateUser() otherwise, which a forgot-password flow can never satisfy.
+      const { error: verifyError } = isEmail
+        ? await supabase.auth.verifyOtp({ email: identifier.trim(), token: otp.trim(), type: 'recovery' })
+        : await supabase.auth.verifyOtp({ phone: formatPhone(identifier.trim()), token: otp.trim(), type: 'recovery' as any });
       if (verifyError) throw verifyError;
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
+      // Tell App.tsx's session-expiry watcher this sign-out is deliberate, so
+      // it doesn't fire a spurious "Session Expired" alert over the success screen.
+      signOutIntent.current = true;
       await supabase.auth.signOut();
       setStep('success');
     } catch (err: any) {
@@ -136,11 +145,12 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
     setError('');
     setLoading(true);
     try {
-      const phone = formatPhone(identifier.trim());
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone,
-        options: { shouldCreateUser: false },
-      });
+      const { error: otpError } = isEmail
+        ? await supabase.auth.resetPasswordForEmail(identifier.trim())
+        : await supabase.auth.signInWithOtp({
+            phone: formatPhone(identifier.trim()),
+            options: { shouldCreateUser: false },
+          });
       if (otpError) throw otpError;
     } catch (err: any) {
       setError(err?.message ?? 'Failed to resend code.');
@@ -163,6 +173,7 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
+      signOutIntent.current = true;
       await supabase.auth.signOut();
       setStep('success');
     } catch (err: any) {
@@ -176,7 +187,9 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} />
 
-      <Text style={styles.logo}>AdwumaGo</Text>
+      <View style={{ paddingHorizontal: s(20), paddingTop: vs(16), paddingBottom: vs(4) }}>
+        <Wordmark size={ms(20)} />
+      </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -239,17 +252,17 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
             </View>
           )}
 
-          {/* ── STEP 2: OTP + New Password (phone) ── */}
+          {/* ── STEP 2: OTP code + New Password (email or phone) ── */}
           {step === 2 && (
             <View>
               <View style={styles.verifiedRow}>
-                <Ionicons name="phone-portrait-outline" size={ms(18)} color={COLORS.primary} />
+                <Ionicons name={isEmail ? 'mail-outline' : 'phone-portrait-outline'} size={ms(18)} color={COLORS.primary} />
                 <Text style={styles.verifiedText}>CODE SENT TO {identifier}</Text>
               </View>
               <View style={styles.stepHeader}>
                 <Text style={[styles.title, { color: T.text }]}>Enter Code & New Password</Text>
                 <Text style={[styles.subtitle, { color: T.subText }]}>
-                  Enter the 6-digit code we sent to your phone and your new password.
+                  Enter the 6-digit code from {isEmail ? 'your email' : 'the text message'} and choose a new password.
                 </Text>
               </View>
 
@@ -326,30 +339,7 @@ export default function ResetPasswordScreen({ navigation }: NativeStackScreenPro
             </View>
           )}
 
-          {/* ── CHECK EMAIL ── */}
-          {step === 'check_email' && (
-            <View style={styles.successBlock}>
-              <View style={[styles.successIconWrap, { backgroundColor: COLORS.primaryLight }]}>
-                <Ionicons name="mail-open-outline" size={ms(48)} color={COLORS.primary} />
-              </View>
-              <Text style={[styles.title, { color: T.text }]}>Check Your Email</Text>
-              <Text style={[styles.subtitle, { color: T.subText, marginBottom: vs(24) }]}>
-                We&apos;ve sent a password reset link to {identifier}. Click the link in the email to reset your password.
-              </Text>
-              <Text style={[styles.hintText, { color: T.subText, marginBottom: vs(16) }]}>
-                Tip: Check your spam or junk folder if you don&apos;t see the email.
-              </Text>
-              <TouchableOpacity style={styles.darkButton} onPress={() => navigation.replace('SignIn')} activeOpacity={0.85}>
-                <Text style={styles.darkButtonText}>Back to Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.backRow} onPress={() => setStep(1)}>
-                <Ionicons name="arrow-undo-outline" size={ms(16)} color={T.subText} />
-                <Text style={[styles.backText, { color: T.subText }]}>Try a different email</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ── STEP 3: New Password (email recovery) ── */}
+          {/* ── STEP 3: New Password (email recovery via deep link — fallback) ── */}
           {step === 3 && (
             <View>
               <View style={styles.verifiedRow}>

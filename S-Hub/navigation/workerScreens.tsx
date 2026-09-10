@@ -1,3 +1,4 @@
+/** {name, component} list for worker-only pushed screens (SubmitBid, JobPosting, WorkerSkills/Pricing/Availability, ...), some wrapped in the verified-worker guard. Spread into RootNavigator. */
 import type { ComponentType } from 'react';
 import { withVerifiedWorker } from '@/components/RequireVerifiedWorker';
 import JobPosting from '@/screens/worker/JobPosting';

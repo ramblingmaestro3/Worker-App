@@ -1,3 +1,8 @@
+/**
+ * Create a service_request: category, description, photos, urgency, location
+ * (via LocationPicker), and an optional budget. Can be pre-filled from the AI
+ * assistant. On post -> FindingWorker.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,6 +12,7 @@ import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, Text
 import { Alert } from '@/lib/Alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { SERVICE_CATEGORIES } from '@/constants/categories';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 import BottomNav from '@/components/ui/BottomNav';
@@ -19,29 +25,15 @@ import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PostAJob'>;
 
-type CategoryKey = string;
 type Urgency = 'now' | 'schedule';
 
-// Skill ids match BecomeWorker.tsx SKILL_CATEGORIES and the ai-analyze function.
-const CATEGORIES: { key: CategoryKey; label: string; icon: string }[] = [
-  { key: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
-  { key: 'electrical', label: 'Electrical', icon: 'flash-outline' },
-  { key: 'carpentry', label: 'Carpentry', icon: 'hammer-outline' },
-  { key: 'painting', label: 'Painting', icon: 'color-palette-outline' },
-  { key: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline' },
-  { key: 'masonry', label: 'Masonry', icon: 'cube-outline' },
-  { key: 'welding', label: 'Welding', icon: 'flame-outline' },
-  { key: 'ac', label: 'AC & Cooling', icon: 'snow-outline' },
-  { key: 'tiling', label: 'Tiling', icon: 'grid-outline' },
-  { key: 'roofing', label: 'Roofing', icon: 'home-outline' },
-  { key: 'security', label: 'Security/CCTV', icon: 'videocam-outline' },
-  { key: 'other', label: 'Other', icon: 'construct-outline' },
-];
+// One shared list — see constants/categories.ts.
+const CATEGORIES = SERVICE_CATEGORIES;
 
 export default function PostAJobScreen({ route, navigation }: Props) {
   const T = useThemeColors();
   const params = route.params ?? {};
-  const [category, setCategory] = useState<CategoryKey>((params.category as CategoryKey) || 'plumbing');
+  const [category, setCategory] = useState<string>(params.category || 'plumbing');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<Urgency>('now');
   const [scheduledDate, setScheduledDate] = useState<string | null>(null);
@@ -99,7 +91,7 @@ export default function PostAJobScreen({ route, navigation }: Props) {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.length) {
@@ -141,9 +133,32 @@ export default function PostAJobScreen({ route, navigation }: Props) {
     }
 
     setPosting(true);
-    const uploadedPhotos = (
-      await Promise.all(photos.map((uri) => uploadJobPhoto(uri)))
-    ).filter((r): r is { success: true; publicUrl: string } => r.success && !!r.publicUrl).map((r) => r.publicUrl);
+    const uploadResults = await Promise.all(photos.map((uri) => uploadJobPhoto(uri)));
+    const uploadedPhotos = uploadResults
+      .filter((r): r is { success: true; publicUrl: string } => r.success && !!r.publicUrl)
+      .map((r) => r.publicUrl);
+
+    // Don't quietly post a job with fewer photos than the client attached —
+    // that's exactly the "my photo disappeared" bug. Let them decide.
+    if (uploadedPhotos.length < photos.length) {
+      setPosting(false);
+      const failed = photos.length - uploadedPhotos.length;
+      const firstError = uploadResults.find((r) => !r.success)?.error;
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Some photos didn’t upload',
+          `${failed} of ${photos.length} photo${photos.length > 1 ? 's' : ''} couldn’t be uploaded${
+            firstError ? ` (${firstError})` : ''
+          }. Post the job with the ${uploadedPhotos.length ? 'photos that worked' : 'rest of the details'} anyway?`,
+          [
+            { text: 'Keep editing', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Post anyway', onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!proceed) return;
+      setPosting(true);
+    }
 
     // Build an ISO timestamp when the customer selected "Schedule"
     let scheduled_for: string | undefined;

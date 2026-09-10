@@ -1,3 +1,8 @@
+/**
+ * Client conversations list (listMyConversations). Rows show convo.other (the
+ * counterparty resolved by identity), the job category, last message, and an
+ * unread dot; pinned / active / archived sections. Row -> Chat.
+ */
 import ScreenContent from '@/components/ScreenContent';
 import EmptyState from '@/components/ui/EmptyState';
 import HighlightedText from '@/components/ui/HighlightedText';

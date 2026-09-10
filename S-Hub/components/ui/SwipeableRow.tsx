@@ -1,3 +1,4 @@
+/** Wraps a conversation row with a swipe-left reveal for the pin/unpin action. */
 import { Ionicons } from '@expo/vector-icons';
 import { useRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
@@ -10,7 +11,6 @@ type Props = {
   onTogglePin: () => void;
 };
 
-/** Wraps a conversation row with a swipe-left reveal for the pin/unpin action. */
 export default function SwipeableRow({ children, pinned, onTogglePin }: Props) {
   const swipeableRef = useRef<Swipeable | null>(null);
 

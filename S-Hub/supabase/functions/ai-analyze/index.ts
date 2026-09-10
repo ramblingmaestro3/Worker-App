@@ -2,9 +2,8 @@
 //
 // Analyzes a customer-submitted problem photo with a vision LLM via
 // OpenRouter and returns an identified problem + ranked worker-skill
-// recommendations. Ported from the legacy Flask service
-// (Workerapp-Backend/app/services/ai_service.py); originally called Gemini
-// directly, switched to OpenRouter 2026-09 to avoid Google Cloud's
+// recommendations. Originally called Gemini directly, switched to
+// OpenRouter 2026-09 to avoid Google Cloud's
 // project-level billing/prepayment-credits setup in favor of OpenRouter's
 // single-key prepaid-credit model, and to have a real free-tier option.
 //
@@ -34,14 +33,16 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// App skill vocabulary — id + friendly label. Must stay in sync with
-// become-worker.tsx SKILL_CATEGORIES and post-a-job.tsx CATEGORIES.
+// App skill vocabulary — id + friendly label. Must stay in sync with the app's
+// constants/categories.ts SERVICE_CATEGORIES (this is a separate Deno bundle
+// and can't import it).
 const SKILLS: Record<string, string> = {
   plumbing: 'Plumbing',
   electrical: 'Electrical',
   carpentry: 'Carpentry',
   painting: 'Painting',
   cleaning: 'Cleaning',
+  mechanic: 'Mechanic',
   masonry: 'Masonry',
   welding: 'Welding',
   ac: 'AC & Cooling',

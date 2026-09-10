@@ -1,3 +1,4 @@
+/** Bottom-tab navigator for a verified worker: dashboard / jobs / messages / settings. Custom pill tab bar; each tab scene gets its own wallpaper layer. */
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
 import WorkerTabBar from '@/components/ui/WorkerTabBar';

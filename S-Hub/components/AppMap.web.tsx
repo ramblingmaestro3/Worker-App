@@ -1,3 +1,4 @@
+/** Web implementation of AppMap using the Google Maps JavaScript API (the native file uses react-native-maps). */
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { loadGoogleMaps } from '@/lib/googleMapsLoader.web';

@@ -1,4 +1,45 @@
+import { Platform } from 'react-native';
+import { File } from 'expo-file-system';
 import { supabase } from '../supabase';
+
+/**
+ * Reads the bytes of a locally-picked image so they can be handed to Supabase
+ * Storage.
+ *
+ * The old path here was `await fetch(uri).blob()` → `.upload(path, blob)`. On
+ * React Native that silently uploaded a **0-byte file**: supabase-js wraps a
+ * Blob in `FormData`, and RN's FormData can't serialise a Blob part, so the
+ * multipart body it built had no actual file in it. The upload "succeeded",
+ * the row stored a URL, and the image showed up blank/missing.
+ *
+ * Native now reads the file straight off disk with expo-file-system and
+ * uploads the raw bytes (supabase-js sends an `ArrayBuffer`/`Uint8Array` body
+ * directly, no FormData). Web keeps `fetch().blob()` — browsers serialise a
+ * Blob part correctly.
+ */
+async function readPickedImage(
+  uri: string
+): Promise<{ ok: true; body: Uint8Array | Blob; size: number } | { ok: false; error: string }> {
+  try {
+    if (Platform.OS === 'web') {
+      const response = await fetch(uri);
+      if (!response.ok) {
+        return { ok: false, error: `Could not read the image (${response.status}).` };
+      }
+      const blob = await response.blob();
+      return { ok: true, body: blob, size: blob.size };
+    }
+
+    const file = new File(uri);
+    if (!file.exists) {
+      return { ok: false, error: 'That image is no longer available on your device.' };
+    }
+    const bytes = await file.bytes();
+    return { ok: true, body: bytes, size: bytes.byteLength };
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Could not read the selected image.' };
+  }
+}
 
 async function uploadUriToBucket(
   uri: string,
@@ -6,24 +47,25 @@ async function uploadUriToBucket(
   path: string,
   contentType = 'image/jpeg'
 ): Promise<{ success: boolean; path?: string; publicUrl?: string; error?: string }> {
-  try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-
-    const { error } = await supabase.storage.from(bucket).upload(path, blob, {
-      contentType,
-      upsert: true,
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return { success: true, path, publicUrl: data.publicUrl };
-  } catch (err: any) {
-    return { success: false, error: err?.message ?? 'Failed to upload file.' };
+  const read = await readPickedImage(uri);
+  if (!read.ok) {
+    return { success: false, error: read.error };
   }
+  if (read.size === 0) {
+    return { success: false, error: 'That image file is empty — please pick it again.' };
+  }
+
+  const { error } = await supabase.storage.from(bucket).upload(path, read.body, {
+    contentType,
+    upsert: true,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return { success: true, path, publicUrl: data.publicUrl };
 }
 
 /**

@@ -1,3 +1,7 @@
+/**
+ * Caps a screen's content to one centred column (APP_MAX_WIDTH) so wide web/
+ * tablet windows don't stretch edge-to-edge. Used inside most screens.
+ */
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { s } from '@/lib/scaling';
 

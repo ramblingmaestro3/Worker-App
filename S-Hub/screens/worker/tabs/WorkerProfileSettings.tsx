@@ -1,3 +1,8 @@
+/**
+ * Worker profile/settings tab: hero (avatar, name, verified tick, primary trade),
+ * stats strip, and a menu (edit personal info / skills / pricing / availability,
+ * switch to client mode, sign out).
+ */
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -157,6 +162,9 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
   }
 
   const primaryService = workerProfile?.skills?.[0] ?? 'Worker';
+  // Worker-facing identity: the worker_profiles override wins over the personal profile.
+  const heroName = workerProfile?.display_name || profile.full_name;
+  const heroPhoto = workerProfile?.photo_url ?? profile.avatar_url ?? null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top']}>
@@ -170,15 +178,15 @@ export default function WorkerProfileSettingsScreen({ navigation }: Props) {
         {/* ── Hero ── */}
         <View style={styles.heroRow}>
           <View style={[styles.avatar, { backgroundColor: COLORS.primary + '18' }]}>
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+            {heroPhoto ? (
+              <Image source={{ uri: heroPhoto }} style={styles.avatarImg} />
             ) : (
-              <Text style={styles.avatarInitials}>{initialsOf(profile.full_name)}</Text>
+              <Text style={styles.avatarInitials}>{initialsOf(heroName)}</Text>
             )}
           </View>
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
-              <Text style={[styles.heroName, { color: T.text }]}>{profile.full_name || 'Add your name'}</Text>
+              <Text style={[styles.heroName, { color: T.text }]}>{heroName || 'Add your name'}</Text>
               {workerProfile?.verification_status === 'verified' && (
                 <Ionicons name="checkmark-circle" size={wms(15)} color={COLORS.primary} />
               )}

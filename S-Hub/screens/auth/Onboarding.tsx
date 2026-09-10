@@ -1,3 +1,7 @@
+/**
+ * Swipeable feature tour shown after "Get Started". Each slide backs its claim
+ * with a small live mock of the mechanism. Ends on SignUp.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -14,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, RADIUS } from '@/constants/theme';
+import { Wordmark } from '@/components/Logo';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s } from '@/lib/scaling';
 import type { RootStackParamList } from '@/navigation/types';
@@ -194,7 +199,7 @@ export default function OnboardingScreen({ navigation }: NativeStackScreenProps<
       <StatusBar barStyle={T.statusBar} />
 
       <View style={styles.topBar}>
-        <Text style={styles.logo}>AdwumaGo</Text>
+        <Wordmark size={16} />
         <TouchableOpacity onPress={handleSkip} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip onboarding">
           <Text style={[styles.skipText, { color: T.subText }]}>Skip</Text>
         </TouchableOpacity>

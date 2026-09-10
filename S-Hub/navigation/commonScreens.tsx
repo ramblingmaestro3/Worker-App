@@ -1,3 +1,4 @@
+/** {name, component} list for screens both client and worker use (JobDetail, AiAssistant, Settings, Support, Safety, Terms). Spread into RootNavigator. */
 import type { ComponentType } from 'react';
 import Splash from '@/screens/common/Splash';
 import AiAssistant from '@/screens/common/AiAssistant';

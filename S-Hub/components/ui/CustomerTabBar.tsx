@@ -1,3 +1,4 @@
+/** Renders the floating pill tab bar for CustomerTabs; drives the messages-tab unread dot from unread-store. */
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { s } from '@/lib/scaling';
 import { useNavStore, type CustomerTabKey } from '@/lib/stores/nav-store';

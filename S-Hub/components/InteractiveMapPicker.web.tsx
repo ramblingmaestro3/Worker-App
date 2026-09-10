@@ -1,3 +1,4 @@
+/** Web implementation of the draggable-pin location picker (Google Maps JS). */
 import { createElement, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

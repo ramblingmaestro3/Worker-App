@@ -1,3 +1,9 @@
+/**
+ * Worker home tab: online toggle + stats, the job feed
+ * (listOpenServiceRequestsForCategories — only jobs whose category is in the
+ * worker's skills, refreshed live), and the worker's own active bids with
+ * counter-offer / withdraw actions.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -7,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { categoryLabel } from '@/constants/categories';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { distanceKm } from '@/lib/geo';
@@ -120,9 +127,12 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
         ]);
         if (cancelled) return;
 
-        if (profileResult.success && profileResult.data) {
-          setFullName(profileResult.data.full_name);
-        }
+        // Worker-facing name: the worker_profiles.display_name override, else the personal profile name.
+        setFullName(
+          (workerProfileResult.success && workerProfileResult.data?.display_name) ||
+            (profileResult.success && profileResult.data?.full_name) ||
+            ''
+        );
         if (workerProfileResult.success && workerProfileResult.data) {
           skills = workerProfileResult.data.skills;
           setRatingAvg(workerProfileResult.data.rating_avg);
@@ -337,7 +347,7 @@ export default function WorkerDashboardScreen({ navigation }: Props) {
                 <Card style={styles.reqCard}>
                   <View style={styles.reqTop}>
                     <Text style={[styles.reqTitle, { color: T.text }]} numberOfLines={1}>
-                      {req.category.charAt(0).toUpperCase() + req.category.slice(1)}
+                      {categoryLabel(req.category)}
                     </Text>
                   </View>
                   {!!req.description && (

@@ -1,3 +1,6 @@
+/**
+ * Edit the worker's hourly rate, per-job rate, and minimum job value.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';

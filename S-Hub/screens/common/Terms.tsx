@@ -1,3 +1,6 @@
+/**
+ * Static Terms of Service / legal copy.
+ */
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

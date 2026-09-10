@@ -1,3 +1,7 @@
+/**
+ * Worker conversations list — same component shape as the customer Messages tab,
+ * showing convo.other (the client) resolved by identity.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';

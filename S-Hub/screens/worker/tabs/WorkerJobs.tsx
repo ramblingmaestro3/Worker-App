@@ -1,3 +1,7 @@
+/**
+ * Worker bookings tab: the worker's accepted/completed/cancelled bookings
+ * (listMyBookingsAsWorker), filterable. Row -> JobDetail.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';

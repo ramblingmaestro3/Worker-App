@@ -54,7 +54,9 @@ export async function listBidsForRequest(
 ): Promise<{ success: boolean; data?: BidWithWorker[]; error?: string }> {
   const { data, error } = await supabase
     .from('worker_bids')
-    .select('*, worker:profiles!worker_bids_worker_id_fkey(full_name,rating_avg,rating_count)')
+    .select(
+      '*, worker:profiles!worker_bids_worker_id_fkey(full_name,rating_avg,rating_count,worker_profiles(display_name))'
+    )
     .eq('request_id', requestId)
     .order('created_at', { ascending: false });
 
@@ -62,7 +64,14 @@ export async function listBidsForRequest(
     return { success: false, error: error.message };
   }
 
-  return { success: true, data: (data ?? []) as unknown as BidWithWorker[] };
+  // Show the worker-facing name (worker_profiles.display_name override).
+  const rows = (data ?? []).map((b: any) => {
+    const wp = Array.isArray(b.worker?.worker_profiles) ? b.worker.worker_profiles[0] : b.worker?.worker_profiles;
+    return b.worker
+      ? { ...b, worker: { ...b.worker, full_name: wp?.display_name || b.worker.full_name } }
+      : b;
+  });
+  return { success: true, data: rows as unknown as BidWithWorker[] };
 }
 
 /** Lists the signed-in worker's own bids. */
@@ -95,24 +104,39 @@ export async function matchCounterOffer(
   bidId: string,
   counterPrice: number
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('worker_bids')
     .update({ status: 'pending', proposed_price: counterPrice })
-    .eq('id', bidId);
+    .eq('id', bidId)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
   }
 
+  if (!data || data.length === 0) {
+    return { success: false, error: "Couldn't accept this counter-offer — the client may have withdrawn it." };
+  }
+
   return { success: true };
 }
 
-/** Worker withdraws their own pending bid. */
+/** Worker withdraws their own pending bid. `.select()` so a row blocked by RLS
+ * (not the owner, or already accepted/declined) comes back empty instead of a
+ * silent success. */
 export async function withdrawBid(bidId: string): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.from('worker_bids').update({ status: 'withdrawn' }).eq('id', bidId);
+  const { data, error } = await supabase
+    .from('worker_bids')
+    .update({ status: 'withdrawn' })
+    .eq('id', bidId)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { success: false, error: "This bid can't be withdrawn — it may already have been accepted or declined." };
   }
 
   return { success: true };
@@ -123,13 +147,18 @@ export async function counterBid(
   bidId: string,
   { counterPrice, counterMessage }: { counterPrice: number; counterMessage?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('worker_bids')
     .update({ status: 'countered', counter_price: counterPrice, counter_message: counterMessage })
-    .eq('id', bidId);
+    .eq('id', bidId)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { success: false, error: "This bid can't be countered — it may have been withdrawn or already actioned." };
   }
 
   return { success: true };
@@ -137,10 +166,18 @@ export async function counterBid(
 
 /** Client declines a bid without accepting or countering. */
 export async function declineBid(bidId: string): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.from('worker_bids').update({ status: 'declined' }).eq('id', bidId);
+  const { data, error } = await supabase
+    .from('worker_bids')
+    .update({ status: 'declined' })
+    .eq('id', bidId)
+    .select('id');
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { success: false, error: "This bid can't be declined — it may have been withdrawn already." };
   }
 
   return { success: true };

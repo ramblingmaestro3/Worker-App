@@ -1,3 +1,7 @@
+/**
+ * Enter the 6-digit code Supabase emailed/SMS'd after signup (or an email-change).
+ * Only reached when auth confirmations are enabled.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -17,6 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { Wordmark } from '@/components/Logo';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { routeSignedInUserByRole } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -137,7 +142,9 @@ export default function OtpVerificationScreen({ route, navigation }: NativeStack
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle={T.statusBar} />
 
-      <Text style={styles.logo}>AdwumaGo</Text>
+      <View style={{ paddingHorizontal: s(20), paddingTop: vs(16), paddingBottom: vs(4) }}>
+        <Wordmark size={ms(20)} />
+      </View>
 
       <KeyboardAvoidingView
         style={styles.flex}

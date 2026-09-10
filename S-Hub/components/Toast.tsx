@@ -1,3 +1,4 @@
+/** Self-contained bottom banner (success/info/warning) that animates in, auto-dismisses, and re-triggers on a bumped key. No provider - each screen owns its own useState. */
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';

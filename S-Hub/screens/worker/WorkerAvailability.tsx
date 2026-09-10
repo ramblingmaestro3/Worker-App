@@ -1,3 +1,6 @@
+/**
+ * Edit the worker's weekly available days + preferred times of day.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';

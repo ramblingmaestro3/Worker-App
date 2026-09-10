@@ -1,3 +1,10 @@
+/**
+ * The full view of one booking, shared by client and worker (role-aware via
+ * myId === context.client_id). Shows status + "on the way" banner (live via
+ * subscribeToBooking), the other party with call/message buttons, the timeline,
+ * the worker's advance-status button, the client's cancel button, and the
+ * post-completion review form.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,19 +20,13 @@ import EmptyState from '@/components/ui/EmptyState';
 import { getBookingWithContext, getBookingContactPhone, advanceBookingStatus, cancelBooking, BookingChatContext, BookingStatus } from '@/lib/api/bookings';
 import { subscribeToBooking, unsubscribe } from '@/lib/api/realtime';
 import { getMyReviewForBooking, submitReview, Review } from '@/lib/api/reviews';
+import { openInMaps, hasMappableLocation } from '@/lib/openInMaps';
+import { categoryIcon, categoryLabel } from '@/constants/categories';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { s, vs, ms } from '@/lib/scaling';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JobDetail'>;
-
-const CATEGORY_ICON: Record<string, string> = {
-  plumbing: 'water-outline',
-  electrical: 'flash-outline',
-  painting: 'color-palette-outline',
-  cleaning: 'sparkles-outline',
-  carpentry: 'hammer-outline',
-};
 
 const TIMELINE_STEPS: { key: 'accepted_at' | 'en_route_at' | 'arrived_at' | 'completed_at'; label: string }[] = [
   { key: 'accepted_at', label: 'Accepted' },
@@ -236,10 +237,17 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const isClientViewer = myId === context.client_id;
   const otherParty = isClientViewer ? context.worker : context.client;
   const request = context.request;
-  const icon = CATEGORY_ICON[request?.category ?? ''] ?? 'briefcase-outline';
-  const title = request ? request.category.charAt(0).toUpperCase() + request.category.slice(1) : 'Job';
+  const icon = categoryIcon(request?.category);
+  const title = categoryLabel(request?.category);
   const price = context.bid?.counter_price ?? context.bid?.proposed_price;
   const cancelled = context.status === 'cancelled';
+
+  const mapsTarget = {
+    latitude: request?.latitude,
+    longitude: request?.longitude,
+    label: request?.location_string,
+  };
+  const canOpenMaps = hasMappableLocation(mapsTarget);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
@@ -279,13 +287,35 @@ export default function JobDetailScreen({ route, navigation }: Props) {
           )}
 
           <Card style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Ionicons name="location-outline" size={ms(18)} color={T.subText} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: T.subText }]}>Location</Text>
-                <Text style={[styles.infoValue, { color: T.text }]}>{request?.location_string ?? 'Not specified'}</Text>
+            {canOpenMaps ? (
+              <TouchableOpacity
+                style={styles.infoRow}
+                onPress={() => openInMaps(mapsTarget)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Open job location in maps"
+              >
+                <Ionicons name="location-outline" size={ms(18)} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.infoLabel, { color: T.subText }]}>Location</Text>
+                  <Text style={[styles.infoValue, { color: COLORS.primary }]}>
+                    {request?.location_string ?? 'Open in maps'}
+                  </Text>
+                </View>
+                <View style={styles.directionsHint}>
+                  <Ionicons name="navigate-outline" size={ms(14)} color={COLORS.primary} />
+                  <Text style={styles.directionsHintText}>Directions</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.infoRow}>
+                <Ionicons name="location-outline" size={ms(18)} color={T.subText} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.infoLabel, { color: T.subText }]}>Location</Text>
+                  <Text style={[styles.infoValue, { color: T.text }]}>{request?.location_string ?? 'Not specified'}</Text>
+                </View>
               </View>
-            </View>
+            )}
             <View style={[styles.infoDivider, { backgroundColor: T.divider }]} />
             <View style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={ms(18)} color={T.subText} />
@@ -478,6 +508,8 @@ const styles = StyleSheet.create({
 
   infoCard: { marginTop: vs(14) },
   infoRow: { flexDirection: 'row', gap: s(12), alignItems: 'flex-start' },
+  directionsHint: { flexDirection: 'row', alignItems: 'center', gap: s(4), alignSelf: 'center' },
+  directionsHintText: { fontSize: ms(12.5), fontWeight: '700', color: COLORS.primary },
   infoDivider: { height: 1, marginVertical: vs(12) },
   infoLabel: { fontSize: ms(11), fontWeight: '700', textTransform: 'uppercase', marginBottom: vs(2) },
   infoValue: { fontSize: ms(14.5), fontWeight: '600' },

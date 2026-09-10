@@ -1,3 +1,7 @@
+/**
+ * Safety centre: emergency-contact and location-sharing toggles, a panic-button
+ * placeholder, and safety tips. Toggles are local-only for now.
+ */
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

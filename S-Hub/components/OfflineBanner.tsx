@@ -1,3 +1,7 @@
+/**
+ * A slide-in banner shown app-wide (rendered in App.tsx) whenever NetInfo
+ * reports no connection.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { StyleSheet, Text, View } from 'react-native';

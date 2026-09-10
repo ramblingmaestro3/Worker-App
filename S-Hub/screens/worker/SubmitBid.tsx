@@ -1,3 +1,7 @@
+/**
+ * Place or update a bid on a request: propose a price and an optional message.
+ * Blocked server-side from bidding on the worker's own job.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
@@ -7,8 +11,10 @@ import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import AppMap from '@/components/AppMap';
+import { Wordmark } from '@/components/Logo';
 import { getServiceRequest, ServiceRequest } from '@/lib/api/serviceRequests';
 import { createBid, listMyBids, WorkerBid } from '@/lib/api/workerBids';
+import { openInMaps, hasMappableLocation } from '@/lib/openInMaps';
 import type { RootStackParamList } from '@/navigation/types';
 
 const ARRIVAL_OPTIONS = ['15 min', '30 min', '1 hr', '2 hr+'];
@@ -47,7 +53,7 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
       <TouchableOpacity onPress={handleBack} hitSlop={8} activeOpacity={0.7}>
         <Ionicons name="arrow-back" size={22} color={T.text} />
       </TouchableOpacity>
-      <Text style={styles.logo}>AdwumaGo</Text>
+      <Wordmark size={wms(18)} />
       <View style={[styles.avatarSmall, { backgroundColor: T.inputBg }]} />
     </View>
   );
@@ -170,6 +176,14 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
     );
   }
 
+  const mapsTarget = {
+    latitude: request.latitude,
+    longitude: request.longitude,
+    label: request.location_string ?? request.location_region,
+  };
+  const canOpenMaps = hasMappableLocation(mapsTarget);
+  const openJobLocation = () => openInMaps(mapsTarget);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: T.bg }]} edges={['top']}>
       <StatusBar barStyle={T.statusBar} />
@@ -182,12 +196,28 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
             <Text style={[styles.title, { color: T.text }]}>
               {request.category.charAt(0).toUpperCase() + request.category.slice(1)}
             </Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={wms(14)} color={T.subText} />
-              <Text style={[styles.locationText, { color: T.subText }]}>
-                {request.location_string ?? request.location_region ?? 'Location not specified'}
-              </Text>
-            </View>
+            {canOpenMaps ? (
+              <TouchableOpacity
+                style={styles.locationRow}
+                onPress={openJobLocation}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Open job location in maps"
+              >
+                <Ionicons name="location-outline" size={wms(14)} color={COLORS.primary} />
+                <Text style={[styles.locationText, styles.locationLink]}>
+                  {request.location_string ?? request.location_region ?? 'Location not specified'}
+                </Text>
+                <Ionicons name="open-outline" size={wms(12)} color={COLORS.primary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={wms(14)} color={T.subText} />
+                <Text style={[styles.locationText, { color: T.subText }]}>
+                  {request.location_string ?? request.location_region ?? 'Location not specified'}
+                </Text>
+              </View>
+            )}
             {(() => {
               const schedLabel = request.scheduled_for ? (() => {
                 try {
@@ -225,19 +255,41 @@ export default function SubmitBidScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {request.latitude != null && request.longitude != null && (
+        {canOpenMaps && (
           <View>
             <Text style={[styles.label, { color: T.subText }]}>JOB LOCATION</Text>
-            <View style={[styles.mapPreview, { borderColor: T.border }]}>
-              <AppMap
-                latitude={request.latitude}
-                longitude={request.longitude}
-                zoom={0.02}
-                markers={[{ latitude: request.latitude, longitude: request.longitude, color: COLORS.primary }]}
-                zoomEnabled={false}
-                scrollEnabled={false}
-              />
-            </View>
+            {request.latitude != null && request.longitude != null && (
+              <TouchableOpacity
+                style={[styles.mapPreview, { borderColor: T.border }]}
+                onPress={openJobLocation}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel="Open job location in maps"
+              >
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <AppMap
+                    latitude={request.latitude}
+                    longitude={request.longitude}
+                    zoom={0.02}
+                    markers={[{ latitude: request.latitude, longitude: request.longitude, color: COLORS.primary }]}
+                    zoomEnabled={false}
+                    scrollEnabled={false}
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.directionsBtn, { borderColor: COLORS.primary }]}
+              onPress={openJobLocation}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="navigate-outline" size={wms(16)} color={COLORS.primary} />
+              <Text style={styles.directionsBtnText}>
+                {request.latitude != null && request.longitude != null
+                  ? 'Get directions'
+                  : 'Open in Maps'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -348,9 +400,21 @@ const styles = StyleSheet.create({
   description: { fontSize: wms(13), lineHeight: wms(19), marginTop: wvs(-12) },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: ws(4), marginTop: wvs(4) },
   locationText: { fontSize: wms(13) },
+  locationLink: { color: COLORS.primary, fontWeight: '700' },
   photoRow: { gap: ws(10), paddingRight: ws(4) },
   photoThumb: { width: ws(88), height: ws(88), borderRadius: ws(14) },
   mapPreview: { height: wvs(140), borderRadius: ws(16), borderWidth: ws(1), overflow: 'hidden' },
+  directionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(8),
+    height: wvs(44),
+    borderRadius: ws(12),
+    borderWidth: ws(1.5),
+    marginTop: wvs(10),
+  },
+  directionsBtnText: { fontSize: wms(14), fontWeight: '700', color: COLORS.primary },
   photoModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
   photoModalImage: { width: '100%', height: '80%' },
   photoModalClose: { position: 'absolute', top: wvs(50), right: ws(20), width: ws(40), height: ws(40), borderRadius: ws(20), backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },

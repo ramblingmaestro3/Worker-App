@@ -267,6 +267,14 @@ sender_name = "AdwumaGo"
 subject = "Confirm your AdwumaGo signup"
 content_path = "./supabase/templates/confirmation.html"
 
+# Password-reset email — a 6-digit {{ .Token }}, NOT a magic link. ResetPassword.tsx
+# takes the code + a new password and calls verifyOtp({ type: 'recovery' }); a link
+# round-trip through the shub:// scheme is unreliable in Expo Go. If you change this,
+# keep {{ .Token }} in the template or forgot-password breaks.
+[auth.email.template.recovery]
+subject = "Reset your AdwumaGo password"
+content_path = "./supabase/templates/recovery.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

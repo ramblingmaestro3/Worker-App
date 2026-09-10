@@ -1,3 +1,4 @@
+/** Themed single-line text field with an optional leading icon and error text. */
 import { forwardRef } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { COLORS, RADIUS } from '@/constants/theme';

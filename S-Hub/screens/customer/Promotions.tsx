@@ -1,3 +1,6 @@
+/**
+ * Promo codes / offers. Currently an empty state — no promotions backend yet.
+ */
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
 import EmptyState from '@/components/ui/EmptyState';

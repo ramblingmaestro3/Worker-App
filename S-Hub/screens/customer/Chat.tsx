@@ -1,5 +1,12 @@
+/**
+ * Booking-scoped 1:1 chat (the only place message bubbles render). Bubble side is
+ * decided purely by sender_id === myId, never a role assumption. Header has a
+ * tap-to-call button and a kebab (view profile / block / report). Realtime via
+ * subscribeToBookingMessages.
+ */
 import { COLORS } from '@/constants/theme';
-import { useThemeColors } from '@/contexts/ThemeContext';
+import { categoryIcon, categoryLabel } from '@/constants/categories';
+import { useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
 import EmptyState from '@/components/ui/EmptyState';
 import { getBookingWithContext, getBookingContactPhone, BookingChatContext } from '@/lib/api/bookings';
 import { blockUser, unblockUser, isBlockedWith } from '@/lib/api/blocking';
@@ -17,6 +24,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -30,7 +38,7 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '@/lib/Alert';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -42,13 +50,33 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 // measured position instead.
 const APP_MAX_WIDTH = 540;
 
-const CATEGORY_ICON: Record<string, string> = {
-  plumbing: 'water-outline',
-  electrical: 'flash-outline',
-  painting: 'color-palette-outline',
-  cleaning: 'sparkles-outline',
-  carpentry: 'hammer-outline',
-};
+/**
+ * WhatsApp-style chat palette. The header green stays the AdwumaGo brand green
+ * (near-identical to WhatsApp's #008069); everything else — the doodle-tinted
+ * background, the pale-green outgoing bubble, white incoming bubble, blue read
+ * ticks, the rounded input pill — mirrors WhatsApp.
+ */
+function waColors(isDark: boolean) {
+  return {
+    header: isDark ? '#1F2C34' : COLORS.primary,
+    headerText: '#FFFFFF',
+    headerSub: 'rgba(255,255,255,0.72)',
+    // Slightly translucent so the app's tiled tool wallpaper still ghosts
+    // through, the way WhatsApp's own doodle wallpaper does.
+    bgWash: isDark ? 'rgba(11,20,26,0.92)' : 'rgba(233,223,211,0.92)',
+    out: isDark ? '#005C4B' : '#DCF8C6',
+    in: isDark ? '#1F2C34' : '#FFFFFF',
+    bubbleText: isDark ? '#E9EDEF' : '#111B21',
+    meta: isDark ? '#8FA1AC' : '#667781',
+    tick: '#53BDEB',
+    datePill: isDark ? '#1D282F' : '#FFFFFF',
+    dateText: isDark ? '#9FB0BA' : '#54656F',
+    inputPill: isDark ? '#2A3942' : '#FFFFFF',
+    inputText: isDark ? '#E9EDEF' : '#111B21',
+    inputIcon: isDark ? '#8696A0' : '#8A9AA3',
+    send: COLORS.primary,
+  };
+}
 
 function statusLabel(status: string): string {
   return status.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -65,7 +93,7 @@ function initialsOf(name: string): string {
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatDayLabel(iso: string): string {
@@ -87,87 +115,117 @@ function isNewGroup(a: Message | undefined, b: Message): boolean {
   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime() > GROUP_GAP_MS;
 }
 
-function DayDivider({ iso, T }: { iso: string; T: any }) {
+function DayDivider({ iso, wa }: { iso: string; wa: ReturnType<typeof waColors> }) {
   return (
     <View style={dd.wrap}>
-      <View style={[dd.pill, { backgroundColor: T.inputBg }]}>
-        <Text style={[dd.text, { color: T.subText }]}>{formatDayLabel(iso)}</Text>
+      <View style={[dd.pill, { backgroundColor: wa.datePill }]}>
+        <Text style={[dd.text, { color: wa.dateText }]}>{formatDayLabel(iso).toUpperCase()}</Text>
       </View>
     </View>
   );
 }
 const dd = StyleSheet.create({
   wrap: { alignItems: 'center', marginVertical: 12 },
-  pill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
-  text: { fontSize: 11, fontWeight: '700' },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  text: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
 });
 
 /** Marks where this viewing session's unread messages begin — shown once per chat open, based on each message's read state at load time. */
-function UnreadDivider({ T }: { T: any }) {
+function UnreadDivider({ wa }: { wa: ReturnType<typeof waColors> }) {
   return (
-    <View style={ud.wrap}>
-      <View style={[ud.line, { backgroundColor: T.border }]} />
-      <View style={[ud.pill, { backgroundColor: T.card, borderColor: T.border }]}>
-        <Text style={[ud.text, { color: COLORS.primary }]}>New messages</Text>
-      </View>
-      <View style={[ud.line, { backgroundColor: T.border }]} />
+    <View style={[ud.wrap, { backgroundColor: wa.datePill }]}>
+      <Text style={[ud.text, { color: wa.meta }]}>UNREAD MESSAGES</Text>
     </View>
   );
 }
 const ud = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', marginVertical: 14 },
-  line: { flex: 1, height: StyleSheet.hairlineWidth },
-  pill: { marginHorizontal: 8, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
-  text: { fontSize: 11, fontWeight: '700' },
+  wrap: { alignItems: 'center', paddingVertical: 6, marginVertical: 8 },
+  text: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
 });
 
-function MessageBubble({ msg, mine, first, last, T }: { msg: Message; mine: boolean; first: boolean; last: boolean; T: any }) {
-  const tailRadius = 4;
-  const flatRadius = 6;
-  const fullRadius = 18;
+function MessageBubble({
+  msg,
+  mine,
+  first,
+  last,
+  wa,
+}: {
+  msg: Message;
+  mine: boolean;
+  first: boolean;
+  last: boolean;
+  wa: ReturnType<typeof waColors>;
+}) {
+  const bubbleColor = mine ? wa.out : wa.in;
+  // WhatsApp only draws the little tail on the first bubble of a run; the rest
+  // are fully rounded on the tail side.
+  const R = 8;
   const cornerStyle = mine
-    ? { borderTopRightRadius: first ? fullRadius : flatRadius, borderBottomRightRadius: last ? tailRadius : flatRadius }
-    : { borderTopLeftRadius: first ? fullRadius : flatRadius, borderBottomLeftRadius: last ? tailRadius : flatRadius };
+    ? { borderTopRightRadius: first ? 2 : R }
+    : { borderTopLeftRadius: first ? 2 : R };
 
   return (
-    <View style={[mb.wrap, mine ? mb.mine : mb.theirs, { marginBottom: last ? 10 : 2 }]}>
-      <View
-        style={[
-          mb.bubble,
-          cornerStyle,
-          mine ? mb.bubbleMine : [mb.bubbleTheirs, { backgroundColor: T.inputBg }],
-        ]}
-      >
-        <Text style={[mb.text, mine ? mb.textMine : [mb.textTheirs, { color: T.text }]]}>{msg.message_text}</Text>
-      </View>
-      {last && (
-        <View style={[mb.metaRow, mine && { justifyContent: 'flex-end' }]}>
-          <Text style={[mb.time, { color: T.subText }]}>{formatTime(msg.created_at)}</Text>
+    <View style={[mb.row, mine ? mb.rowMine : mb.rowTheirs, { marginBottom: last ? 8 : 2, marginTop: first ? 6 : 0 }]}>
+      {first && (
+        <View style={[mb.tail, mine ? mb.tailMine : mb.tailTheirs, { borderTopColor: bubbleColor }]} />
+      )}
+      <View style={[mb.bubble, cornerStyle, { backgroundColor: bubbleColor }]}>
+        <Text style={[mb.text, { color: wa.bubbleText }]}>
+          {msg.message_text}
+          {/* Transparent spacer reserves room on the last text line so the
+              absolutely-positioned time/ticks never overlap the words —
+              WhatsApp's own inline-timestamp trick. */}
+          <Text style={mb.spacer}>{mine ? '     ' : '   '}</Text>
+        </Text>
+        <View style={mb.metaRow}>
+          <Text style={[mb.time, { color: wa.meta }]}>{formatTime(msg.created_at)}</Text>
           {mine && (
             <Ionicons
-              name={msg.is_read ? 'checkmark-done' : 'checkmark-outline'}
-              size={13}
-              color={msg.is_read ? COLORS.primary : T.subText}
+              name={msg.is_read ? 'checkmark-done' : 'checkmark'}
+              size={15}
+              color={msg.is_read ? wa.tick : wa.meta}
+              style={{ marginLeft: 2 }}
             />
           )}
         </View>
-      )}
+      </View>
     </View>
   );
 }
 
 const mb = StyleSheet.create({
-  wrap: { maxWidth: '80%' },
-  mine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  theirs: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMine: { backgroundColor: COLORS.primary },
-  bubbleTheirs: {},
-  text: { fontSize: 14, lineHeight: 21 },
-  textMine: { color: '#fff' },
-  textTheirs: {},
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, paddingHorizontal: 4 },
-  time: { fontSize: 10 },
+  row: { maxWidth: '82%', flexDirection: 'row' },
+  rowMine: { alignSelf: 'flex-end' },
+  rowTheirs: { alignSelf: 'flex-start' },
+  bubble: {
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingTop: 6,
+    paddingBottom: 7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.13,
+    shadowRadius: 0.6,
+    elevation: 1,
+  },
+  text: { fontSize: 14.5, lineHeight: 20 },
+  spacer: { fontSize: 14.5 },
+  metaRow: { position: 'absolute', right: 8, bottom: 6, flexDirection: 'row', alignItems: 'center' },
+  time: { fontSize: 11 },
+  // Tail: a small triangle butting against the top corner of the first bubble
+  // in a run — the colored top border is the fill, the side border is clear.
+  tail: { position: 'absolute', top: 0, width: 0, height: 0, borderTopWidth: 10, borderStyle: 'solid' },
+  tailTheirs: { left: -7, borderLeftWidth: 9, borderLeftColor: 'transparent' },
+  tailMine: { right: -7, borderRightWidth: 9, borderRightColor: 'transparent' },
 });
 
 const QUICK_REPLIES = ['On my way!', 'What time?', 'Sounds good', 'Can we reschedule?'];
@@ -175,6 +233,9 @@ const QUICK_REPLIES = ['On my way!', 'What time?', 'Sounds good', 'Can we resche
 export default function ChatScreen({ route, navigation }: Props) {
   const { bookingId } = route.params;
   const T = useThemeColors();
+  const { isDark } = useAppTheme();
+  const wa = waColors(isDark);
+  const insets = useSafeAreaInsets();
 
   const myId = useAuthStore((s) => s.user?.id ?? null);
   const [context, setContext] = useState<BookingChatContext | null>(null);
@@ -199,7 +260,6 @@ export default function ChatScreen({ route, navigation }: Props) {
 
   const isClientViewer = myId != null && context != null && myId === context.client_id;
   const otherParty = context ? (isClientViewer ? context.worker : context.client) : null;
-  const otherColor = COLORS.accent;
 
   const openMenu = () => {
     const node = menuBtnRef.current;
@@ -310,27 +370,45 @@ export default function ChatScreen({ route, navigation }: Props) {
   }, [navigation]);
 
   const chatHeader = (
-    <View style={[s.chatHeader, { backgroundColor: T.header, borderBottomColor: T.border }]}>
-      <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7}>
-        <Ionicons name="arrow-back" size={22} color={T.text} />
+    <View style={[s.chatHeader, { backgroundColor: wa.header }]}>
+      <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7} style={s.headerBack}>
+        <Ionicons name="arrow-back" size={24} color={wa.headerText} />
       </TouchableOpacity>
-      <View style={[s.headerAvatar, { backgroundColor: otherColor + '20' }]}>
-        <Text style={[s.headerInitials, { color: otherColor }]}>{initialsOf(otherParty?.full_name ?? '?')}</Text>
-      </View>
-      <View style={s.headerTextGroup}>
-        <Text style={[s.headerName, { color: T.text }]} numberOfLines={1}>{otherParty?.full_name ?? 'Unknown'}</Text>
-        {context && <Text style={[s.headerStatus, { color: T.subText }]}>{context.status.replace('_', ' ')}</Text>}
-      </View>
-      <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={handleCall} disabled={calling}>
+      <TouchableOpacity
+        style={s.headerIdentity}
+        activeOpacity={0.7}
+        onPress={handleJobBannerPress}
+      >
+        <View style={[s.headerAvatar, { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+          {otherParty?.avatar_url ? (
+            <Image source={{ uri: otherParty.avatar_url }} style={s.headerAvatarImg} />
+          ) : (
+            <Text style={[s.headerInitials, { color: wa.headerText }]}>
+              {initialsOf(otherParty?.full_name ?? '?')}
+            </Text>
+          )}
+        </View>
+        <View style={s.headerTextGroup}>
+          <Text style={[s.headerName, { color: wa.headerText }]} numberOfLines={1}>
+            {otherParty?.full_name ?? 'Unknown'}
+          </Text>
+          {context && (
+            <Text style={[s.headerStatus, { color: wa.headerSub }]} numberOfLines={1}>
+              {statusLabel(context.status)} · tap here for job info
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.6} onPress={handleCall} disabled={calling}>
         {calling ? (
-          <ActivityIndicator size="small" color={COLORS.primary} />
+          <ActivityIndicator size="small" color={wa.headerText} />
         ) : (
-          <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+          <Ionicons name="call" size={20} color={wa.headerText} />
         )}
       </TouchableOpacity>
       <View ref={menuBtnRef} collapsable={false}>
-        <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.75} onPress={openMenu}>
-          <Ionicons name="ellipsis-vertical" size={20} color={T.subText} />
+        <TouchableOpacity style={s.headerActionBtn} activeOpacity={0.6} onPress={openMenu}>
+          <Ionicons name="ellipsis-vertical" size={20} color={wa.headerText} />
         </TouchableOpacity>
       </View>
     </View>
@@ -412,9 +490,10 @@ export default function ChatScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[s.safe, { backgroundColor: wa.header }]} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={wa.header} />
         {chatHeader}
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={[s.body, { backgroundColor: wa.bgWash, alignItems: 'center', justifyContent: 'center' }]}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeAreaView>
@@ -423,27 +502,31 @@ export default function ChatScreen({ route, navigation }: Props) {
 
   if (notFound || !context || !myId) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[s.safe, { backgroundColor: wa.header }]} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={wa.header} />
         {chatHeader}
-        <EmptyState
-          icon="cloud-offline-outline"
-          title="Couldn't load this conversation"
-          body="It may not exist anymore, or the connection dropped — try again."
-          actionLabel="Retry"
-          onAction={() => load({ current: false })}
-          tone="error"
-        />
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'center', paddingVertical: 12 }}>
-          <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Go Back</Text>
-        </TouchableOpacity>
+        <View style={[s.body, { backgroundColor: wa.bgWash }]}>
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Couldn't load this conversation"
+            body="It may not exist anymore, or the connection dropped — try again."
+            actionLabel="Retry"
+            onAction={() => load({ current: false })}
+            tone="error"
+          />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'center', paddingVertical: 12 }}>
+            <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['top', 'bottom']}>
-      <StatusBar barStyle={T.statusBar} backgroundColor={T.header} />
+    <SafeAreaView style={[s.safe, { backgroundColor: wa.header }]} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={wa.header} />
       {chatHeader}
+      <View style={[s.body, { backgroundColor: wa.bgWash }]}>
 
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={s.menuBackdrop} onPress={() => setMenuVisible(false)}>
@@ -513,25 +596,25 @@ export default function ChatScreen({ route, navigation }: Props) {
 
       {context.request && (
         <TouchableOpacity
-          style={[s.jobBanner, { backgroundColor: COLORS.primary + '08', borderColor: T.border }]}
+          style={[s.jobBanner, { backgroundColor: wa.datePill }]}
           activeOpacity={0.8}
           onPress={handleJobBannerPress}
         >
-          <View style={[s.jobBannerIcon, { backgroundColor: T.card }]}>
-            <Ionicons name={(CATEGORY_ICON[context.request.category] ?? 'briefcase-outline') as any} size={16} color={COLORS.primary} />
+          <View style={[s.jobBannerIcon, { backgroundColor: COLORS.primary + '18' }]}>
+            <Ionicons name={categoryIcon(context.request.category) as any} size={16} color={COLORS.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[s.jobBannerTitle, { color: T.text }]} numberOfLines={1}>
-              {context.request.category.charAt(0).toUpperCase() + context.request.category.slice(1)}
+            <Text style={[s.jobBannerTitle, { color: wa.bubbleText }]} numberOfLines={1}>
+              {categoryLabel(context.request.category)}
             </Text>
             {!!context.request.description && (
-              <Text style={[s.jobBannerDesc, { color: T.subText }]} numberOfLines={1}>{context.request.description}</Text>
+              <Text style={[s.jobBannerDesc, { color: wa.meta }]} numberOfLines={1}>{context.request.description}</Text>
             )}
           </View>
           <View style={[s.jobBannerStatusPill, { backgroundColor: statusColor(context.status) + '20' }]}>
             <Text style={[s.jobBannerStatusText, { color: statusColor(context.status) }]}>{statusLabel(context.status)}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={15} color={T.subText} />
+          <Ionicons name="chevron-forward" size={15} color={wa.meta} />
         </TouchableOpacity>
       )}
 
@@ -549,16 +632,20 @@ export default function ChatScreen({ route, navigation }: Props) {
             const showUnreadDivider = item.id === firstUnreadIdRef.current;
             return (
               <>
-                {showDayDivider && <DayDivider iso={item.created_at} T={T} />}
-                {showUnreadDivider && <UnreadDivider T={T} />}
-                <MessageBubble msg={item} mine={item.sender_id === myId} first={first} last={last} T={T} />
+                {showDayDivider && <DayDivider iso={item.created_at} wa={wa} />}
+                {showUnreadDivider && <UnreadDivider wa={wa} />}
+                <MessageBubble msg={item} mine={item.sender_id === myId} first={first} last={last} wa={wa} />
               </>
             );
           }}
           ListEmptyComponent={
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <Ionicons name="chatbubble-ellipses-outline" size={40} color={T.subText + '60'} />
-              <Text style={{ color: T.subText, marginTop: 10 }}>No messages yet — say hello!</Text>
+            <View style={s.emptyChat}>
+              <View style={[s.emptyChatPill, { backgroundColor: wa.datePill }]}>
+                <Ionicons name="lock-closed" size={12} color={wa.meta} />
+                <Text style={[s.emptyChatText, { color: wa.meta }]}>
+                  Messages are between you and {otherParty?.full_name?.split(' ')[0] ?? 'this person'}. Say hello!
+                </Text>
+              </View>
             </View>
           }
           contentContainerStyle={s.msgList}
@@ -567,52 +654,65 @@ export default function ChatScreen({ route, navigation }: Props) {
         />
 
         {showQuick && messages.length === 0 && (
-          <View style={[s.quickWrap, { backgroundColor: T.card, borderColor: T.border }]}>
+          <View style={s.quickWrap}>
             {QUICK_REPLIES.map((qr) => (
-              <TouchableOpacity key={qr} style={s.quickChip} onPress={() => send(qr)} activeOpacity={0.75}>
-                <Text style={s.quickText}>{qr}</Text>
+              <TouchableOpacity key={qr} style={[s.quickChip, { backgroundColor: wa.datePill }]} onPress={() => send(qr)} activeOpacity={0.75}>
+                <Text style={[s.quickText, { color: COLORS.primary }]}>{qr}</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
         {blocked ? (
-          <View style={[s.blockedBar, { backgroundColor: T.card, borderColor: T.border }]}>
-            <Ionicons name="ban-outline" size={16} color={T.subText} />
-            <Text style={[s.blockedText, { color: T.subText }]}>You can&apos;t message this person.</Text>
+          <View style={[s.blockedBar, { paddingBottom: 14 + insets.bottom }]}>
+            <Ionicons name="ban-outline" size={16} color={wa.meta} />
+            <Text style={[s.blockedText, { color: wa.meta }]}>You can&apos;t message this person.</Text>
           </View>
         ) : (
-          <View style={[s.inputBar, { backgroundColor: T.card, borderColor: T.border }]}>
-            <TextInput
-              style={[s.input, { backgroundColor: T.inputBg, color: T.text }]}
-              placeholder="Type a message..."
-              placeholderTextColor={T.subText}
-              value={input}
-              onChangeText={(v) => { setInput(v); setShowQuick(false); }}
-              multiline
-              maxLength={500}
-              returnKeyType="default"
-            />
-            <TouchableOpacity style={[s.sendBtn, input.trim().length === 0 && s.sendBtnDisabled]} onPress={() => send(input)} activeOpacity={0.8} disabled={input.trim().length === 0}>
-              <Ionicons name="send" size={18} color="#fff" />
+          <View style={[s.inputBar, { paddingBottom: 6 + insets.bottom }]}>
+            <View style={[s.inputPill, { backgroundColor: wa.inputPill }]}>
+              <Ionicons name="happy-outline" size={22} color={wa.inputIcon} style={s.inputEmoji} />
+              <TextInput
+                style={[s.input, { color: wa.inputText }]}
+                placeholder="Message"
+                placeholderTextColor={wa.inputIcon}
+                value={input}
+                onChangeText={(v) => { setInput(v); setShowQuick(false); }}
+                multiline
+                maxLength={500}
+                returnKeyType="default"
+              />
+            </View>
+            <TouchableOpacity
+              style={[s.sendBtn, { backgroundColor: wa.send }, input.trim().length === 0 && s.sendBtnDisabled]}
+              onPress={() => send(input)}
+              activeOpacity={0.8}
+              disabled={input.trim().length === 0}
+            >
+              <Ionicons name="send" size={19} color="#fff" />
             </TouchableOpacity>
           </View>
         )}
       </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
+  body: { flex: 1 },
 
-  chatHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 7, minHeight: 56 },
+  headerBack: { paddingHorizontal: 8, paddingVertical: 4 },
+  headerIdentity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
   headerTextGroup: { flex: 1 },
-  headerAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  headerInitials: { fontSize: 13, fontWeight: '800' },
-  headerName: { fontSize: 15, fontWeight: '700' },
-  headerStatus: { fontSize: 11, marginTop: 1, textTransform: 'capitalize' },
-  headerActionBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  headerAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  headerAvatarImg: { width: '100%', height: '100%' },
+  headerInitials: { fontSize: 14, fontWeight: '800' },
+  headerName: { fontSize: 16, fontWeight: '700' },
+  headerStatus: { fontSize: 12, marginTop: 1 },
+  headerActionBtn: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
 
   menuBackdrop: { flex: 1 },
   // Re-caps <Modal> content to the same centred column every screen sits in, so
@@ -633,24 +733,74 @@ const s = StyleSheet.create({
   reportSubmitBtn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10, alignItems: 'center', justifyContent: 'center', minWidth: 130 },
   reportSubmitText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
 
-  blockedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderTopWidth: 1 },
+  blockedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 14 },
   blockedText: { fontSize: 13, fontWeight: '600' },
 
-  jobBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1 },
+  jobBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 8,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
   jobBannerIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   jobBannerTitle: { fontSize: 13, fontWeight: '700' },
   jobBannerDesc: { fontSize: 11, marginTop: 1 },
   jobBannerStatusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   jobBannerStatusText: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
 
-  msgList: { paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 },
+  msgList: { paddingHorizontal: 8, paddingBottom: 10, paddingTop: 6, flexGrow: 1 },
 
-  quickWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1 },
-  quickChip: { borderRadius: 18, borderWidth: 1.5, borderColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 6 },
-  quickText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
+  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40, paddingHorizontal: 30 },
+  emptyChatPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  emptyChatText: { fontSize: 12.5, flexShrink: 1, textAlign: 'center' },
 
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 8, gap: 8, borderTopWidth: 1 },
-  input: { flex: 1, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, maxHeight: 110, lineHeight: 20 },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  sendBtnDisabled: { backgroundColor: COLORS.primary + '50' },
+  quickWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center' },
+  quickChip: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  quickText: { fontSize: 12.5, fontWeight: '600' },
+
+  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 8, paddingTop: 6, gap: 7 },
+  inputPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: 24,
+    paddingLeft: 12,
+    paddingRight: 14,
+    minHeight: 46,
+  },
+  inputEmoji: { marginBottom: 11 },
+  input: { flex: 1, paddingHorizontal: 8, paddingVertical: 11, fontSize: 15.5, maxHeight: 110, lineHeight: 20 },
+  sendBtn: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { opacity: 0.55 },
 });

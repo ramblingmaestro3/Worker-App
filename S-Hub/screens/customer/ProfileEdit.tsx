@@ -1,3 +1,7 @@
+/**
+ * Edit the client's name, email, phone, and profile photo (ProfilePhotoPicker
+ * uploads immediately). Email changes go through Supabase's confirm-email flow.
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';

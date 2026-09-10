@@ -4,9 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { ThemeProvider, useAppTheme, useThemeColors } from '@/contexts/ThemeContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useNotificationRouting } from '@/hooks/use-notification-routing';
 import { routeSignedInUserByRole, signOutIntent } from '@/lib/auth';
@@ -157,9 +159,13 @@ const styles = StyleSheet.create({ appRoot: { flex: 1 } });
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AppNavigator />
-      </ThemeProvider>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <ErrorBoundary>
+            <AppNavigator />
+          </ErrorBoundary>
+        </ThemeProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

@@ -1,3 +1,8 @@
+/**
+ * Email/phone + password sign-in, with a client/worker toggle and Google/Apple
+ * OAuth buttons. On success, lib/auth.routeSignedInUserByRole picks the landing
+ * screen. "email_not_confirmed" detours to OtpVerification.
+ */
 import { AntDesign, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useState } from 'react';
@@ -16,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import ScreenContent from '@/components/ScreenContent';
+import { Wordmark } from '@/components/Logo';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { signInWithPassword, signInWithOAuthProvider, routeSignedInUserByRole } from '@/lib/auth';
@@ -72,7 +78,7 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
       <StatusBar barStyle={T.statusBar} backgroundColor={T.bg} />
 
       <ScreenContent style={styles.logoWrap}>
-        <Text style={styles.logo}>AdwumaGo</Text>
+        <Wordmark size={ms(20)} />
       </ScreenContent>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

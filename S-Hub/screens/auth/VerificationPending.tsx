@@ -1,9 +1,15 @@
+/**
+ * Post-submission "reviewing your documents" screen. Runs a ~5s animation then
+ * calls finalize_verification() -> flips the worker to 'verified' -> Verified
+ * screen. NOTE: there is no real ID/face check (see CODEBASE.md section 11).
+ */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/theme';
+import { Wordmark } from '@/components/Logo';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';
 import { getMyVerification, finalizeVerification } from '@/lib/api/verification';
@@ -71,7 +77,7 @@ export default function VerificationPendingScreen({ navigation }: NativeStackScr
       <StatusBar barStyle={T.statusBar} />
 
       <View style={styles.topBar}>
-        <Text style={styles.logo}>AdwumaGo</Text>
+        <Wordmark size={wms(19)} />
         <Ionicons name="notifications-outline" size={wms(22)} color={T.text} />
       </View>
 

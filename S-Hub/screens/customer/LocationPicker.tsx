@@ -1,9 +1,15 @@
+/**
+ * Pick a point on a map + address search (Google Places). Returns the chosen
+ * lat/lng/address to the caller (PostAJob / SavedLocations) via
+ * lib/locationPickerBridge.
+ */
 import { COLORS, RADIUS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { s, vs, ms } from '@/lib/scaling';
 import ScreenContent from '@/components/ScreenContent';
 import InteractiveMapPicker, { InteractiveMapPickerHandle } from '@/components/InteractiveMapPicker';
 import { setPickedLocation } from '@/lib/locationPickerBridge';
+import { ensureLocationPermission } from '@/lib/locationPermission';
 import {
   getPlaceDetails,
   newSessionToken,
@@ -94,12 +100,14 @@ export default function LocationPickerScreen({ route, navigation }: Props) {
   };
 
   const moveMap = (next: { latitude: number; longitude: number }) => {
+    // eslint-disable-next-line react-hooks/purity -- event-time only (map move), never called during render
     suppressReverseUntilRef.current = Date.now() + 1500;
     mapRef.current?.animateToRegion(next);
   };
 
   const handleRegionChangeComplete = (r: { latitude: number; longitude: number }) => {
     setCoords(r);
+    // eslint-disable-next-line react-hooks/purity -- runs from the map's onRegionChangeComplete callback, not render
     if (Date.now() < suppressReverseUntilRef.current) return;
     resolveAddress(r.latitude, r.longitude);
   };
@@ -159,8 +167,7 @@ export default function LocationPickerScreen({ route, navigation }: Props) {
   const handleUseCurrentLocation = async () => {
     setLocating(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) return;
+      if (!(await ensureLocationPermission())) return;
       const pos = await Location.getCurrentPositionAsync({});
       const next = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       setCoords(next);

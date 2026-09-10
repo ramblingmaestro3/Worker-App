@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "jsx": "react-jsx",
     "paths": {
       "@/*": [
         "./*"
@@ -14,7 +15,6 @@
   ],
   "exclude": [
     "node_modules",
-    "supabase/functions",
-    "Workerapp-Backend"
+    "supabase/functions"
   ]
 }

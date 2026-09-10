@@ -1,3 +1,7 @@
+/**
+ * Edit the worker's skills. NOTE: currently stores free-text strings, which do
+ * NOT match the job-category slugs the feed/discovery use (see CODEBASE.md 11).
+ */
 import { COLORS } from '@/constants/theme';
 import { useThemeColors } from '@/contexts/ThemeContext';
 import { ws, wvs, wms } from '@/lib/scaling';

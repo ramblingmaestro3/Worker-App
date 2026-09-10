@@ -1,3 +1,7 @@
+/**
+ * "Become a worker" pitch (benefits list) shown to a client who taps into the
+ * worker area without a worker profile yet. CTA -> BecomeWorker.
+ */
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect } from 'react';
