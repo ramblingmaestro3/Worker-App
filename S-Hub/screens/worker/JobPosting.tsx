@@ -1,7 +1,7 @@
 /**
  * A worker's read-only view of one open service_request (from the dashboard
- * feed). Shows the job details and the worker's own bid status if any; CTA ->
- * SubmitBid.
+ * feed). Answers the bid decision fast — trade, budget, when, where — then
+ * CTA -> SubmitBid. Shows the worker's own bid status if they've already bid.
  */
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppMap from '@/components/AppMap';
+import Button from '@/components/ui/Button';
 import ScreenHeader from '@/components/ScreenHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { COLORS, RADIUS } from '@/constants/theme';
@@ -32,11 +33,10 @@ import { categoryIcon, categoryLabel } from '@/constants/categories';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JobPosting'>;
-type ThemeColors = ReturnType<typeof useThemeColors>;
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return 'Just now';
+  if (seconds < 60) return 'just now';
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
@@ -44,44 +44,15 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-/** Compact form for the info tile, e.g. "8 Jan" (year added only when it isn't this one). */
-function scheduleShort(iso: string | null): string {
-  if (!iso) return 'Flexible';
+/** "Wed, 8 Jan · 2:00 PM" — matches WorkerDashboard's job cards. */
+function scheduleLine(iso: string | null): string {
+  if (!iso) return 'Flexible timing';
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return 'Flexible';
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString(undefined, opts);
-}
-
-function InfoTile({
-  icon,
-  label,
-  value,
-  accent,
-  T,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  accent?: boolean;
-  T: ThemeColors;
-}) {
+  if (isNaN(d.getTime())) return 'Flexible timing';
   return (
-    <View
-      style={[
-        styles.tile,
-        { borderColor: T.border, backgroundColor: accent ? COLORS.primaryLight : T.card },
-      ]}
-    >
-      <View style={[styles.tileIcon, { backgroundColor: accent ? COLORS.primary + '22' : T.inputBg }]}>
-        <Ionicons name={icon as any} size={wms(15)} color={COLORS.primary} />
-      </View>
-      <Text style={[styles.tileLabel, { color: accent ? COLORS.primary : T.subText }]}>{label}</Text>
-      <Text style={[styles.tileValue, { color: T.text }]} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
+    d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
+    ' · ' +
+    d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   );
 }
 
@@ -109,10 +80,7 @@ export default function JobPostingScreen({ route, navigation }: Props) {
     async (cancelledRef?: { current: boolean }) => {
       setLoading(true);
       setLoadError(false);
-      const [reqResult, bidsResult] = await Promise.all([
-        getServiceRequest(requestId),
-        listMyBids(),
-      ]);
+      const [reqResult, bidsResult] = await Promise.all([getServiceRequest(requestId), listMyBids()]);
       if (cancelledRef?.current) return;
       if (reqResult.success && reqResult.data) {
         setRequest(reqResult.data);
@@ -181,10 +149,8 @@ export default function JobPostingScreen({ route, navigation }: Props) {
 
   const category = categoryLabel(request.category);
   const icon = categoryIcon(request.category);
-  const locationText =
-    request.location_string ?? request.location_region ?? 'Location not specified';
-  const budgetText =
-    request.initial_offer_price != null ? `GH₵ ${request.initial_offer_price}` : 'Open budget';
+  const locationText = request.location_string ?? request.location_region ?? 'Location not specified';
+  const hasPrice = request.initial_offer_price != null;
   const isOpen = request.status === 'seeking_bids';
   const descLong = (request.description?.length ?? 0) > 200;
 
@@ -194,6 +160,7 @@ export default function JobPostingScreen({ route, navigation }: Props) {
     label: request.location_string ?? request.location_region,
   };
   const canOpenMaps = hasMappableLocation(mapsTarget);
+  const hasCoords = request.latitude != null && request.longitude != null;
   const openJobLocation = () => openInMaps(mapsTarget);
 
   const goToBid = () => navigation.navigate('SubmitBid', { requestId });
@@ -201,62 +168,63 @@ export default function JobPostingScreen({ route, navigation }: Props) {
   return shell(
     <View style={styles.pageInner}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Hero ── */}
-        <View style={styles.hero}>
-          <View style={[styles.heroIcon, { backgroundColor: T.inputBg }]}>
-            <Ionicons name={icon as any} size={wms(30)} color={COLORS.primary} />
+        {/* ── Job header ── */}
+        <View style={styles.header}>
+          <View style={[styles.catIcon, { backgroundColor: T.inputBg }]}>
+            <Ionicons name={icon as any} size={wms(22)} color={COLORS.primary} />
           </View>
-          <Text style={[styles.heroTitle, { color: T.text }]}>{category}</Text>
-          {canOpenMaps ? (
+          <View style={styles.headerText}>
+            <Text style={[styles.title, { color: T.text }]}>{category}</Text>
             <TouchableOpacity
-              style={styles.heroLocationRow}
+              style={styles.locRow}
               onPress={openJobLocation}
+              disabled={!canOpenMaps}
               activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Open job location in maps"
+              accessibilityRole={canOpenMaps ? 'button' : undefined}
+              accessibilityLabel={canOpenMaps ? 'Open job location in maps' : undefined}
             >
-              <Ionicons name="location-outline" size={wms(14)} color={COLORS.primary} />
-              <Text style={[styles.heroLocation, styles.heroLocationLink]} numberOfLines={2}>
+              <Ionicons
+                name="location-outline"
+                size={wms(13)}
+                color={canOpenMaps ? COLORS.primary : T.subText}
+              />
+              <Text
+                style={[styles.locText, { color: canOpenMaps ? COLORS.primary : T.subText }]}
+                numberOfLines={2}
+              >
                 {locationText}
               </Text>
-              <Ionicons name="open-outline" size={wms(13)} color={COLORS.primary} />
             </TouchableOpacity>
-          ) : (
-            <View style={styles.heroLocationRow}>
-              <Ionicons name="location-outline" size={wms(14)} color={T.subText} />
-              <Text style={[styles.heroLocation, { color: T.subText }]} numberOfLines={2}>
-                {locationText}
-              </Text>
-            </View>
-          )}
+            <Text style={[styles.metaLine, { color: T.subText }]}>
+              Posted {timeAgo(request.created_at)} · {scheduleLine(request.scheduled_for)}
+            </Text>
+          </View>
         </View>
 
-        {/* ── Info grid ── */}
-        <View style={styles.grid}>
-          <InfoTile icon="cash-outline" label="BUDGET" value={budgetText} accent T={T} />
-          <InfoTile icon={icon} label="CATEGORY" value={category} T={T} />
-          <InfoTile
-            icon="calendar-outline"
-            label="SCHEDULE"
-            value={scheduleShort(request.scheduled_for)}
-            T={T}
-          />
-          <InfoTile icon="time-outline" label="POSTED" value={timeAgo(request.created_at)} T={T} />
+        {/* ── Budget ── the number a worker is really here for ── */}
+        <View style={styles.budget}>
+          <Text style={styles.budgetLabel}>{hasPrice ? "Client's budget" : 'Budget'}</Text>
+          <Text style={styles.budgetValue}>
+            {hasPrice ? `GH₵ ${request.initial_offer_price}` : 'Open — client wants offers'}
+          </Text>
+          <Text style={styles.budgetHint}>
+            {hasPrice ? 'Your bid can be above or below this.' : 'Name your price when you bid.'}
+          </Text>
         </View>
 
         {/* ── Description ── */}
         {!!request.description && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: T.text }]}>Description</Text>
+            <Text style={[styles.sectionTitle, { color: T.text }]}>Job description</Text>
             <Text
-              style={[styles.body, { color: T.subText }]}
-              numberOfLines={descExpanded || !descLong ? undefined : 4}
+              style={[styles.body, { color: T.text }]}
+              numberOfLines={descExpanded || !descLong ? undefined : 5}
             >
               {request.description}
             </Text>
             {descLong && (
-              <TouchableOpacity onPress={() => setDescExpanded((v) => !v)} hitSlop={6} activeOpacity={0.7}>
-                <Text style={styles.readMore}>{descExpanded ? 'Read less' : 'Read more'}</Text>
+              <TouchableOpacity onPress={() => setDescExpanded((v) => !v)} hitSlop={8} activeOpacity={0.7}>
+                <Text style={styles.readMore}>{descExpanded ? 'Show less' : 'Read more'}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -265,12 +233,8 @@ export default function JobPostingScreen({ route, navigation }: Props) {
         {/* ── Photos ── */}
         {request.photos.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: T.text }]}>Photos from client</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.photoRow}
-            >
+            <Text style={[styles.sectionTitle, { color: T.text }]}>Photos from the client</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
               {request.photos.map((uri) => (
                 <TouchableOpacity key={uri} onPress={() => setPreviewPhoto(uri)} activeOpacity={0.85}>
                   <Image source={{ uri }} style={[styles.photoThumb, { borderColor: T.border }]} />
@@ -280,11 +244,11 @@ export default function JobPostingScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* ── Location ── */}
+        {/* ── Where ── */}
         {canOpenMaps && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: T.text }]}>Location</Text>
-            {request.latitude != null && request.longitude != null && (
+            <Text style={[styles.sectionTitle, { color: T.text }]}>Where</Text>
+            {hasCoords && (
               <TouchableOpacity
                 style={[styles.mapPreview, { borderColor: T.border }]}
                 onPress={openJobLocation}
@@ -294,30 +258,22 @@ export default function JobPostingScreen({ route, navigation }: Props) {
               >
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
                   <AppMap
-                    latitude={request.latitude}
-                    longitude={request.longitude}
+                    latitude={request.latitude!}
+                    longitude={request.longitude!}
                     zoom={0.02}
-                    markers={[
-                      { latitude: request.latitude, longitude: request.longitude, color: COLORS.primary },
-                    ]}
+                    markers={[{ latitude: request.latitude!, longitude: request.longitude!, color: COLORS.primary }]}
                     zoomEnabled={false}
                     scrollEnabled={false}
                   />
                 </View>
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={[styles.directionsBtn, { borderColor: COLORS.primary }]}
+            <Button
+              variant="secondary"
+              label={hasCoords ? 'Get directions' : 'Open in Maps'}
+              icon={<Ionicons name="navigate-outline" size={wms(16)} color={COLORS.primary} />}
               onPress={openJobLocation}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="navigate-outline" size={wms(16)} color={COLORS.primary} />
-              <Text style={styles.directionsBtnText}>
-                {request.latitude != null && request.longitude != null
-                  ? 'Get directions'
-                  : 'Open in Maps'}
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         )}
       </ScrollView>
@@ -326,7 +282,7 @@ export default function JobPostingScreen({ route, navigation }: Props) {
       <View style={[styles.footer, { backgroundColor: T.card, borderTopColor: T.border }]}>
         {!isOpen ? (
           <View style={styles.footerNotice}>
-            <Ionicons name="lock-closed-outline" size={wms(16)} color={T.subText} />
+            <Ionicons name="lock-closed-outline" size={wms(15)} color={T.subText} />
             <Text style={[styles.footerNoticeText, { color: T.subText }]}>
               This job isn&apos;t accepting bids anymore.
             </Text>
@@ -334,19 +290,18 @@ export default function JobPostingScreen({ route, navigation }: Props) {
         ) : myBid ? (
           <>
             <Text style={[styles.footerBidNote, { color: T.subText }]}>
-              Your offer:{' '}
+              Your offer{' '}
               <Text style={{ fontWeight: '800', color: T.text }}>GH₵ {myBid.proposed_price}</Text>
               {myBid.status === 'countered' ? ' · client countered' : ' · waiting for client'}
             </Text>
-            <TouchableOpacity style={styles.primaryBtn} onPress={goToBid} activeOpacity={0.85}>
-              <Text style={styles.primaryBtnText}>View Your Offer</Text>
-            </TouchableOpacity>
+            <Button variant="secondary" label="View your offer" onPress={goToBid} />
           </>
         ) : (
-          <TouchableOpacity style={styles.primaryBtn} onPress={goToBid} activeOpacity={0.85}>
-            <Ionicons name="pricetag-outline" size={wms(18)} color="#fff" />
-            <Text style={styles.primaryBtnText}>Place a Bid</Text>
-          </TouchableOpacity>
+          <Button
+            label="Place a bid"
+            icon={<Ionicons name="pricetag-outline" size={wms(18)} color="#fff" />}
+            onPress={goToBid}
+          />
         )}
       </View>
 
@@ -381,59 +336,47 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   pageInner: { flex: 1, width: '100%', maxWidth: ws(544), alignSelf: 'center' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingHorizontal: ws(20), paddingTop: wvs(20), paddingBottom: wvs(28), gap: wvs(22) },
+  scroll: { paddingHorizontal: ws(20), paddingTop: wvs(18), paddingBottom: wvs(28), gap: wvs(20) },
 
   backLink: { alignSelf: 'center', paddingVertical: wvs(12) },
   backLinkText: { fontSize: wms(14), fontWeight: '700', color: COLORS.primary },
 
-  /* Hero */
-  hero: { alignItems: 'center', gap: wvs(8) },
-  heroIcon: {
-    width: ws(76),
-    height: ws(76),
-    borderRadius: ws(38),
+  /* Job header */
+  header: { flexDirection: 'row', gap: ws(12), alignItems: 'flex-start' },
+  catIcon: {
+    width: ws(44),
+    height: ws(44),
+    borderRadius: ws(13),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroTitle: { fontSize: wms(22), fontWeight: '800', textAlign: 'center' },
-  heroLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(4),
-    paddingHorizontal: ws(20),
-  },
-  heroLocation: { fontSize: wms(13), textAlign: 'center' },
-  heroLocationLink: { color: COLORS.primary, fontWeight: '700' },
+  headerText: { flex: 1, gap: wvs(3) },
+  title: { fontSize: wms(21), fontWeight: '800', letterSpacing: -0.3 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: ws(4) },
+  locText: { flex: 1, fontSize: wms(13), fontWeight: '600' },
+  metaLine: { fontSize: wms(12), marginTop: wvs(1) },
 
-  /* Info grid */
-  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: ws(10), rowGap: wvs(10) },
-  tile: {
-    flexGrow: 1,
-    flexBasis: '46%',
-    borderWidth: 1,
+  /* Budget */
+  budget: {
+    backgroundColor: COLORS.primaryLight,
     borderRadius: RADIUS.lg,
-    padding: ws(14),
-    gap: wvs(6),
+    paddingVertical: wvs(16),
+    paddingHorizontal: ws(18),
+    gap: wvs(3),
   },
-  tileIcon: {
-    width: ws(30),
-    height: ws(30),
-    borderRadius: ws(15),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileLabel: { fontSize: wms(10.5), fontWeight: '700', letterSpacing: 0.4 },
-  tileValue: { fontSize: wms(14.5), fontWeight: '800' },
+  budgetLabel: { fontSize: wms(12), fontWeight: '700', color: COLORS.primaryDark },
+  budgetValue: { fontSize: wms(25), fontWeight: '800', color: COLORS.primary, letterSpacing: -0.5 },
+  budgetHint: { fontSize: wms(11.5), color: COLORS.primaryDark, opacity: 0.75 },
 
   /* Sections */
-  section: { gap: wvs(8) },
-  sectionTitle: { fontSize: wms(15), fontWeight: '800' },
+  section: { gap: wvs(9) },
+  sectionTitle: { fontSize: wms(15), fontWeight: '800', letterSpacing: -0.2 },
   body: { fontSize: wms(13.5), lineHeight: wms(20) },
   readMore: { fontSize: wms(13), fontWeight: '700', color: COLORS.primary },
 
   /* Photos */
   photoRow: { gap: ws(10), paddingRight: ws(4) },
-  photoThumb: { width: ws(88), height: ws(88), borderRadius: ws(14), borderWidth: 1 },
+  photoThumb: { width: ws(96), height: ws(96), borderRadius: ws(14), borderWidth: 1 },
   photoModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.92)',
@@ -454,37 +397,23 @@ const styles = StyleSheet.create({
   },
 
   /* Map */
-  mapPreview: { height: wvs(150), borderRadius: ws(16), borderWidth: 1, overflow: 'hidden' },
-  directionsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: ws(8),
-    height: wvs(44),
-    borderRadius: ws(12),
-    borderWidth: 1.5,
-  },
-  directionsBtnText: { fontSize: wms(14), fontWeight: '700', color: COLORS.primary },
+  mapPreview: { height: wvs(150), borderRadius: RADIUS.lg, borderWidth: 1, overflow: 'hidden' },
 
   /* Footer */
   footer: {
     borderTopWidth: 1,
     paddingHorizontal: ws(20),
-    paddingTop: wvs(14),
-    paddingBottom: wvs(24),
-    gap: wvs(10),
+    paddingTop: wvs(12),
+    paddingBottom: wvs(22),
+    gap: wvs(9),
   },
-  footerNotice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: ws(8) },
-  footerNoticeText: { fontSize: wms(13), fontWeight: '600' },
-  footerBidNote: { fontSize: wms(12.5), textAlign: 'center' },
-  primaryBtn: {
-    height: wvs(54),
-    borderRadius: ws(16),
-    backgroundColor: COLORS.primary,
+  footerNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: ws(8),
+    paddingVertical: wvs(12),
   },
-  primaryBtnText: { fontSize: wms(16), fontWeight: '700', color: '#fff' },
+  footerNoticeText: { fontSize: wms(13), fontWeight: '600' },
+  footerBidNote: { fontSize: wms(12.5), textAlign: 'center' },
 });

@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { Booking } from './bookings';
+import { identityEmbed, withIdentityFallback } from './workerIdentity';
 
 export type WorkerBidStatus = 'pending' | 'accepted' | 'countered' | 'declined' | 'withdrawn';
 
@@ -52,13 +53,15 @@ export async function createBid({
 export async function listBidsForRequest(
   requestId: string
 ): Promise<{ success: boolean; data?: BidWithWorker[]; error?: string }> {
-  const { data, error } = await supabase
-    .from('worker_bids')
-    .select(
-      '*, worker:profiles!worker_bids_worker_id_fkey(full_name,rating_avg,rating_count,worker_profiles(display_name))'
-    )
-    .eq('request_id', requestId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('worker_bids')
+      .select(
+        `*, worker:profiles!worker_bids_worker_id_fkey(full_name,rating_avg,rating_count${identityEmbed()})`
+      )
+      .eq('request_id', requestId)
+      .order('created_at', { ascending: false })
+  );
 
   if (error) {
     return { success: false, error: error.message };

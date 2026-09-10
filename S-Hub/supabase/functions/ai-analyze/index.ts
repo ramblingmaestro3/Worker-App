@@ -7,20 +7,19 @@
 // project-level billing/prepayment-credits setup in favor of OpenRouter's
 // single-key prepaid-credit model, and to have a real free-tier option.
 //
-// Deploy:   supabase functions deploy ai-analyze
+// Deploy:   supabase functions deploy ai-analyze --use-api   (no Docker needed)
 // Secret:   supabase secrets set OPENROUTER_API_KEY=...   (key: https://openrouter.ai/keys)
-// Optional: supabase secrets set OPENROUTER_MODEL=minimax/minimax-m3:free
+// Optional: supabase secrets set OPENROUTER_MODEL="slugA:free,slugB:free"
 //
-// Default model is a free, vision-capable model confirmed live (2026-09) to
-// support `response_format: json_object`. Google's free vision models
-// (gemma-4-*:free) route through the shared "Google AI Studio" free pool,
-// which 429s constantly when called from cloud/serverless IPs like Supabase
-// Edge Functions -- confirmed live by testing the exact same request from a
-// residential IP (succeeds) vs. this function (429). minimax/minimax-m3:free
-// runs on a different backend (GMICloud) and doesn't share that bottleneck.
-// Re-check https://openrouter.ai/models?modalities=image if this drifts,
-// since OpenRouter's free-tier lineup and each provider's rate limits change
-// over time.
+// OPENROUTER_MODEL is a comma-separated preference list; two known-good free
+// vision models are always appended as fallbacks (see FALLBACK_MODELS below),
+// so a model going paid / 429ing / 503ing doesn't take the feature down — the
+// request just tries the next one. Avoid Google's gemma-4-*:free vision models:
+// they route through the shared "Google AI Studio" free pool that 429s hard
+// from cloud/serverless IPs like Supabase Edge Functions. Free-tier lineups
+// churn — re-check https://openrouter.ai/models?input_modalities=image&max_price=0
+// For real reliability the OpenRouter account needs ~$10 credit (unlocks paid
+// models + higher limits); then set OPENROUTER_MODEL to a cheap paid vision model.
 //
 // verify_jwt is disabled (config.toml) so the CORS preflight isn't rejected by
 // the gateway; this function verifies the caller's token itself below.
@@ -171,7 +170,17 @@ Deno.serve(async (req: Request) => {
 
   const apiKey = Deno.env.get('OPENROUTER_API_KEY');
   if (!apiKey) return json({ error: 'AI is not configured', code: 'not_configured' }, 503);
-  const model = Deno.env.get('OPENROUTER_MODEL') || 'minimax/minimax-m3:free';
+
+  // OpenRouter's free-tier model lineup churns constantly (models move to paid,
+  // providers 429/503) — so try a list, not one. OPENROUTER_MODEL may be a
+  // single slug or a comma-separated preference list; the known-good free
+  // fallbacks below are always appended so a stale secret can't take the
+  // feature down. Re-check https://openrouter.ai/models?fmt=cards&input_modalities=image&max_price=0
+  const FALLBACK_MODELS = ['dots-studio/dots-3-note-preview:free', 'nex-agi/nex-n2.5-mini:free'];
+  const models = [
+    ...(Deno.env.get('OPENROUTER_MODEL') || '').split(',').map((m) => m.trim()).filter(Boolean),
+    ...FALLBACK_MODELS,
+  ].filter((m, i, a) => a.indexOf(m) === i);
 
   let imageBase64: string, mimeType: string, description: string | undefined;
   try {
@@ -185,52 +194,70 @@ Deno.serve(async (req: Request) => {
   if (!imageBase64) return json({ error: 'An image is required' }, 400);
   if (imageBase64.length > 12_000_000) return json({ error: 'This photo is too large.' }, 413);
 
-  let providerRes: Response;
-  try {
-    providerRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://adwumago.app',
-        'X-Title': 'AdwumaGo',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: buildPrompt(description) },
-            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
-          ],
-        }],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-      }),
+  const requestBody = (model: string) =>
+    JSON.stringify({
+      model,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: buildPrompt(description) },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+        ],
+      }],
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
     });
-  } catch (err) {
-    console.error('openrouter fetch failed', err);
-    return json({ error: 'Could not reach the AI service' }, 502);
-  }
-
-  if (!providerRes.ok) {
-    const detail = await providerRes.text().catch(() => '');
-    console.error('openrouter error', providerRes.status, detail);
-    if (providerRes.status === 401 || providerRes.status === 403) {
-      return json({ error: 'AI service is misconfigured', code: 'not_configured' }, 503);
-    }
-    if (providerRes.status === 429) return json({ error: 'AI service is busy — try again shortly' }, 429);
-    return json({ error: 'The AI service returned an error' }, 502);
-  }
 
   let text = '';
-  try {
-    const data = await providerRes.json();
-    text = String(data?.choices?.[0]?.message?.content ?? '').trim();
-  } catch {
-    return json({ error: 'AI response could not be read' }, 502);
+  let lastStatus = 0;
+  let lastDetail = '';
+
+  for (const model of models) {
+    let providerRes: Response;
+    try {
+      providerRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://adwumago.app',
+          'X-Title': 'AdwumaGo',
+        },
+        body: requestBody(model),
+      });
+    } catch (err) {
+      console.error('openrouter fetch failed', model, err);
+      lastStatus = 502;
+      continue;
+    }
+
+    if (!providerRes.ok) {
+      lastStatus = providerRes.status;
+      lastDetail = await providerRes.text().catch(() => '');
+      console.error('openrouter error', model, providerRes.status, lastDetail.slice(0, 300));
+      // A bad key/permission is fatal for every model — stop early.
+      if (providerRes.status === 401 || providerRes.status === 403) {
+        return json({ error: 'AI service is misconfigured', code: 'not_configured' }, 503);
+      }
+      // 402/404/429/5xx → this model is unavailable right now; try the next.
+      continue;
+    }
+
+    try {
+      const data = await providerRes.json();
+      text = String(data?.choices?.[0]?.message?.content ?? '').trim();
+    } catch {
+      lastStatus = 502;
+      continue;
+    }
+    if (text) break;
   }
-  if (!text) return json({ error: 'AI response was empty' }, 502);
+
+  if (!text) {
+    console.error('all models failed', lastStatus, lastDetail.slice(0, 300));
+    if (lastStatus === 429) return json({ error: 'AI service is busy — try again shortly' }, 429);
+    return json({ error: 'The AI service is unavailable right now', code: 'not_configured' }, 503);
+  }
 
   try {
     return json(normalize(extractJson(text)), 200);

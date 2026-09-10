@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { identityCols, stripIdentityKeys, withIdentityFallback } from './workerIdentity';
 
 export type WorkerVerificationStatus = 'pending' | 'verified' | 'rejected';
 
@@ -62,12 +63,14 @@ export type VerifiedWorkerSummary = {
 
 /** Every verified worker — the real backing for the client-side browse/search screens (home's "nearby workers", Search.tsx's list/map). No location/skill filter server-side; these screens filter client-side over the full list, same as the mock data they replace. */
 export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: VerifiedWorkerSummary[]; error?: string }> {
-  const { data, error } = await supabase
-    .from('worker_profiles')
-    .select(
-      'id, display_name, photo_url, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
-    )
-    .eq('verification_status', 'verified');
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('worker_profiles')
+      .select(
+        `id, ${identityCols()}skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)`
+      )
+      .eq('verification_status', 'verified')
+  );
 
   if (error) {
     return { success: false, error: error.message };
@@ -105,13 +108,15 @@ export async function listVerifiedWorkers(): Promise<{ success: boolean; data?: 
 export async function listVerifiedWorkersForCategory(
   category: string
 ): Promise<{ success: boolean; data?: VerifiedWorkerSummary[]; error?: string }> {
-  const { data, error } = await supabase
-    .from('worker_profiles')
-    .select(
-      'id, display_name, photo_url, skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)'
-    )
-    .eq('verification_status', 'verified')
-    .contains('skills', [category]);
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('worker_profiles')
+      .select(
+        `id, ${identityCols()}skills, hourly_rate, per_job_rate, rating_avg, rating_count, latitude, longitude, availability, is_online, profile:profiles!worker_profiles_id_fkey(full_name,avatar_url)`
+      )
+      .eq('verification_status', 'verified')
+      .contains('skills', [category])
+  );
 
   if (error) {
     return { success: false, error: error.message };
@@ -219,9 +224,12 @@ export async function createWorkerProfile(
     return { success: false, error: 'Not signed in.' };
   }
 
-  const { error } = await supabase
-    .from('worker_profiles')
-    .upsert({ id: auth.user.id, ...input }, { onConflict: 'id' });
+  const { error } = await withIdentityFallback(() =>
+    supabase
+      .from('worker_profiles')
+      .upsert({ id: auth.user.id, ...stripIdentityKeys(input as Record<string, unknown>) }, { onConflict: 'id' })
+      .select('id')
+  );
 
   if (error) {
     return { success: false, error: error.message };
@@ -241,11 +249,13 @@ export async function updateWorkerProfile(
   // .select() so a write that matches no row (RLS denial, or the worker_profiles
   // row was never created) comes back empty instead of a false success — see
   // cancelServiceRequest for the same guard.
-  const { data, error } = await supabase
-    .from('worker_profiles')
-    .update(patch)
-    .eq('id', auth.user.id)
-    .select('id');
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('worker_profiles')
+      .update(stripIdentityKeys(patch as Record<string, unknown>))
+      .eq('id', auth.user.id)
+      .select('id')
+  );
 
   if (error) {
     return { success: false, error: error.message };

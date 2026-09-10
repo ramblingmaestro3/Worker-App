@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { identityEmbed, withIdentityFallback } from './workerIdentity';
 
 export type BookingStatus = 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -114,13 +115,15 @@ export async function listMyBookingsAsClient(): Promise<{
     return { success: false, error: 'Not signed in.' };
   }
 
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(
-      '*, worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url,worker_profiles(display_name,photo_url)), request:service_requests!bookings_request_id_fkey(category,description,location_string), bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)'
-    )
-    .eq('client_id', auth.user.id)
-    .order('created_at', { ascending: false });
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('bookings')
+      .select(
+        `*, worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url${identityEmbed()}), request:service_requests!bookings_request_id_fkey(category,description,location_string), bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)`
+      )
+      .eq('client_id', auth.user.id)
+      .order('created_at', { ascending: false })
+  );
 
   if (error) {
     return { success: false, error: error.message };
@@ -210,18 +213,20 @@ export async function listMyConversations(): Promise<{ success: boolean; data?: 
   }
   const uid = auth.user.id;
 
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(
-      `id, status, request_id, client_id, worker_id,
-       client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
-       worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url,worker_profiles(display_name,photo_url)),
-       request:service_requests!bookings_request_id_fkey(category),
-       messages(id,message_text,sender_id,is_read,created_at)`
-    )
-    .or(`client_id.eq.${uid},worker_id.eq.${uid}`)
-    .order('created_at', { referencedTable: 'messages', ascending: false })
-    .limit(1, { referencedTable: 'messages' });
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('bookings')
+      .select(
+        `id, status, request_id, client_id, worker_id,
+         client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
+         worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url${identityEmbed()}),
+         request:service_requests!bookings_request_id_fkey(category),
+         messages(id,message_text,sender_id,is_read,created_at)`
+      )
+      .or(`client_id.eq.${uid},worker_id.eq.${uid}`)
+      .order('created_at', { referencedTable: 'messages', ascending: false })
+      .limit(1, { referencedTable: 'messages' })
+  );
 
   if (error) {
     return { success: false, error: error.message };
@@ -275,16 +280,18 @@ export type BookingChatContext = Booking & {
 export async function getBookingWithContext(
   bookingId: string
 ): Promise<{ success: boolean; data?: BookingChatContext; error?: string }> {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(
-      `*, client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
-       worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url,worker_profiles(display_name,photo_url)),
-       request:service_requests!bookings_request_id_fkey(category,description,location_string,latitude,longitude,scheduled_for),
-       bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)`
-    )
-    .eq('id', bookingId)
-    .single();
+  const { data, error } = await withIdentityFallback(() =>
+    supabase
+      .from('bookings')
+      .select(
+        `*, client:profiles!bookings_client_id_fkey(id,full_name,avatar_url),
+         worker:profiles!bookings_worker_id_fkey(id,full_name,avatar_url${identityEmbed()}),
+         request:service_requests!bookings_request_id_fkey(category,description,location_string,latitude,longitude,scheduled_for),
+         bid:worker_bids!bookings_bid_id_fkey(proposed_price,counter_price)`
+      )
+      .eq('id', bookingId)
+      .single()
+  );
 
   if (error) {
     return { success: false, error: error.message };

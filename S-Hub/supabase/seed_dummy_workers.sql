@@ -53,7 +53,8 @@ insert into _seed_categories (category, skills, bio, rate_min, rate_max, perjob_
 ('tiling', array['Floor Tiling','Wall Tiling','Tile Repair','Grouting','Bathroom Tiling'], 'Tiler specializing in floor and wall tiling for homes and offices.', 25,55, 250,1400),
 ('roofing', array['Roof Repair','Roof Installation','Gutter Installation','Leak Repair','Roof Sheeting'], 'Roofing specialist for repairs, new installations and leak fixes.', 30,70, 400,2000),
 ('security', array['CCTV Installation','Alarm Systems','Access Control','Camera Repair','Security Consulting'], 'Security systems installer for CCTV, alarms and access control.', 30,75, 300,1500),
-('other', array['Furniture Assembly','General Repairs','Odd Jobs','Home Maintenance','Appliance Installation'], 'Reliable handyman for a wide range of home repair and maintenance tasks.', 15,40, 80,500);
+('other', array['Furniture Assembly','General Repairs','Odd Jobs','Home Maintenance','Appliance Installation'], 'Reliable handyman for a wide range of home repair and maintenance tasks.', 15,40, 80,500),
+('mechanic', array [  'Car Repair', 'Motorcycle Repair', 'Engine Repair', 'Brake Repair', 'Suspension Repair', 'Car Service', 'Engine Tuning', 'Transmission Repair', 'Clutch Repair', 'Battery Replacement'],  'Auto mechanic providing engine diagnostics, repairs and routine maintenance for cars and light vehicles.', 20, 55, 100, 1200)
 
 create temporary table _seed_regions (
   region text,
